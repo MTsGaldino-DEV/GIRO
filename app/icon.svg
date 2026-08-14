@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="GIRO">
+  <title>GIRO</title>
+  <rect width="120" height="120" rx="26" fill="#0E7C74"/>
+  <g stroke="#FFFFFF" stroke-width="8" stroke-linecap="round" opacity="0.5">
+    <line x1="82" y1="47" x2="93" y2="41"/>
+    <line x1="86" y1="60" x2="98" y2="60"/>
+    <line x1="82" y1="73" x2="93" y2="79"/>
+    <line x1="60" y1="86" x2="60" y2="99"/>
+    <line x1="38" y1="73" x2="27" y2="79"/>
+    <line x1="34" y1="60" x2="21" y2="60"/>
+    <line x1="38" y1="47" x2="27" y2="41"/>
+  </g>
+  <line x1="60" y1="34" x2="60" y2="18" stroke="#FFFFFF" stroke-width="8" stroke-linecap="round"/>
+  <path d="M76.5 15.2 A50 50 0 1 1 43.5 15.2" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+  <polygon points="47.5,13.0 40.0,21.5 37.0,11.0" fill="#FFFFFF"/>
+</svg>

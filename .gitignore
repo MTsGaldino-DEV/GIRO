@@ -1,0 +1,23 @@
+node_modules/
+.next/
+out/
+build/
+next-env.d.ts
+*.tsbuildinfo
+
+# Segredos — nunca versionar
+.env
+.env.local
+.env*.local
+
+# Dados de origem: contêm CPF e data de nascimento de 261 pessoas.
+# O schema e os scripts são versionados; os arquivos, não.
+data/*.xlsx
+data/*.csv
+data/*.CSV
+data/*.json
+!data/.gitkeep
+
+.vercel
+.DS_Store
+Thumbs.db
