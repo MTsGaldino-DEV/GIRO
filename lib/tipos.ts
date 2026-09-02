@@ -1,6 +1,6 @@
 /** Contratos compartilhados. Espelham as views e tabelas do Postgres. */
 
-export type Papel = "qsms" | "supervisor";
+export type Papel = "qsms" | "supervisor" | "admin";
 
 export type Etapa =
   | "previsto"

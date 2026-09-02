@@ -56,6 +56,15 @@
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
+
+  /* Sidebar — tom escuro próprio, deliberadamente diferente de
+     --color-status-vencido-bg (#23262B): a sidebar é cromia de navegação, não
+     pode ser confundida com o "preto" reservado do semáforo. */
+  --color-sidebar-bg: #132523;
+  --color-sidebar-active: #0E7C74;
+  --color-sidebar-text: #8FA6A2;
+  --color-sidebar-text-active: #FFFFFF;
+  --color-sidebar-line: rgba(255, 255, 255, 0.08);
 }
 
 /* --------------------------------------------------------------------------
@@ -266,10 +275,18 @@ a {
    Tabela do painel
    -------------------------------------------------------------------------- */
 
+/* Linhas como cartões, mas ainda uma <table>.
+   O visual de cartão é CSS; a semântica de tabela fica. São colunas de dados
+   tabulares e o leitor de tela precisa anunciar "Status, coluna 4" — trocar
+   por uma pilha de <div> daria o mesmo pixel e destruiria essa leitura. */
 .tabela {
   width: 100%;
-  border-collapse: collapse;
-  background: var(--color-surface);
+  /* Espremer oito colunas em qualquer largura quebra os nomes em três linhas e
+     transforma cada linha num bloco de 90px. Melhor rolar na horizontal — o
+     wrapper já tem overflow-x-auto — do que empilhar palavra por palavra. */
+  min-width: 1000px;
+  border-collapse: separate;
+  border-spacing: 0 0.5rem;
 }
 
 .tabela th {
@@ -279,17 +296,190 @@ a {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-ink-faint);
-  padding: 0.625rem 0.875rem;
-  border-bottom: 1px solid var(--color-line);
+  padding: 0.25rem 0.875rem 0.5rem;
+  white-space: nowrap;
+}
+
+/* A coluna do colaborador carrega nome, matrícula, cargo e o aviso de janela
+   útil. É a que precisa de espaço; as outras cabem no que sobra. */
+.tabela td:first-child,
+.tabela th:first-child {
+  min-width: 310px;
 }
 
 .tabela td {
   padding: 0.75rem 0.875rem;
-  border-bottom: 1px solid var(--color-line);
   vertical-align: middle;
+  background: var(--color-surface);
+  border-block: 1px solid var(--color-line);
+  transition: background-color 0.14s ease, border-color 0.14s ease;
 }
 
-.tabela tbody tr:hover { background: var(--color-mist); }
+.tabela td:first-child {
+  border-left: 1px solid var(--color-line);
+  border-start-start-radius: var(--radius);
+  border-end-start-radius: var(--radius);
+  /* Barra de acento: 0 em repouso, 3px no hover. Como é box-shadow inset e
+     não borda, aparecer não empurra o conteúdo da célula. */
+  box-shadow: inset 3px 0 0 -3px var(--color-brand);
+  transition: box-shadow 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+}
+
+.tabela td:last-child {
+  border-right: 1px solid var(--color-line);
+  border-start-end-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+}
+
+/* O hover NÃO preenche de petróleo sólido, ao contrário da referência que
+   inspirou este layout. O selo de conformidade é o único canal que a tela tem
+   para dizer quem não pode trabalhar amanhã; sobre petróleo saturado o âmbar
+   de "programar" e o coral de "atenção" perdem contraste e viram manchas
+   parecidas — o semáforo morreria justamente na linha que está sendo olhada.
+   Petróleo lavado dá a mesma resposta e preserva a leitura. */
+.tabela tbody tr:hover td {
+  background: var(--color-brand-wash);
+  border-color: transparent;
+}
+
+.tabela tbody tr:hover td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--color-brand);
+}
+
+/* Elevação no hover. transform no <tr> não é confiável entre navegadores;
+   o filtro entrega a sombra sem mexer no layout da tabela. */
+.tabela tbody tr {
+  transition: filter 0.14s ease;
+}
+.tabela tbody tr:hover {
+  filter: drop-shadow(0 1px 2px rgb(35 38 43 / 0.07));
+}
+
+/* Miniatura do colaborador na lista e no cabeçalho da página dele */
+.avatar-colaborador {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: #FFFFFF;
+  font-weight: 500;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.avatar-colaborador--inicial {
+  /* Petróleo lavado com texto petróleo: presente na lista sem competir com o
+     selo de status, que é quem precisa ser visto primeiro. */
+  background: var(--color-brand-wash);
+  color: var(--color-brand);
+}
+
+/* Cartão de contagem: é um filtro clicável, então precisa responder ao mouse
+   e mostrar qual está aplicado. Petróleo lavado, nunca a cor do status que o
+   cartão conta — senão o cartão compete com o próprio selo que ele exibe. */
+.cartao-contagem {
+  transition: border-color 0.14s ease, background-color 0.14s ease, filter 0.14s ease;
+}
+.cartao-contagem:hover {
+  border-color: var(--color-brand);
+  filter: drop-shadow(0 1px 2px rgb(35 38 43 / 0.07));
+}
+.cartao-contagem[data-ativo="true"] {
+  border-color: var(--color-brand);
+  background: var(--color-brand-wash);
+  box-shadow: inset 0 0 0 1px var(--color-brand);
+}
+
+/* Abas da página do colaborador.
+   Sublinhado em petróleo, nunca cor de status: aba é navegação, e navegação
+   colorida rouba o canal do semáforo. */
+.abas {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-line);
+  margin-bottom: 1.25rem;
+}
+
+.abas__item {
+  padding: 0.625rem 0.875rem;
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  font-size: var(--text-label);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.abas__item:hover {
+  color: var(--color-ink);
+  border-bottom-color: var(--color-line-strong);
+}
+.abas__item[aria-current="page"] {
+  color: var(--color-brand);
+  border-bottom-color: var(--color-brand);
+  font-weight: 500;
+}
+
+/* Cartão de indicador do cabeçalho do colaborador */
+.indicador {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.indicador__icone {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-brand-wash);
+  color: var(--color-brand);
+  flex-shrink: 0;
+}
+
+/* Paginação */
+.paginacao__item {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink-muted);
+  text-decoration: none;
+  font-size: var(--text-label);
+  font-variant-numeric: tabular-nums;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+.paginacao__item:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+.paginacao__item[aria-current="page"] {
+  background: var(--color-brand);
+  border-color: var(--color-brand);
+  color: #FFFFFF;
+  font-weight: 500;
+}
+.paginacao__item[aria-disabled="true"] {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Cabeçalho ordenável */
+.tabela th a {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+.tabela th a:hover { color: var(--color-ink-muted); }
+.tabela th [data-seta] { color: var(--color-brand); }
 
 /* Dias parados na etapa atual. Só ganha cor quando o SLA estoura —
    e mesmo assim usa grafite, não vermelho: o vermelho pertence ao
@@ -306,4 +496,150 @@ a {
   content: " · SLA estourado";
   font-weight: 400;
   font-size: var(--text-caption);
+}
+
+/* --------------------------------------------------------------------------
+   Sidebar (ajuste ao MVP, seção 3)
+   -------------------------------------------------------------------------- */
+
+.sidebar {
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-sidebar-line);
+}
+
+.sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 1.25rem 1rem;
+  color: var(--color-sidebar-text-active);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  font-size: var(--text-body);
+}
+.sidebar__logo-dot { color: var(--color-brand-light); }
+
+.sidebar__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius);
+  color: var(--color-sidebar-text);
+  text-decoration: none;
+  font-size: var(--text-body);
+  transition: background-color 0.14s ease, color 0.14s ease, transform 0.14s ease;
+}
+
+/* O deslocamento sugere a direção da navegação — o item se move para onde
+   o clique vai levar. */
+.sidebar__item:hover {
+  color: var(--color-sidebar-text-active);
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(2px);
+}
+
+.sidebar__item--ativo,
+.sidebar__item--ativo:hover {
+  background: var(--color-sidebar-active);
+  color: var(--color-sidebar-text-active);
+  font-weight: 500;
+  transform: none;
+}
+
+/* Barra indicadora do item ativo.
+   Substitui o recorte côncavo da referência, que exigiria radial-gradient em
+   duas pontas e quebraria a cada mudança de altura do item. Três linhas de
+   CSS entregam a mesma leitura de "aba selecionada". */
+.sidebar__item--ativo::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 50%;
+  translate: 0 -50%;
+  width: 3px;
+  height: 60%;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-brand-light);
+}
+
+/* O chevron acompanha o mouse: confirma que o item ativo continua clicável. */
+.sidebar__item--ativo svg:last-child {
+  transition: transform 0.14s ease;
+}
+.sidebar__item--ativo:hover svg:last-child {
+  transform: translateX(2px);
+}
+
+/* Padding lateral alinhado ao ícone dos itens de navegação (12px do
+   container + 12px do item), para o avatar cair na mesma coluna vertical. */
+.sidebar__usuario {
+  border-top: 1px solid var(--color-sidebar-line);
+  padding: 0.875rem 0.625rem 0.875rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sidebar__identidade {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.sidebar__acoes {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.sidebar__avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  color: #FFFFFF;
+  font-size: var(--text-label);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.sidebar__botao-icone {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 0;
+  color: var(--color-sidebar-text);
+  cursor: pointer;
+  text-decoration: none;
+}
+.sidebar__botao-icone:hover {
+  color: var(--color-sidebar-text-active);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Trilho de ícones (<768px): o avatar é decorativo e não cabe ao lado dos dois
+   botões em 64px de largura. Some ele e empilha as ações, que são o que o
+   supervisor precisa alcançar no celular. */
+@media (max-width: 767px) {
+  .sidebar__usuario {
+    padding: 0.75rem 0;
+    justify-content: center;
+  }
+  .sidebar__identidade { display: none; }
+  .sidebar__acoes { flex-direction: column; gap: 0.25rem; }
+  .sidebar__logo { justify-content: center; padding: 1.25rem 0; }
+  /* O trilho usa px-2, não px-3: a barra indicadora acompanha para não sair
+     da sidebar e ser cortada. */
+  .sidebar__item--ativo::before { left: -0.5rem; }
+  .sidebar__item:hover { transform: none; }
 }

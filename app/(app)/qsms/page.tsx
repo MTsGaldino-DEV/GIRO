@@ -12,13 +12,19 @@ import {
 } from "@/lib/dominio";
 import { SeloStatus, CartaoContagem } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
+import { AvatarColaborador } from "@/components/avatar-colaborador";
+import { Paginacao } from "@/components/paginacao";
+import { assinarFotos } from "@/lib/colaborador";
 import { BotaoGerarItens } from "./gerar-itens";
+import { ColunaOrdenavel, COLUNAS_ORDENAVEIS, ehChaveOrdenacao } from "./ordenacao";
 import type { ItemAberto, ResumoStatus, Supervisor, Etapa, StatusConformidade } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Painel do QSMS" };
 export const dynamic = "force-dynamic";
 
 const SEM_SUPERVISOR = "sem-supervisor";
+
+const POR_PAGINA = 25;
 
 export default async function PainelQsms({
   searchParams,
@@ -29,6 +35,9 @@ export default async function PainelQsms({
     supervisor?: string;
     polo?: string;
     parados?: string;
+    ordem?: string;
+    dir?: string;
+    pagina?: string;
   }>;
 }) {
   await exigirQsms();
@@ -44,12 +53,20 @@ export default async function PainelQsms({
   const resumo = (resumoBruto?.[0] ?? null) as ResumoStatus | null;
   const supervisores = (supervisoresBrutos ?? []) as Supervisor[];
 
-  let consulta = supabase
-    .from("vw_itens_abertos")
-    .select("*")
-    // Pior primeiro, e dentro do mesmo status quem está parado há mais tempo.
-    .order("peso_status")
-    .order("dias_parados", { ascending: false });
+  const ordem = ehChaveOrdenacao(filtros.ordem) ? filtros.ordem : null;
+  const direcao = filtros.dir === "desc" ? "desc" : "asc";
+  const pagina = Math.max(1, Number(filtros.pagina) || 1);
+
+  // count exact: a paginação precisa do total, não só da fatia.
+  let consulta = supabase.from("vw_itens_abertos").select("*", { count: "exact" });
+
+  if (ordem) {
+    consulta = consulta.order(COLUNAS_ORDENAVEIS[ordem].coluna, { ascending: direcao === "asc" });
+  } else {
+    // Padrão: pior primeiro, e dentro do mesmo status quem está parado há mais
+    // tempo. É a ordem que responde "o que eu faço agora".
+    consulta = consulta.order("peso_status").order("dias_parados", { ascending: false });
+  }
 
   if (filtros.status) consulta = consulta.eq("status", filtros.status);
   if (filtros.etapa) consulta = consulta.eq("etapa", filtros.etapa);
@@ -58,8 +75,22 @@ export default async function PainelQsms({
   if (filtros.supervisor === SEM_SUPERVISOR) consulta = consulta.is("supervisor_id", null);
   else if (filtros.supervisor) consulta = consulta.eq("supervisor_id", filtros.supervisor);
 
-  const { data, error } = await consulta.limit(500);
+  const inicio = (pagina - 1) * POR_PAGINA;
+  const { data, error, count } = await consulta.range(inicio, inicio + POR_PAGINA - 1);
   const itens = (data ?? []) as ItemAberto[];
+  const total = count ?? 0;
+
+  // A view de itens não carrega foto_url. Uma consulta pelos ids da página,
+  // depois uma única chamada de assinatura para todas as fotos dela.
+  const { data: fotosBrutas } = await supabase
+    .from("colaboradores")
+    .select("id, foto_url")
+    .in("id", itens.map((i) => i.colaborador_id));
+
+  const caminhoPorColaborador = new Map(
+    (fotosBrutas ?? []).map((c) => [c.id, c.foto_url as string | null])
+  );
+  const urlPorCaminho = await assinarFotos([...caminhoPorColaborador.values()]);
 
   const { data: polosBrutos } = await supabase
     .from("colaboradores")
@@ -76,7 +107,7 @@ export default async function PainelQsms({
         <div>
           <h1>Painel do QSMS</h1>
           <p className="text-ink-muted text-label mt-1">
-            {itens.length} {itens.length === 1 ? "item em aberto" : "itens em aberto"}
+            {total} {total === 1 ? "item em aberto" : "itens em aberto"}
             {temFiltro && " no filtro atual"}.
           </p>
         </div>
@@ -174,18 +205,30 @@ export default async function PainelQsms({
         </p>
       )}
 
-      <div className="card p-0 overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="tabela">
           <caption className="sr-only">Itens de pendência em aberto</caption>
           <thead>
             <tr>
-              <th scope="col">Colaborador</th>
+              <ColunaOrdenavel
+                chave="nome" rotulo="Colaborador"
+                ordem={ordem} direcao={direcao} parametros={filtros} base="/qsms"
+              />
               <th scope="col">Supervisor</th>
-              <th scope="col">Vencimento</th>
-              <th scope="col">Status</th>
+              <ColunaOrdenavel
+                chave="vencimento" rotulo="Vencimento"
+                ordem={ordem} direcao={direcao} parametros={filtros} base="/qsms"
+              />
+              <ColunaOrdenavel
+                chave="status" rotulo="Status"
+                ordem={ordem} direcao={direcao} parametros={filtros} base="/qsms"
+              />
               <th scope="col">Etapa</th>
               <th scope="col">Com quem</th>
-              <th scope="col">Dias parados</th>
+              <ColunaOrdenavel
+                chave="parados" rotulo="Dias parados"
+                ordem={ordem} direcao={direcao} parametros={filtros} base="/qsms"
+              />
               <th scope="col"><span className="sr-only">Ações</span></th>
             </tr>
           </thead>
@@ -195,18 +238,32 @@ export default async function PainelQsms({
               return (
                 <tr key={item.item_id}>
                   <td>
-                    <Link href={`/qsms/item/${item.item_id}`} className="font-medium no-underline">
-                      {item.nome}
-                    </Link>
-                    <span className="block text-caption text-ink-faint tabular">
-                      {item.matricula}
-                      {item.cargo ? ` · ${item.cargo}` : ""}
-                    </span>
-                    {janela && (
-                      <span className="block text-caption text-ink-muted mt-1 max-w-[42ch]">
-                        {janela}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <AvatarColaborador
+                        nome={item.nome}
+                        fotoUrl={urlPorCaminho.get(
+                          caminhoPorColaborador.get(item.colaborador_id) ?? ""
+                        )}
+                      />
+                      <div className="min-w-0">
+                        {/* O nome leva à pessoa; o botão "Abrir" leva ao ciclo. */}
+                        <Link
+                          href={`/qsms/colaborador/${item.colaborador_id}`}
+                          className="font-medium no-underline"
+                        >
+                          {item.nome}
+                        </Link>
+                        <span className="block text-caption text-ink-faint tabular">
+                          {item.matricula}
+                          {item.cargo ? ` · ${item.cargo}` : ""}
+                        </span>
+                        {janela && (
+                          <span className="block text-caption text-ink-muted mt-1 max-w-[42ch]">
+                            {janela}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="text-label">
                     {item.supervisor_nome ?? (
@@ -243,6 +300,14 @@ export default async function PainelQsms({
           </Vazio>
         )}
       </div>
+
+      <Paginacao
+        pagina={pagina}
+        porPagina={POR_PAGINA}
+        total={total}
+        base="/qsms"
+        parametros={filtros}
+      />
     </div>
   );
 }

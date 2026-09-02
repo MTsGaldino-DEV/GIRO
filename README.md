@@ -21,8 +21,10 @@ Identidade visual: [`docs/identidade-visual.md`](docs/identidade-visual.md).
 | E-mail | Resend |
 | Jobs agendados | Vercel Cron |
 
-Autenticação por **magic link**, sem senha. Supervisor de campo não gerencia
-senha — se houver senha, ele abandona o sistema.
+Autenticação por **e-mail e senha**. Não há autocadastro: todo acesso é criado
+por um admin em `/admin/usuarios`, com senha temporária definida no ato. Quem
+recebe troca a senha depois em `/conta/senha`, e há fluxo de "esqueci minha
+senha" por e-mail.
 
 ---
 
@@ -32,18 +34,26 @@ senha — se houver senha, ele abandona o sistema.
 npm install
 cp .env.example .env.local     # preencher com as chaves do Supabase
 npm run db:push                # aplica supabase/migrations/*.sql em ordem
-npm run seed:colaboradores     # importa data/Colaboradores_211.xlsx
-node scripts/criar-perfil.mjs qsms voce@engelmig.com.br "Seu Nome"
+node scripts/criar-perfil.mjs admin voce@engelmig.com.br "Seu Nome" SuaSenha123
+npm run seed:teste             # base fictícia de 15 colaboradores + 3 contas
 npm run dev
 ```
 
-Os arquivos de origem vão em `data/` e **não são versionados** — contêm CPF e
-data de nascimento de 261 pessoas.
+A base **não tem dado real de pessoa**. O seed de teste popula 15 colaboradores
+fictícios com CPFs de dígitos repetidos (inválidos pelo checksum, nunca colidem
+com alguém real) e datas relativas à execução, cobrindo todos os status do
+semáforo e todos os estágios do fluxo.
 
-| Arquivo esperado | Origem |
-|---|---|
-| `data/Colaboradores_211.xlsx` | export de RH, aba `Export`, 261 linhas |
-| `data/ASO_Proximos_vencimentos.CSV` | separador `;`, cp1252, coluna `Prox. Exame` |
+### Contas de teste (`npm run seed:teste`)
+
+| Perfil | E-mail | Senha |
+|---|---|---|
+| Admin | `teste.admin@giro.local` | `Giro@Teste123` |
+| QSMS | `teste.qsms@giro.local` | `Giro@Teste123` |
+| Supervisor | `teste.supervisor@giro.local` | `Giro@Teste123` |
+
+> `npm run seed:teste` é destrutivo: apaga todos os colaboradores e supervisores
+> antes de popular os fictícios. Não rodar contra base com dado a preservar.
 
 ---
 
@@ -56,13 +66,11 @@ data de nascimento de 261 pessoas.
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run db:push` | aplica todas as migrations (idempotente) |
 | `npm run db:push -- --only 0003` | aplica uma migration só |
-| `npm run seed:colaboradores` | importa/atualiza a base a partir do XLSX |
-| `npm run seed:colaboradores -- --dry-run` | relatório de diferenças, sem gravar |
-| `npm run seed:aso` | cria os eventos retroativos a partir do CSV |
+| `npm run seed:teste` | popula a base fictícia e as 3 contas de teste |
 | `node scripts/verificar.mjs` | conferência rápida da base |
 | `node scripts/teste-fluxo.mjs` | ciclo de vida completo contra o banco real |
 | `node scripts/teste-rls.mjs` | isolamento entre equipes |
-| `node scripts/criar-perfil.mjs qsms <email> "<nome>"` | cria o primeiro acesso |
+| `node scripts/criar-perfil.mjs admin <email> "<nome>" <senha>` | cria o primeiro acesso |
 | `node scripts/gerar-icones.mjs` | rasteriza `apple-icon.png` e os ícones de PWA a partir do SVG |
 
 ---
@@ -74,6 +82,21 @@ data de nascimento de 261 pessoas.
 Verde, âmbar, coral e vermelho pertencem **exclusivamente** ao status de
 conformidade. Nunca em botão, link, cabeçalho ou badge. Ações e navegação usam
 petróleo (`--color-brand`) e grafite (`--color-ink`).
+
+A sidebar tem tom escuro próprio (`--color-sidebar-bg`, `#132523`),
+deliberadamente distinto do preto reservado do status vencido
+(`--color-status-vencido-bg`, `#23262B`). São duas cores escuras que significam
+coisas diferentes e não podem se confundir.
+
+Pelo mesmo motivo o hover das linhas da lista **não** preenche de petróleo
+sólido, ainda que a referência visual que inspirou o layout faça isso: sobre
+petróleo saturado, o âmbar de "programar" e o coral de "atenção" perdem
+contraste e viram manchas parecidas — o semáforo morreria justamente na linha
+que está sendo olhada. O hover usa petróleo lavado mais uma barra de acento, o
+que dá a mesma resposta sem custar a leitura.
+
+O gráfico do dashboard é SVG inline, sem biblioteca. Uma série única de doze
+barras não justifica centenas de kB de `recharts` no bundle.
 
 Não é preciosismo estético: o painel existe para que alguém bata o olho e saiba
 quem não pode trabalhar amanhã. Se o botão "Salvar" for verde, o verde deixa de
@@ -139,9 +162,15 @@ por noite. Toda data de negócio passa por `public.hoje()`, que devolve a data e
 
 ## Segurança
 
+- Login por e-mail e senha, mínimo de 8 caracteres, validado no front e no back.
+  Falha de login devolve mensagem genérica ("E-mail ou senha inválidos") e o
+  "esqueci minha senha" devolve a mesma resposta exista ou não o e-mail — as
+  duas coisas evitam enumeração de contas.
 - Supervisor enxerga apenas colaboradores com o `supervisor_id` dele. Garantido
   por RLS, e as views usam `security_invoker = true` para herdar essa restrição.
-- Só o perfil QSMS cria `eventos_requisito` com resultado.
+- Só o perfil QSMS cria `eventos_requisito` com resultado. `admin` tem o mesmo
+  alcance de leitura e escrita do QSMS (`fn_e_qsms` cobre os dois) e, além
+  disso, a tela de gestão de usuários.
 - Supervisor **não tem** política de escrita em `itens_pendencia`: toda ação
   dele passa pelas RPCs, que validam transição e gravam histórico. Política de
   UPDATE coluna a coluna daria a mesma permissão sem nenhuma dessas garantias.
@@ -189,7 +218,7 @@ O código implementa o comportamento padrão de cada uma e deixa o ponto marcado
 | **P5** | Avaliação psicossocial | booleano informativo no item, sem regra automática |
 | **P6** | Regra de jejum | `exige_jejum` ligado, com aviso de texto fixo |
 | **P7** | Origem das ausências | tela `/qsms/ausencias`, alimentada à mão |
-| **P8** | Atualização da base | `npm run seed:colaboradores`, com relatório de diferenças; quem sai é inativado, nunca apagado |
+| **P8** | Atualização da base | em aberto: o importador de XLSX foi removido junto com os dados reais. Precisa ser reescrito antes do go-live |
 | **P9** | Clínicas por polo | campo livre no agendamento |
 | **P10** | Capacidade da clínica | fora do MVP |
 | **P11** | Comunicação à CEMIG | campo de data, não bloqueia o fluxo |
@@ -206,6 +235,6 @@ ninguém é cobrado por ele.
    `NEXT_PUBLIC_SITE_URL` apontando para o domínio de produção.
 3. Gerar um `CRON_SECRET` aleatório e configurá-lo.
 4. No Supabase, em Authentication > URL Configuration, incluir
-   `https://SEU-DOMINIO/auth/callback` nas Redirect URLs — sem isso o magic
-   link volta para `localhost`.
+   `https://SEU-DOMINIO/auth/redefinir-senha` nas Redirect URLs — sem isso o
+   link de "esqueci minha senha" volta para `localhost`.
 5. Os crons de `vercel.json` sobem sozinhos.

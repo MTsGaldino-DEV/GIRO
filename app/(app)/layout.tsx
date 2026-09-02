@@ -1,6 +1,6 @@
 import { exigirPerfil } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { Cabecalho } from "@/components/cabecalho";
+import { Sidebar } from "@/components/sidebar";
 import { BannerBase } from "@/components/banner-base";
 import type { ResumoStatus } from "@/lib/tipos";
 
@@ -14,16 +14,18 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const resumo = (data?.[0] ?? null) as ResumoStatus | null;
 
   return (
-    <div className="min-h-dvh flex flex-col">
-      {resumo && (
-        <BannerBase
-          semRegistro={Number(resumo.sem_registro)}
-          total={Number(resumo.total)}
-          mostrarLink={perfil.papel === "qsms"}
-        />
-      )}
-      <Cabecalho perfil={perfil} />
-      <main className="flex-1 mx-auto w-full max-w-[1280px] px-4 sm:px-6 py-6">{children}</main>
+    <div className="min-h-dvh flex">
+      <Sidebar perfil={perfil} />
+      <div className="flex-1 flex flex-col min-w-0">
+        {resumo && (
+          <BannerBase
+            semRegistro={Number(resumo.sem_registro)}
+            total={Number(resumo.total)}
+            mostrarLink={perfil.papel !== "supervisor"}
+          />
+        )}
+        <main className="flex-1 w-full max-w-[1280px] px-4 sm:px-6 py-6">{children}</main>
+      </div>
     </div>
   );
 }

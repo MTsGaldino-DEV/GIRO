@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { exigirQsms } from "@/lib/perfil";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -14,11 +13,11 @@ const esquemaSupervisor = z.object({
 });
 
 /**
- * Cadastra o supervisor e já libera o acesso dele.
+ * Cadastra o supervisor na equipe.
  *
- * Duas coisas ao mesmo tempo de propósito: um supervisor sem usuário no
- * Supabase não recebe magic link, e um usuário sem linha em `perfis` entra e
- * não vê nada. Separar isso em dois passos garante que um deles seja esquecido.
+ * Só o registro em `supervisores` — não cria login. O acesso ao painel (com
+ * senha) é liberado à parte em "Gestão de usuários", só visível para admin,
+ * escolhendo este supervisor no vínculo.
  */
 export async function cadastrarSupervisor(
   _anterior: Acao | null,
@@ -37,57 +36,21 @@ export async function cadastrarSupervisor(
   const { nome, email } = analise.data;
   const supabase = await criarClienteServidor();
 
-  const { data: supervisor, error: erroSupervisor } = await supabase
+  const { error: erroSupervisor } = await supabase
     .from("supervisores")
-    .upsert({ nome, email, ativo: true }, { onConflict: "email" })
-    .select("id")
-    .single();
+    .upsert({ nome, email, ativo: true }, { onConflict: "email" });
 
-  if (erroSupervisor || !supervisor) {
-    return { ok: false, erro: erroSupervisor?.message ?? "Falha ao salvar o supervisor." };
-  }
-
-  // Criar o usuário exige service_role — a API de admin do Supabase não é
-  // acessível com a chave anon.
-  const admin = criarClienteAdmin();
-
-  const { data: usuarios } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  let usuarioId = usuarios?.users.find((u) => u.email?.toLowerCase() === email)?.id;
-
-  if (!usuarioId) {
-    const { data: novo, error: erroUsuario } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true, // entra por magic link; não há e-mail de confirmação a enviar
-    });
-    if (erroUsuario || !novo.user) {
-      return {
-        ok: false,
-        erro: `Supervisor salvo, mas o acesso não foi criado: ${erroUsuario?.message ?? "erro desconhecido"}`,
-      };
-    }
-    usuarioId = novo.user.id;
-  }
-
-  const { error: erroPerfil } = await admin.from("perfis").upsert(
-    {
-      id: usuarioId,
-      email,
-      nome,
-      papel: "supervisor",
-      supervisor_id: supervisor.id,
-      ativo: true,
-    },
-    { onConflict: "id" }
-  );
-
-  if (erroPerfil) {
-    return { ok: false, erro: `Supervisor salvo, mas o perfil falhou: ${erroPerfil.message}` };
+  if (erroSupervisor) {
+    return { ok: false, erro: erroSupervisor.message };
   }
 
   revalidatePath("/qsms/supervisores");
   revalidatePath("/qsms");
 
-  return { ok: true, mensagem: `${nome} cadastrado. Já pode entrar pelo link enviado ao e-mail.` };
+  return {
+    ok: true,
+    mensagem: `${nome} cadastrado. Libere o login em Gestão de usuários, se ele precisar entrar no painel.`,
+  };
 }
 
 // ---------------------------------------------------------------------------

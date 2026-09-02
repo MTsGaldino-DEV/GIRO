@@ -129,8 +129,8 @@ export function montarEmail({
         <tr><td style="padding:16px 14px 0;font-family:Arial,sans-serif">
           <div style="font-size:15px;color:${CORES.ink}">Bom dia, ${escapar(supervisorNome)}.</div>
           <div style="font-size:14px;color:${CORES.inkMuted};margin-top:6px">
-            Situação do ASO da sua equipe nesta semana. Cada botão abre direto no
-            item — você já entra logado, sem senha.
+            Situação do ASO da sua equipe nesta semana. Cada botão abre direto
+            no item.
           </div>
         </td></tr>
 

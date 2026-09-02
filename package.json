@@ -10,9 +10,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:push": "node scripts/db-push.mjs",
-    "seed:colaboradores": "node scripts/importar-colaboradores.mjs",
-    "seed:aso": "node scripts/importar-aso.mjs",
-    "seed:supervisores": "node scripts/importar-supervisores.mjs"
+    "seed:teste": "node scripts/seed-teste.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",

@@ -126,7 +126,7 @@ export default async function PaginaBase({
         </p>
       )}
 
-      <div className="card p-0 overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="tabela">
           <caption className="sr-only">
             Colaboradores e data do último ASO registrado
@@ -147,7 +147,12 @@ export default async function PaginaBase({
               <tr key={`${linha.colaborador_id}-${linha.tipo_requisito_id}`}>
                 <td className="tabular text-ink-muted">{linha.matricula}</td>
                 <td>
-                  <span className="font-medium">{linha.nome}</span>
+                  <Link
+                    href={`/qsms/colaborador/${linha.colaborador_id}`}
+                    className="font-medium no-underline"
+                  >
+                    {linha.nome}
+                  </Link>
                   {linha.ultimo_documento_estimado && (
                     <span className="block text-caption text-ink-faint">data estimada</span>
                   )}

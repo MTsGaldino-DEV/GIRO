@@ -32,10 +32,7 @@ export function CartaoContagem({
   ativo?: boolean;
 }) {
   return (
-    <div
-      className="card px-4 py-3"
-      style={ativo ? { borderColor: "var(--color-brand)", boxShadow: "inset 0 0 0 1px var(--color-brand)" } : undefined}
-    >
+    <div className="card cartao-contagem px-4 py-3" data-ativo={ativo ? "true" : undefined}>
       <div className="text-[1.75rem] leading-tight font-medium tabular">{quantidade}</div>
       <div className="mt-1">
         <SeloStatus status={status} dias={null} />

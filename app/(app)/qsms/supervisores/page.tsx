@@ -65,9 +65,10 @@ export default async function PaginaSupervisores({
     <div>
       <h1>Supervisores e equipes</h1>
       <p className="text-ink-muted text-label mt-1 mb-5 max-w-[70ch]">
-        Cadastrar o supervisor cria o acesso dele por magic link. Vincular
-        colaboradores define quem aparece no painel de quem e quem recebe qual
-        e-mail na segunda-feira.
+        Cadastrar o supervisor aqui só registra a equipe. O login dele (com
+        senha) é liberado em Gestão de usuários. Vincular colaboradores define
+        quem aparece no painel de quem e quem recebe qual e-mail na
+        segunda-feira.
       </p>
 
       {semSupervisor > 0 && (

@@ -5,9 +5,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * Renova o token do Supabase a cada navegação.
  *
  * Sem isso a sessão do supervisor expira em uma hora e ele volta a receber
- * pedido de login — que é exatamente o atrito que o magic link existe para
- * eliminar. A autorização em si fica nas páginas e na RLS; aqui só se cuida
- * do cookie.
+ * pedido de login no meio do expediente, no celular, em campo. A autorização
+ * em si fica nas páginas e na RLS; aqui só se cuida do cookie.
  */
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

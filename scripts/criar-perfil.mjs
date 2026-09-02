@@ -1,10 +1,12 @@
-// Cria o primeiro acesso QSMS. Sem isso ninguém entra: o login exige uma linha
-// ativa em `perfis`, e a tela que cadastra perfis é protegida por perfil QSMS.
+// Cria o primeiro acesso (admin ou qsms). Sem isso ninguém entra: o login
+// exige uma linha ativa em `perfis`, e a tela que cadastra os demais usuários
+// é protegida por perfil admin — alguém precisa existir antes dela.
 //
-//   node scripts/criar-perfil.mjs qsms fulano@engelmig.com.br "Fulano de Tal"
+//   node scripts/criar-perfil.mjs admin fulano@engelmig.com.br "Fulano de Tal" SenhaTemporaria123
 //
-// Para supervisor, prefira a tela /qsms/supervisores — ela cria o registro em
-// `supervisores` e o perfil de uma vez só.
+// Para supervisor, prefira a tela /admin/usuarios ou /qsms/supervisores — elas
+// criam o registro em `supervisores` (ou selecionam um existente) e o perfil
+// de uma vez só.
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,19 +16,17 @@ import { carregarEnv } from "./lib/env.mjs";
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 carregarEnv(raiz);
 
-const [papel, email, ...restoNome] = process.argv.slice(2);
-const nome = restoNome.join(" ") || null;
+const [papel, email, nomeArg, senhaArg] = process.argv.slice(2);
 
-if (!papel || !email || !["qsms", "supervisor"].includes(papel)) {
-  console.error('Uso: node scripts/criar-perfil.mjs <qsms|supervisor> <email> ["Nome"]');
+if (!papel || !email || !nomeArg || !senhaArg || !["qsms", "admin"].includes(papel)) {
+  console.error(
+    'Uso: node scripts/criar-perfil.mjs <qsms|admin> <email> "<Nome>" <senha-temporaria (8+ chars)>'
+  );
   process.exit(1);
 }
 
-if (papel === "supervisor") {
-  console.error(
-    "Perfil de supervisor precisa estar vinculado a um registro em `supervisores`.\n" +
-      "Use a tela /qsms/supervisores, que faz as duas coisas de uma vez."
-  );
+if (senhaArg.length < 8) {
+  console.error("A senha temporária precisa ter ao menos 8 caracteres.");
   process.exit(1);
 }
 
@@ -46,12 +46,14 @@ async function main() {
   let usuario = lista.users.find((u) => u.email?.toLowerCase() === emailNormalizado);
 
   if (usuario) {
-    console.log(`Usuário já existe: ${usuario.id}`);
+    console.log(`Usuário já existe: ${usuario.id}. Atualizando a senha.`);
+    await supabase.auth.admin.updateUserById(usuario.id, { password: senhaArg });
   } else {
-    // email_confirm: o acesso é por magic link; não há e-mail de confirmação
-    // a validar, e sem isso o primeiro login falha.
+    // email_confirm: não há fluxo de confirmação por e-mail a validar; o
+    // acesso é liberado direto, com senha definida aqui.
     const { data, error } = await supabase.auth.admin.createUser({
       email: emailNormalizado,
+      password: senhaArg,
       email_confirm: true,
     });
     if (error) {
@@ -63,7 +65,7 @@ async function main() {
   }
 
   const { error: erroPerfil } = await supabase.from("perfis").upsert(
-    { id: usuario.id, email: emailNormalizado, nome, papel, supervisor_id: null, ativo: true },
+    { id: usuario.id, email: emailNormalizado, nome: nomeArg, papel, supervisor_id: null, ativo: true },
     { onConflict: "id" }
   );
 
@@ -73,7 +75,7 @@ async function main() {
   }
 
   console.log(`\nPerfil ${papel} pronto para ${emailNormalizado}.`);
-  console.log("Entre em /login, informe esse e-mail e siga o link recebido.");
+  console.log("Entre em /login com esse e-mail e a senha informada.");
 }
 
 main().catch((err) => {

@@ -60,7 +60,7 @@ export default async function PaginaAusencias() {
           <FormularioAusencia colaboradores={colaboradores ?? []} />
         </div>
 
-        <div className="card p-0 overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="tabela">
             <caption className="sr-only">Ausências registradas</caption>
             <thead>

@@ -6,7 +6,7 @@ import type { Perfil } from "./tipos";
  * Perfil do usuário logado, ou null.
  *
  * Estar autenticado no Supabase não basta: o acesso depende de uma linha ativa
- * em `perfis`. Quem entra por magic link sem perfil cadastrado não vê nada —
+ * em `perfis`. Quem autentica sem perfil cadastrado não vê nada —
  * é o que impede que qualquer e-mail que conheça a URL entre no painel.
  */
 export async function obterPerfil(): Promise<Perfil | null> {
@@ -47,6 +47,13 @@ export async function exigirSupervisor(): Promise<Perfil> {
   return perfil;
 }
 
+/** Exige perfil admin. Só admin gerencia usuários. */
+export async function exigirAdmin(): Promise<Perfil> {
+  const perfil = await exigirPerfil();
+  if (perfil.papel !== "admin") redirect(rotaInicial(perfil));
+  return perfil;
+}
+
 export function rotaInicial(perfil: Perfil): string {
-  return perfil.papel === "qsms" ? "/qsms" : "/supervisor";
+  return perfil.papel === "supervisor" ? "/supervisor" : "/qsms";
 }

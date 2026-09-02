@@ -138,15 +138,17 @@ export function diasParaTexto(dias: number | null): string {
   return `${dias} ${dias === 1 ? "dia" : "dias"}`;
 }
 
-/** Texto curto do semáforo: "Crítico · 12 dias". */
+/**
+ * Texto curto do semáforo: "Crítico · 12d".
+ *
+ * Sem dias — os cards de contagem do painel, que rotulam um grupo e não um
+ * colaborador — o selo é só o rótulo. "Crítico · —d" sugere um prazo que não
+ * existe naquele contexto.
+ */
 export function rotuloStatus(status: StatusConformidade, dias: number | null): string {
-  if (status === "sem_registro") return STATUS_ROTULO.sem_registro;
-  if (status === "vencido") {
-    return dias === null
-      ? STATUS_ROTULO.vencido
-      : `${STATUS_ROTULO.vencido} · ${Math.abs(dias)}d`;
-  }
-  return `${STATUS_ROTULO[status]} · ${dias ?? "—"}d`;
+  if (dias === null || status === "sem_registro") return STATUS_ROTULO[status];
+  if (status === "vencido") return `${STATUS_ROTULO.vencido} · ${Math.abs(dias)}d`;
+  return `${STATUS_ROTULO[status]} · ${dias}d`;
 }
 
 /**
