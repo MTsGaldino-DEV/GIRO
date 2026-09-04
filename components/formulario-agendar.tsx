@@ -2,10 +2,10 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { agendarItem, type Acao } from "../../acoes";
+import { agendarItem, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro } from "@/components/aviso";
 import { hojeIso } from "@/lib/dominio";
-import type { ItemAberto } from "@/lib/tipos";
+import type { Clinica, ItemAberto } from "@/lib/tipos";
 
 function Botao() {
   const { pending } = useFormStatus();
@@ -16,7 +16,13 @@ function Botao() {
   );
 }
 
-export function FormularioAgendar({ item }: { item: ItemAberto }) {
+export function FormularioAgendar({
+  item,
+  clinicas = [],
+}: {
+  item: ItemAberto;
+  clinicas?: Clinica[];
+}) {
   const [estado, acao] = useActionState<Acao | null, FormData>(agendarItem, null);
 
   if (estado?.ok) {
@@ -33,17 +39,30 @@ export function FormularioAgendar({ item }: { item: ItemAberto }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="label" htmlFor="clinica">Clínica</label>
+          <label className="label" htmlFor="clinica_id">Clínica</label>
+          {/* P9 em aberto: quais clínicas atendem cada polo ainda não foi
+              levantado. Por isso a lista do cadastro convive com o campo livre
+              abaixo — uma lista suspensa sozinha já nasceria incompleta. */}
+          <select
+            id="clinica_id"
+            name="clinica_id"
+            className="field"
+            defaultValue={item.clinica_id ?? ""}
+          >
+            <option value="">Outra (digitar abaixo)</option>
+            {clinicas.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+                {c.cidade ? ` — ${c.cidade}` : ""}
+              </option>
+            ))}
+          </select>
           <input
             id="clinica"
             name="clinica"
-            className="field"
-            required
+            className="field mt-2"
             defaultValue={item.clinica ?? ""}
-            // P9 em aberto: quais clínicas atendem cada polo ainda não foi
-            // levantado, então o campo é livre em vez de uma lista suspensa que
-            // já nasceria incompleta.
-            placeholder="Nome da clínica"
+            placeholder="Nome da clínica, se não estiver na lista"
           />
         </div>
 

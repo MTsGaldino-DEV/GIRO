@@ -12,10 +12,13 @@ export const dynamic = "force-dynamic";
 
 /** O que se pede ao supervisor, em uma frase, por etapa. */
 const CHAMADA: Record<string, string> = {
-  previsto: "Informe quando pode liberar",
+  previsto: "Aguardando o QSMS solicitar a data",
+  data_solicitada: "Informe quando pode liberar",
   data_proposta: "Aguardando o QSMS agendar",
   agendado: "Confirme se compareceu",
+  enviado_clinica: "Aguardando o QSMS registrar o desfecho",
   aguardando_documento: "Aguardando o QSMS obter o documento",
+  inapto_em_tratativa: "Inapto — em tratativa com o QSMS",
 };
 
 export default async function PainelSupervisor() {
@@ -33,13 +36,19 @@ export default async function PainelSupervisor() {
   const meus = itens.filter((i) => i.dono === "supervisor");
   const comQsms = itens.filter((i) => i.dono !== "supervisor");
 
+  // Admin entra aqui pelo scaffolding da aba (plano, seção 10) e não tem equipe
+  // vinculada. Dizer isso é melhor do que uma lista vazia sem explicação.
+  const semEquipe = perfil.papel === "admin" && itens.length === 0;
+
   return (
     <div className="max-w-[760px]">
       <h1>Minha equipe</h1>
       <p className="text-ink-muted text-label mt-1 mb-5">
-        {meus.length === 0
-          ? "Nada esperando por você agora."
-          : `${meus.length} ${meus.length === 1 ? "item precisa" : "itens precisam"} da sua ação.`}
+        {semEquipe
+          ? "A aba Supervisão fica pronta como base para a Fase 2. Na Fase 1 o supervisor não tem login e o QSMS conduz o fluxo inteiro, registrando as decisões em nome dele."
+          : meus.length === 0
+            ? "Nada esperando por você agora."
+            : `${meus.length} ${meus.length === 1 ? "item precisa" : "itens precisam"} da sua ação.`}
       </p>
 
       {error && (
@@ -75,7 +84,7 @@ export default async function PainelSupervisor() {
 
       {itens.length === 0 && !error && (
         <Vazio>
-          Nenhum ASO a vencer nos próximos 60 dias na sua equipe.
+          Nenhum ASO a vencer nos próximos 90 dias na sua equipe.
           {perfil.supervisor_id === null &&
             " (Seu usuário ainda não está vinculado a uma equipe — fale com o QSMS.)"}
         </Vazio>

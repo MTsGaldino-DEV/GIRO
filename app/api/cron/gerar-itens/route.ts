@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * Cron diário: cria os itens dos vencimentos dos próximos 60 dias.
+ * Cron diário: cria os itens dos vencimentos dos próximos 90 dias.
  *
  * Idempotente pelo índice uq_item_aberto — rodar duas vezes no mesmo dia não
  * duplica nada. Toda a regra está em fn_gerar_itens_pendentes.

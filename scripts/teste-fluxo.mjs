@@ -79,7 +79,13 @@ async function main() {
   // -------------------------------------------------------------------------
   // Cenário
   // -------------------------------------------------------------------------
+  // Ordem importa: perfis.supervisor_id é ON DELETE SET NULL, e a constraint
+  // perfil_supervisor_precisa_vinculo proíbe nulo em papel 'supervisor'. Apagar
+  // supervisores antes do perfil deixa a limpeza de uma execução interrompida
+  // impossível de refazer.
   await client.query(`delete from colaboradores where matricula = 999999`);
+  await client.query(`delete from perfis where email = 'teste-giro-user@exemplo.invalido'`);
+  await client.query(`delete from auth.users where email = 'teste-giro-user@exemplo.invalido'`);
   await client.query(`delete from supervisores where email = 'teste-giro@exemplo.invalido'`);
 
   const { rows: sup } = await client.query(
@@ -160,7 +166,7 @@ async function main() {
 
   await esperaFalha(
     "supervisor não consegue agendar (é do QSMS)",
-    `select fn_agendar($1,'Clinica X','Rua Y','Dr. Z', current_date + 5, '08:00', false, null)`,
+    `select fn_agendar($1, null, 'Clinica X','Rua Y','Dr. Z', current_date + 5, '08:00', false, null)`,
     [itemId],
     "Apenas o QSMS"
   );
@@ -186,7 +192,7 @@ async function main() {
     "propor data duas vezes é rejeitado",
     `select fn_propor_data($1, current_date + 12, null)`,
     [itemId],
-    'não está na etapa'
+    'não está aguardando data'
   );
 
   // Ausência bloqueando agendamento
@@ -199,7 +205,7 @@ async function main() {
 
   await esperaFalha(
     "agendar dentro de período de férias é bloqueado",
-    `select fn_agendar($1,'Clinica X','Rua Y','Dr. Z', current_date + 5, '08:00', false, null)`,
+    `select fn_agendar($1, null, 'Clinica X','Rua Y','Dr. Z', current_date + 5, '08:00', false, null)`,
     [itemId],
     "ausência"
   );
@@ -208,14 +214,14 @@ async function main() {
 
   await esperaFalha(
     "agendar sem clínica é rejeitado",
-    `select fn_agendar($1,'','Rua Y','Dr. Z', current_date + 5, '08:00', false, null)`,
+    `select fn_agendar($1, null, '','Rua Y','Dr. Z', current_date + 5, '08:00', false, null)`,
     [itemId],
     "Informe a clínica"
   );
 
   await esperaSucesso(
     "QSMS agenda com a clínica",
-    `select fn_agendar($1,'Clínica Vida','Av. Brasil, 100','Dra. Ana', current_date + 5, '08:00', true, null)`,
+    `select fn_agendar($1, null, 'Clínica Vida','Av. Brasil, 100','Dra. Ana', current_date + 5, '08:00', true, null)`,
     [itemId]
   );
 
@@ -247,8 +253,8 @@ async function main() {
     `select etapa, compareceu, data_agendada from itens_pendencia where id = $1`,
     [itemId]
   );
-  if (e3[0].etapa === "previsto") ok("falta devolve o item para 'previsto'");
-  else erro("falta devolve o item para 'previsto'", `está em ${e3[0].etapa}`);
+  if (e3[0].etapa === "data_solicitada") ok("falta devolve o item para 'data_solicitada'");
+  else erro("falta devolve o item para 'data_solicitada'", `está em ${e3[0].etapa}`);
   if (e3[0].data_agendada === null) ok("agendamento antigo foi limpo");
   else erro("agendamento antigo foi limpo");
 
@@ -257,7 +263,7 @@ async function main() {
   await comoUsuario(perfilQsms.id);
   await esperaSucesso(
     "QSMS reagenda",
-    `select fn_agendar($1,'Clínica Vida','Av. Brasil, 100','Dra. Ana', current_date + 2, '09:00', false, null)`,
+    `select fn_agendar($1, null, 'Clínica Vida','Av. Brasil, 100','Dra. Ana', current_date + 2, '09:00', false, null)`,
     [itemId]
   );
   await comoUsuario(supUserId);
@@ -364,7 +370,7 @@ async function main() {
   await client.query(`select fn_propor_data($1, current_date + 1, null)`, [proximoId]);
   await comoUsuario(perfilQsms.id);
   await client.query(
-    `select fn_agendar($1,'Clínica Vida','Av. Brasil','Dra. Ana', current_date + 1, '08:00', false, null)`,
+    `select fn_agendar($1, null, 'Clínica Vida','Av. Brasil','Dra. Ana', current_date + 1, '08:00', false, null)`,
     [proximoId]
   );
   await comoUsuario(supUserId);
@@ -377,22 +383,259 @@ async function main() {
     [proximoId]
   );
 
-  const { rows: aposInapto } = await client.query(
-    `select count(*)::int as n from itens_pendencia where colaborador_id = $1 and etapa <> 'concluido'`,
-    [colaboradorId]
+  const { rows: eInapto } = await client.query(
+    `select etapa, desfecho, evento_id from itens_pendencia where id = $1`,
+    [proximoId]
   );
-  if (aposInapto[0].n === 0) ok("inapto não abre ciclo novo");
-  else erro("inapto não abre ciclo novo", `abriu ${aposInapto[0].n}`);
+  if (eInapto[0].etapa === "inapto_em_tratativa") ok("inapto trava o item em 'inapto_em_tratativa'");
+  else erro("inapto trava o item", `está em ${eInapto[0].etapa}`);
+  if (eInapto[0].evento_id) ok("evento do exame inapto foi registrado mesmo sem conformidade");
+  else erro("evento do exame inapto foi registrado");
 
-  const { rows: statusInapto } = await client.query(
-    `select status from vw_status_colaborador where colaborador_id = $1`,
+  const { rows: novosAposInapto } = await client.query(
+    `select count(*)::int as n from itens_pendencia
+      where colaborador_id = $1 and etapa not in ('concluido','cancelado','inapto_em_tratativa')`,
     [colaboradorId]
   );
-  if (statusInapto[0]?.status === "ok") {
-    ok("último ASO apto ainda vale — colaborador segue regular até vencer");
+  if (novosAposInapto[0].n === 0) ok("inapto não abre ciclo novo");
+  else erro("inapto não abre ciclo novo", `abriu ${novosAposInapto[0].n}`);
+
+  await esperaSucesso(
+    "geração automática roda sem duplicar o item travado",
+    `select * from fn_gerar_itens_pendentes()`
+  );
+  const { rows: aindaTravado } = await client.query(
+    `select count(*)::int as n from itens_pendencia
+      where colaborador_id = $1 and etapa not in ('concluido','cancelado')`,
+    [colaboradorId]
+  );
+  if (aindaTravado[0].n === 1) ok("item travado continua ocupando o ciclo aberto");
+  else erro("item travado ocupa o ciclo aberto", `são ${aindaTravado[0].n}`);
+
+  await esperaFalha(
+    "não há saída do inapto por fluxo normal",
+    `select fn_propor_data($1, current_date + 3, null)`,
+    [proximoId],
+    "aguardando data"
+  );
+
+  await esperaFalha(
+    "encerrar inapto sem descrever a resolução é rejeitado",
+    `select fn_encerrar_inapto($1, '  ')`,
+    [proximoId],
+    "resolvido"
+  );
+
+  await esperaSucesso(
+    "QSMS encerra a tratativa com motivo",
+    `select fn_encerrar_inapto($1, 'Dispensado — tratativa com o RH')`,
+    [proximoId]
+  );
+
+  const { rows: eEncerrado } = await client.query(
+    `select etapa from itens_pendencia where id = $1`,
+    [proximoId]
+  );
+  if (eEncerrado[0].etapa === "cancelado") ok("tratativa encerrada leva o item a 'cancelado'");
+  else erro("tratativa encerrada leva a 'cancelado'", `está em ${eEncerrado[0].etapa}`);
+
+  // -------------------------------------------------------------------------
+  console.log("\nFluxo completo da Fase 1 (QSMS conduz, supervisor sem login)");
+  // -------------------------------------------------------------------------
+  // O cancelamento libera a chave de ciclo aberto. Aqui o item novo é criado à
+  // mão porque o colaborador acabou de ficar regular (ASO apto de hoje), então
+  // fn_gerar_itens_pendentes corretamente não geraria nada.
+  const { rows: novoCiclo } = await esperaSucesso(
+    "novo ciclo pode ser aberto depois do cancelamento",
+    `insert into itens_pendencia (colaborador_id, tipo_requisito_id, data_vencimento, etapa)
+     values ($1, $2, current_date + 30, 'previsto') returning id`,
+    [colaboradorId, tipoId]
+  );
+  const fase1Id = novoCiclo[0].id;
+
+  const { rows: clinica } = await client.query(`select id from clinicas where nome = 'ENGESEG'`);
+  const clinicaId = clinica[0].id;
+
+  await esperaSucesso(
+    "passo 2 · QSMS solicita data ao supervisor",
+    `select fn_solicitar_data($1, 'WhatsApp', null)`,
+    [fase1Id]
+  );
+
+  await esperaFalha(
+    "passo 3 · registrar data sem dizer em nome de quem é rejeitado",
+    `select fn_registrar_data_supervisor($1, current_date + 4, '', null)`,
+    [fase1Id],
+    "em nome de qual supervisor"
+  );
+
+  await esperaSucesso(
+    "passo 3 · QSMS registra a data em nome do supervisor",
+    `select fn_registrar_data_supervisor($1, current_date + 4, 'Supervisor de Teste', null)`,
+    [fase1Id]
+  );
+
+  const { rows: emNome } = await client.query(
+    `select em_nome_de, autor from historico_item
+      where item_id = $1 and etapa_para = 'data_proposta' order by criado_em desc limit 1`,
+    [fase1Id]
+  );
+  if (emNome[0]?.em_nome_de === "Supervisor de Teste" && emNome[0]?.autor === perfilQsms.id) {
+    ok("auditoria separa quem lançou de quem decidiu");
   } else {
-    erro("status após inapto", `veio ${statusInapto[0]?.status}`);
+    erro("auditoria separa quem lançou de quem decidiu", JSON.stringify(emNome[0]));
   }
+
+  await esperaSucesso(
+    "passo 4 · devolver ao supervisor quando a clínica não tem vaga",
+    `select fn_devolver_ao_supervisor($1, 'Clínica sem vaga nessa semana')`,
+    [fase1Id]
+  );
+
+  const { rows: devolvido } = await client.query(
+    `select etapa from itens_pendencia where id = $1`,
+    [fase1Id]
+  );
+  if (devolvido[0].etapa === "data_solicitada") ok("devolução volta para 'data_solicitada'");
+  else erro("devolução volta para 'data_solicitada'", `está em ${devolvido[0].etapa}`);
+
+  await client.query(
+    `select fn_registrar_data_supervisor($1, current_date + 6, 'Supervisor de Teste', null)`,
+    [fase1Id]
+  );
+
+  await esperaSucesso(
+    "passo 4 · agendar usando a clínica do cadastro",
+    `select fn_agendar($1, $2, null, null, 'Dra. Ana', current_date + 6, '08:00', false, null)`,
+    [fase1Id, clinicaId]
+  );
+
+  const { rows: agendado } = await client.query(
+    `select clinica, clinica_id, dados_informados_em from itens_pendencia where id = $1`,
+    [fase1Id]
+  );
+  if (agendado[0].clinica === "ENGESEG") ok("nome da clínica veio do cadastro");
+  else erro("nome da clínica veio do cadastro", agendado[0].clinica);
+  if (agendado[0].dados_informados_em === null) ok("agendar não marca os dados como informados");
+  else erro("agendar não marca os dados como informados");
+
+  await esperaFalha(
+    "passo 6 · enviar à clínica exige item agendado",
+    `select fn_enviar_clinica($1, null)`,
+    [itemId],
+    "não está agendado"
+  );
+
+  await esperaSucesso(
+    "passo 5 · QSMS informa clínica, horário e orientações",
+    `select fn_informar_dados($1, 'Supervisor de Teste', null)`,
+    [fase1Id]
+  );
+
+  const { rows: informado } = await client.query(
+    `select etapa, dados_informados_em from itens_pendencia where id = $1`,
+    [fase1Id]
+  );
+  if (informado[0].dados_informados_em) ok("carimbo de 'dados informados' gravado");
+  else erro("carimbo de 'dados informados' gravado");
+  if (informado[0].etapa === "agendado") ok("informar dados não muda a etapa");
+  else erro("informar dados não muda a etapa", informado[0].etapa);
+
+  await esperaSucesso(
+    "passo 6 · colaborador enviado à clínica",
+    `select fn_enviar_clinica($1, null)`,
+    [fase1Id]
+  );
+
+  await esperaFalha(
+    "desfecho inválido é rejeitado",
+    `select fn_registrar_desfecho($1, 'foi_embora', null)`,
+    [fase1Id],
+    "Desfecho inválido"
+  );
+
+  await esperaSucesso(
+    "passo 7 · desfecho 'foi mas não fez tudo'",
+    `select fn_registrar_desfecho($1, 'incompleto', null)`,
+    [fase1Id]
+  );
+
+  const { rows: incompleto } = await client.query(
+    `select etapa, desfecho, data_agendada, dados_informados_em from itens_pendencia where id = $1`,
+    [fase1Id]
+  );
+  if (incompleto[0].etapa === "data_solicitada") ok("desfecho parcial reabre com o supervisor");
+  else erro("desfecho parcial reabre com o supervisor", incompleto[0].etapa);
+  if (incompleto[0].data_agendada === null && incompleto[0].dados_informados_em === null) {
+    ok("agendamento antigo foi limpo na reabertura");
+  } else {
+    erro("agendamento antigo foi limpo na reabertura");
+  }
+
+  // Segunda volta, agora até o fim.
+  await client.query(
+    `select fn_registrar_data_supervisor($1, current_date + 2, 'Supervisor de Teste', null)`,
+    [fase1Id]
+  );
+  await client.query(
+    `select fn_agendar($1, $2, null, null, 'Dra. Ana', current_date + 2, '08:00', false, null)`,
+    [fase1Id, clinicaId]
+  );
+  await client.query(`select fn_informar_dados($1, null, null)`, [fase1Id]);
+  await client.query(`select fn_enviar_clinica($1, null)`, [fase1Id]);
+
+  await esperaSucesso(
+    "passo 7 · desfecho 'fez e apto'",
+    `select fn_registrar_desfecho($1, 'fez_apto', null)`,
+    [fase1Id]
+  );
+
+  const { rows: apto } = await client.query(
+    `select etapa from itens_pendencia where id = $1`,
+    [fase1Id]
+  );
+  if (apto[0].etapa === "aguardando_documento") ok("apto segue para o documento");
+  else erro("apto segue para o documento", apto[0].etapa);
+
+  await esperaSucesso(
+    "passo 8 · recebido e inserido no GESET",
+    `select fn_concluir_item($1, current_date, 'apto', current_date - 3, 'Dra. Ana', null, null)`,
+    [fase1Id]
+  );
+
+  const { rows: fechado } = await client.query(
+    `select etapa, desfecho from itens_pendencia where id = $1`,
+    [fase1Id]
+  );
+  if (fechado[0].etapa === "concluido") ok("ciclo finalizado");
+  else erro("ciclo finalizado", fechado[0].etapa);
+
+  // O relógio parte da data de REALIZAÇÃO do exame (plano, seção 7), não da
+  // data do documento — aqui as duas são diferentes de propósito.
+  const { rows: reinicio } = await client.query(
+    `select data_vencimento, data_limite_marcar from itens_pendencia
+      where colaborador_id = $1 and etapa not in ('concluido','cancelado')`,
+    [colaboradorId]
+  );
+  const { rows: esperadoReinicio } = await client.query(
+    `select ((current_date - 3) + interval '12 months')::date as d`
+  );
+  const iguais =
+    reinicio[0] &&
+    new Date(reinicio[0].data_vencimento).toISOString().slice(0, 10) ===
+      new Date(esperadoReinicio[0].d).toISOString().slice(0, 10);
+  if (iguais) ok("próximo vencimento parte da data de realização do exame");
+  else {
+    erro(
+      "próximo vencimento parte da data de realização",
+      `veio ${reinicio[0]?.data_vencimento}, esperado ${esperadoReinicio[0].d}`
+    );
+  }
+
+  const dias =
+    (new Date(reinicio[0].data_vencimento) - new Date(reinicio[0].data_limite_marcar)) / 86400000;
+  if (dias === 7) ok("data limite de marcação é o vencimento menos 7 dias");
+  else erro("data limite de marcação", `diferença de ${dias} dias`);
 
   // -------------------------------------------------------------------------
   // Limpeza

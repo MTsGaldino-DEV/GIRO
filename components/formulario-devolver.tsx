@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { devolverAoSupervisor, type Acao } from "../../acoes";
+import { devolverAoSupervisor, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro } from "@/components/aviso";
 
 function Botao() {

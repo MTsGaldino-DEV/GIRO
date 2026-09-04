@@ -2,12 +2,30 @@
 
 export type Papel = "qsms" | "supervisor" | "admin";
 
+/**
+ * Estados do processo (plano da Fase 1, seção 6.2).
+ *
+ * `previsto` e `concluido` são os nomes que o plano chama de "pendente" e
+ * "finalizado". Mantidos porque já são o vocabulário das telas e do banco.
+ */
 export type Etapa =
   | "previsto"
+  | "data_solicitada"
   | "data_proposta"
   | "agendado"
+  | "enviado_clinica"
   | "aguardando_documento"
-  | "concluido";
+  | "concluido"
+  | "inapto_em_tratativa"
+  | "cancelado";
+
+/** Os cinco desfechos possíveis do exame (plano, seção 6.3). */
+export type Desfecho =
+  | "fez_apto"
+  | "fez_inapto"
+  | "faltou"
+  | "incompleto"
+  | "retorno_necessario";
 
 export type StatusConformidade =
   | "ok"
@@ -61,6 +79,15 @@ export interface LinhaStatus {
   bloqueado_para_agendamento: boolean;
 }
 
+export interface Clinica {
+  id: string;
+  nome: string;
+  cidade: string | null;
+  contato: string | null;
+  endereco: string | null;
+  ativo: boolean;
+}
+
 export interface ItemAberto extends LinhaStatus {
   item_id: string;
   etapa: Etapa;
@@ -85,6 +112,11 @@ export interface ItemAberto extends LinhaStatus {
   proxima_ausencia_tipo: string | null;
   dias_janela_util: number | null;
   conflito_bloqueante: boolean;
+  clinica_id: string | null;
+  desfecho: Desfecho | null;
+  dados_informados_em: string | null;
+  data_limite_marcar: string;
+  limite_marcacao_estourado: boolean;
 }
 
 export interface ResumoStatus {
@@ -110,6 +142,8 @@ export interface LinhaHistorico {
   etapa_de: Etapa | null;
   etapa_para: Etapa;
   autor: string | null;
+  /** Supervisor por quem o QSMS falou. Na Fase 1 o supervisor não tem login. */
+  em_nome_de: string | null;
   observacao: string | null;
   criado_em: string;
 }

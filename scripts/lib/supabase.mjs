@@ -11,7 +11,7 @@ export function criarClienteAdmin() {
 
   if (!url || !chave) {
     console.error(
-      "Faltam NEXT_PUBLIC_SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY no .env.local."
+      "Faltam NEXT_PUBLIC_SUPABASE_URL e/ou SUPABASE_SERVICE_ROLE_KEY no .env."
     );
     process.exit(1);
   }

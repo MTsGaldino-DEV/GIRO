@@ -296,7 +296,7 @@ export default async function PainelQsms({
           <Vazio>
             {temFiltro
               ? "Nenhum item nesse filtro."
-              : "Nenhum item em aberto. Use “Gerar itens” para criar as pendências dos próximos 60 dias."}
+              : "Nenhum item em aberto. Use “Gerar itens” para criar as pendências dos próximos 90 dias."}
           </Vazio>
         )}
       </div>

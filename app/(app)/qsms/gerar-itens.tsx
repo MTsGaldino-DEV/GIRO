@@ -15,7 +15,7 @@ function Botao() {
 
 /**
  * Ação em massa do plano, seção 8: cria as pendências dos vencimentos dos
- * próximos 60 dias. O mesmo que o cron diário faz — aqui é o botão para quando
+ * próximos 90 dias. O mesmo que o cron diário faz — aqui é o botão para quando
  * o QSMS não quer esperar até amanhã.
  */
 export function BotaoGerarItens() {
@@ -28,7 +28,7 @@ export function BotaoGerarItens() {
         <span role="status" className="text-label text-ink-muted max-w-[34ch]">
           {estado.ok
             ? estado.criados === 0
-              ? "Nada novo — todos os vencimentos dos próximos 60 dias já têm item aberto."
+              ? "Nada novo — todos os vencimentos dos próximos 90 dias já têm item aberto."
               : `${estado.criados} item(ns) criado(s): ${estado.a_vencer} a vencer, ${estado.sem_registro} sem registro.`
             : estado.erro}
         </span>

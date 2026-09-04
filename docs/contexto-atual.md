@@ -63,17 +63,26 @@ Funções `SECURITY DEFINER` + triggers em `supabase/migrations/0002_maquina_est
 
 | Etapa | Dono | SLA |
 |---|---|---|
-| `previsto` | Supervisor | 7 dias |
+| `previsto` (= "pendente" do plano) | Supervisor | 7 dias |
+| `data_solicitada` | Supervisor | 7 dias |
 | `data_proposta` | QSMS | 3 dias |
 | `agendado` | Supervisor | até a data agendada |
+| `enviado_clinica` | QSMS | até o dia seguinte ao exame |
 | `aguardando_documento` | QSMS | 5 dias |
-| `concluido` | — | gera próximo ciclo, +12 meses |
+| `concluido` (= "finalizado") | — | gera próximo ciclo, +12 meses da data de realização |
+| `inapto_em_tratativa` | QSMS | sem prazo — travado |
+| `cancelado` | — | libera a chave de ciclo aberto |
+
+Os cinco desfechos do exame (`fez_apto`, `fez_inapto`, `faltou`, `incompleto`,
+`retorno_necessario`) estão em `itens_pendencia.desfecho`. Quatro deles **não**
+fecham o ciclo: `fez_inapto` trava em `inapto_em_tratativa`, e os outros três
+reabrem em `data_solicitada`.
 
 Regra chave: comparecimento não é conformidade. Só o documento com resultado `apto` zera a pendência.
 
 ### Automações (Vercel Cron)
-- `POST /api/cron/gerar-itens` — diário, cria itens para vencimentos em até 60 dias
-- `POST /api/cron/email-semanal` — segunda-feira, um e-mail por supervisor, deduplicado
+- `POST /api/cron/gerar-itens` — diário, cria itens para vencimentos em até 90 dias
+- `POST /api/cron/email-semanal` — segunda-feira, um e-mail por supervisor **e** o digest interno do QSMS/admin, ambos deduplicados por semana ISO
 
 ### Segurança
 - RLS: supervisor só enxerga sua equipe; só QSMS grava resultado de exame
@@ -92,13 +101,31 @@ Documentadas em detalhe no `plano_mvp.md` §13. Resumo do que mais pesa:
 - **P2 — data-base dos ~177 colaboradores sem registro**: sem histórico, entram como `sem_registro` até alguém lançar manualmente em `/qsms/base`.
 - Demais pendências (P3–P11) têm padrão implementado e `TODO` marcado — não bloqueiam o uso, só precisam de confirmação de regra de negócio.
 
-## Bloqueio de infraestrutura ativo
+## Fase 1 — camada de workflow (migrations 0011 e 0012)
 
-O projeto Supabase referenciado em `.env.local` (`kdnuhbrtbqkyxocbnjik.supabase.co`) **não resolve mais no DNS** — provavelmente pausado por inatividade e excluído (free tier). Nada que depende de banco funciona (login, listagem de colaboradores, etc.) até:
+Implementa `plano_acao_fase.md` sobre o schema existente, sem tabelas paralelas.
+Mapeamento de nomes: `processos` → `itens_pendencia`, `movimentacoes` →
+`historico_item`, `vigencias_requisito` → `eventos_requisito` +
+`vw_status_colaborador`, `profiles` → `perfis`, `documentos` →
+`eventos_requisito.documento_url`.
 
-1. confirmar no dashboard Supabase se o projeto existe sob outra conta/organização, ou criar um novo;
-2. atualizar `.env.local` com URL + `anon key` + `service_role key` atuais;
-3. reaplicar as 6 migrations (`npm run db:push`);
-4. reimportar a base de colaboradores e criar o primeiro perfil QSMS (`scripts/criar-perfil.mjs`).
+- Tabela `clinicas` (nome, cidade, contato, endereço) e `itens_pendencia.clinica_id`
+- Catálogo com AVP (24 meses), marcado `opcional` — só vale para quem tiver
+  `colaboradores.exige_avp`, que é `false` por padrão até existir a lista
+- `historico_item.em_nome_de`: o QSMS lança, o supervisor decidiu
+- `itens_pendencia.data_limite_marcar` (coluna gerada: vencimento − 7 dias)
+- Janela de entrada em pendência passou de 60 para 90 dias
+- Digest semanal interno para QSMS/admin, além do e-mail por supervisor
+- Aba Supervisão visível só para admin, vazia na Fase 1
 
-Sem isso, o frontend builda e roda, mas nenhuma tela com dado real funciona.
+## Ambiente
+
+As variáveis ficam num único arquivo, `.env` (modelo em `.env.example`).
+Não existe mais `.env.local` — havia os dois, com precedência entre eles, e
+isso é editar o arquivo errado esperando efeito. `.env` está no `.gitignore`.
+
+O bloqueio de DNS que existia no projeto Supabase foi resolvido: em 04/09/2026 o
+banco respondeu, as 12 migrations foram aplicadas e o seed fictício rodou (20
+colaboradores). O que continua valendo é que a base **real** ainda não foi
+importada — o desenvolvimento roda sobre o seed, e a virada para dados reais
+depende da Fase 0.

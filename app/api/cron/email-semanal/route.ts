@@ -122,9 +122,9 @@ async function executar(request: NextRequest) {
       if (item.etapa === "agendado") agendados.push(item);
       else if (item.status === "vencido" || item.status === "sem_registro") {
         naoPodemTrabalhar.push(item);
-      } else if (item.etapa === "previsto") precisamDeData.push(item);
-      // data_proposta e aguardando_documento estão com o QSMS: não há nada
-      // que o supervisor possa fazer, então não entram no e-mail dele.
+      } else if (item.dono === "supervisor") precisamDeData.push(item);
+      // As etapas que estão com o QSMS não entram no e-mail do supervisor: não
+      // há nada que ele possa fazer com elas.
     }
 
     const blocos: BlocoEmail[] = [
@@ -132,7 +132,7 @@ async function executar(request: NextRequest) {
         chave: "acao",
         titulo: "Precisa de você",
         explicacao:
-          "Vencem nos próximos 60 dias e ainda não têm data de liberação. Informe quando o colaborador pode sair da equipe.",
+          "Vencem nos próximos 90 dias e ainda não têm data de liberação. Informe quando o colaborador pode sair da equipe.",
         itens: precisamDeData,
       },
       {
@@ -204,6 +204,29 @@ async function executar(request: NextRequest) {
     enviados.push(nome);
   }
 
+  // ---------------------------------------------------------------------------
+  // Digest interno do QSMS e do admin (plano da Fase 1, seção 9)
+  //
+  // Não depende de login de supervisor, então entra já na Fase 1. Cobre o que
+  // o e-mail por supervisor não cobre: os processos parados com o próprio QSMS
+  // e os colaboradores sem supervisor vinculado, que hoje não recebem e-mail
+  // nenhum e por isso somem da fila de todo mundo.
+  // ---------------------------------------------------------------------------
+  const digest = await enviarDigestInterno({
+    supabase,
+    resend,
+    remetente,
+    siteUrl,
+    referencia,
+    simulacao,
+  });
+
+  if (previa === "qsms" && digest.html) {
+    return new NextResponse(digest.html, {
+      headers: { "content-type": "text/html; charset=utf-8" },
+    });
+  }
+
   const resultado = {
     referencia,
     simulacao,
@@ -212,10 +235,167 @@ async function executar(request: NextRequest) {
     pulados: pulados.length,
     falhas,
     colaboradores_sem_supervisor: orfaos ?? 0,
+    digest_interno: digest.relatorio,
   };
 
   console.log("[cron:email-semanal]", resultado);
   return NextResponse.json(resultado);
+}
+
+/**
+ * O digest interno: uma leitura da fila inteira, para quem responde por ela.
+ *
+ * Três blocos, do mais urgente para o menos: quem está irregular hoje, o que
+ * travou com o QSMS, e o que já passou do limite de marcação (vencimento − 7
+ * dias) e ainda não foi agendado.
+ */
+async function enviarDigestInterno({
+  supabase,
+  resend,
+  remetente,
+  siteUrl,
+  referencia,
+  simulacao,
+}: {
+  supabase: ReturnType<typeof criarClienteAdmin>;
+  resend: Resend | null;
+  remetente: string | undefined;
+  siteUrl: string;
+  referencia: string;
+  simulacao: boolean;
+}): Promise<{ html: string | null; relatorio: Record<string, unknown> }> {
+  const { data: perfisBrutos } = await supabase
+    .from("perfis")
+    .select("email, nome, papel")
+    .in("papel", ["qsms", "admin"])
+    .eq("ativo", true);
+
+  const destinatarios = (perfisBrutos ?? []) as { email: string; nome: string | null }[];
+  if (destinatarios.length === 0) {
+    return { html: null, relatorio: { enviados: 0, motivo: "nenhum perfil qsms/admin ativo" } };
+  }
+
+  const { data: todosBrutos } = await supabase
+    .from("vw_itens_abertos")
+    .select("*")
+    .order("peso_status");
+
+  const todos = (todosBrutos ?? []) as ItemAberto[];
+
+  // Cada item entra em um bloco só, pela mesma razão do e-mail do supervisor:
+  // contagem repetida é contagem em que ninguém confia.
+  const irregulares: ItemAberto[] = [];
+  const parados: ItemAberto[] = [];
+  const foraDoPrazoDeMarcar: ItemAberto[] = [];
+
+  for (const item of todos) {
+    if (item.status === "vencido" || item.status === "sem_registro") irregulares.push(item);
+    else if (item.sla_estourado || item.etapa === "inapto_em_tratativa") parados.push(item);
+    else if (item.limite_marcacao_estourado && item.etapa !== "aguardando_documento") {
+      foraDoPrazoDeMarcar.push(item);
+    }
+  }
+
+  const blocos: BlocoEmail[] = [
+    {
+      chave: "irregulares",
+      titulo: "Não podem trabalhar hoje",
+      explicacao:
+        "ASO vencido ou sem nenhuma data de referência. Ausência de informação tem o mesmo peso operacional que vencido.",
+      itens: irregulares,
+    },
+    {
+      chave: "parados",
+      titulo: "Processos parados",
+      explicacao:
+        "Passaram do prazo da etapa ou estão travados em tratativa de inapto. Ninguém vai destravar sozinho.",
+      itens: parados,
+    },
+    {
+      chave: "acao",
+      titulo: "Fora do prazo de marcação",
+      explicacao:
+        "Já passaram do limite de marcar (vencimento menos 7 dias) e ainda não têm exame agendado.",
+      itens: foraDoPrazoDeMarcar,
+    },
+  ];
+
+  const total = blocos.reduce((soma, b) => soma + b.itens.length, 0);
+  if (total === 0) {
+    return { html: null, relatorio: { enviados: 0, motivo: "fila limpa" } };
+  }
+
+  const { assunto, html, texto } = montarEmail({
+    supervisorNome: "equipe do QSMS",
+    blocos,
+    siteUrl,
+    rotaItem: "/qsms/item",
+    intro: "Resumo semanal da fila de ASO da UEN 211 — inclusive o que está parado com o QSMS.",
+    assunto: `GIRO · ${total} ${total === 1 ? "pendência" : "pendências"} de ASO exigem atenção`,
+  });
+
+  if (simulacao) {
+    return {
+      html,
+      relatorio: {
+        simulado: true,
+        assunto,
+        destinatarios: destinatarios.map((d) => d.email),
+        irregulares: irregulares.length,
+        parados: parados.length,
+        fora_do_prazo: foraDoPrazoDeMarcar.length,
+      },
+    };
+  }
+
+  // Uma linha de dedup para o digest inteiro: item e supervisor nulos, coberto
+  // pelo índice uq_alerta_interno.
+  const { error: erroDedup } = await supabase.from("alertas_enviados").insert({
+    item_id: null,
+    supervisor_id: null,
+    tipo_alerta: "digest_qsms",
+    referencia,
+  });
+
+  if (erroDedup) {
+    if (erroDedup.code === "23505") {
+      return { html, relatorio: { enviados: 0, motivo: "já enviado nesta semana" } };
+    }
+    return { html, relatorio: { enviados: 0, erro: erroDedup.message } };
+  }
+
+  if (!resend || !remetente) {
+    return { html, relatorio: { enviados: 0, erro: "Resend não configurado" } };
+  }
+
+  const { error: erroEnvio } = await resend.emails.send({
+    from: remetente,
+    to: destinatarios.map((d) => d.email),
+    subject: assunto,
+    html,
+    text: texto,
+  });
+
+  if (erroEnvio) {
+    await supabase
+      .from("alertas_enviados")
+      .delete()
+      .eq("tipo_alerta", "digest_qsms")
+      .eq("referencia", referencia)
+      .is("item_id", null)
+      .is("supervisor_id", null);
+    return { html, relatorio: { enviados: 0, erro: erroEnvio.message } };
+  }
+
+  return {
+    html,
+    relatorio: {
+      enviados: destinatarios.length,
+      irregulares: irregulares.length,
+      parados: parados.length,
+      fora_do_prazo: foraDoPrazoDeMarcar.length,
+    },
+  };
 }
 
 export async function GET(request: NextRequest) {

@@ -34,16 +34,30 @@ export async function exigirPerfil(): Promise<Perfil> {
   return perfil;
 }
 
-/** Exige perfil QSMS. Supervisor cai no painel dele em vez de ver um 403. */
+/**
+ * Exige a aba QSMS. Supervisor cai no painel dele em vez de ver um 403.
+ *
+ * Admin passa: o plano da Fase 1 (seção 4) dá a ele as duas abas, e
+ * `fn_e_qsms()` no banco já trata os dois papéis igual. Barrar aqui deixava o
+ * admin sem nenhuma tela — era redirecionado para /supervisor, que por sua vez
+ * o mandava de volta.
+ */
 export async function exigirQsms(): Promise<Perfil> {
   const perfil = await exigirPerfil();
-  if (perfil.papel !== "qsms") redirect("/supervisor");
+  if (perfil.papel === "supervisor") redirect("/supervisor");
   return perfil;
 }
 
+/**
+ * Exige a aba Supervisão.
+ *
+ * Admin entra — e enxerga uma tela vazia, porque não tem `supervisor_id` e a
+ * RLS filtra por equipe. É exatamente o scaffolding que o plano pede (seção
+ * 10): a aba existe, é visível só para admin, e não tem dado nenhum na Fase 1.
+ */
 export async function exigirSupervisor(): Promise<Perfil> {
   const perfil = await exigirPerfil();
-  if (perfil.papel !== "supervisor") redirect("/qsms");
+  if (perfil.papel === "qsms") redirect("/qsms");
   return perfil;
 }
 

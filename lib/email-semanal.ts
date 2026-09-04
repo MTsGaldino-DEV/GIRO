@@ -24,14 +24,14 @@ const CORES = {
 
 export interface BlocoEmail {
   /** Identifica o bloco sem depender do texto do título. */
-  chave: "acao" | "agendados" | "irregulares";
+  chave: "acao" | "agendados" | "irregulares" | "parados";
   titulo: string;
   explicacao: string;
   itens: ItemAberto[];
 }
 
-function linhaItem(item: ItemAberto, siteUrl: string): string {
-  const link = `${siteUrl}/supervisor/item/${item.item_id}`;
+function linhaItem(item: ItemAberto, siteUrl: string, rotaItem: string): string {
+  const link = `${siteUrl}${rotaItem}/${item.item_id}`;
   const critico = item.status === "vencido" || item.status === "sem_registro";
 
   const detalhe =
@@ -76,10 +76,18 @@ export function montarEmail({
   supervisorNome,
   blocos,
   siteUrl,
+  // O digest interno do QSMS (plano, seção 9) usa o mesmo corpo, mudando só
+  // para onde os botões apontam e o texto de abertura.
+  rotaItem = "/supervisor/item",
+  intro = "Situação do ASO da sua equipe nesta semana. Cada botão abre direto no item.",
+  assunto: assuntoFixo,
 }: {
   supervisorNome: string;
   blocos: BlocoEmail[];
   siteUrl: string;
+  rotaItem?: string;
+  intro?: string;
+  assunto?: string;
 }): { assunto: string; html: string; texto: string } {
   const comItens = blocos.filter((b) => b.itens.length > 0);
   const total = comItens.reduce((soma, b) => soma + b.itens.length, 0);
@@ -90,11 +98,12 @@ export function montarEmail({
   // O assunto carrega o pior caso: é o que aparece na lista do celular e
   // decide se o e-mail é aberto hoje ou na sexta.
   const assunto =
-    irregulares > 0
+    assuntoFixo ??
+    (irregulares > 0
       ? `GIRO · ${irregulares} ${irregulares === 1 ? "colaborador não pode" : "colaboradores não podem"} trabalhar`
       : precisamDeAcao > 0
         ? `GIRO · ${precisamDeAcao} ${precisamDeAcao === 1 ? "colaborador precisa" : "colaboradores precisam"} de programação de ASO`
-        : `GIRO · ${total} ${total === 1 ? "pendência" : "pendências"} de ASO na sua equipe`;
+        : `GIRO · ${total} ${total === 1 ? "pendência" : "pendências"} de ASO na sua equipe`);
 
   const secoes = comItens
     .map(
@@ -109,7 +118,7 @@ export function montarEmail({
     </td></tr>
     <tr><td style="padding:0 0 4px">
       <table width="100%" cellpadding="0" cellspacing="0" style="background:${CORES.surface};border:1px solid ${CORES.line};border-radius:10px;border-collapse:separate">
-        ${bloco.itens.map((i) => linhaItem(i, siteUrl)).join("")}
+        ${bloco.itens.map((i) => linhaItem(i, siteUrl, rotaItem)).join("")}
       </table>
     </td></tr>`
     )
@@ -129,8 +138,7 @@ export function montarEmail({
         <tr><td style="padding:16px 14px 0;font-family:Arial,sans-serif">
           <div style="font-size:15px;color:${CORES.ink}">Bom dia, ${escapar(supervisorNome)}.</div>
           <div style="font-size:14px;color:${CORES.inkMuted};margin-top:6px">
-            Situação do ASO da sua equipe nesta semana. Cada botão abre direto
-            no item.
+            ${escapar(intro)}
           </div>
         </td></tr>
 
@@ -161,7 +169,7 @@ export function montarEmail({
                   : i.status === "sem_registro"
                     ? "sem data de referência"
                     : `vence em ${formatarData(i.data_vencimento)} (${diasParaTexto(i.dias_restantes)})`) +
-                `\n    ${siteUrl}/supervisor/item/${i.item_id}`
+                `\n    ${siteUrl}${rotaItem}/${i.item_id}`
             )
             .join("\n")
       )

@@ -14,6 +14,7 @@ interface EntradaColaborador {
   etapa_de: Etapa | null;
   etapa_para: Etapa;
   autor_nome: string | null;
+  em_nome_de: string | null;
   observacao: string | null;
   criado_em: string;
 }
@@ -72,21 +73,24 @@ export default async function AbaHistorico({ params }: { params: Promise<{ id: s
                   style={{ background: "var(--color-ink-faint)" }}
                 />
                 <div className="text-label">
-                  {entrada.etapa_de ? (
+                  {entrada.etapa_de === null ? (
+                    <span className="font-medium">
+                      Item criado em {ETAPA_ROTULO[entrada.etapa_para]}
+                    </span>
+                  ) : entrada.etapa_de === entrada.etapa_para ? (
+                    <span className="font-medium">Em {ETAPA_ROTULO[entrada.etapa_para]}</span>
+                  ) : (
                     <>
                       <span className="text-ink-muted">{ETAPA_ROTULO[entrada.etapa_de]}</span>
                       <span className="mx-1.5 text-ink-faint" aria-label="passou para">→</span>
                       <span className="font-medium">{ETAPA_ROTULO[entrada.etapa_para]}</span>
                     </>
-                  ) : (
-                    <span className="font-medium">
-                      Item criado em {ETAPA_ROTULO[entrada.etapa_para]}
-                    </span>
                   )}
                 </div>
                 <div className="text-caption text-ink-faint tabular">
                   {formatarDataHora(entrada.criado_em)}
                   {entrada.autor_nome && <> · {entrada.autor_nome}</>}
+                  {entrada.em_nome_de && <> · em nome de {entrada.em_nome_de}</>}
                 </div>
                 {entrada.observacao && (
                   <p className="text-label text-ink-muted mt-1 mb-0 max-w-[60ch]">

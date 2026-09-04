@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { registrarComunicacaoCemig, type Acao } from "../../acoes";
+import { registrarComunicacaoCemig, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro } from "@/components/aviso";
 import { formatarData, hojeIso } from "@/lib/dominio";
 

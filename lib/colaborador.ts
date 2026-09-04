@@ -57,7 +57,7 @@ export async function carregarStatus(colaboradorId: string): Promise<LinhaStatus
   return (data as LinhaStatus) ?? null;
 }
 
-/** Ciclo em aberto, se houver. Colaborador em dia e fora da janela de 60 dias não tem. */
+/** Ciclo em aberto, se houver. Colaborador em dia e fora da janela de 90 dias não tem. */
 export async function carregarItemAberto(colaboradorId: string): Promise<ItemAberto | null> {
   const supabase = await criarClienteServidor();
   const { data } = await supabase

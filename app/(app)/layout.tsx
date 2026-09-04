@@ -24,7 +24,12 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             mostrarLink={perfil.papel !== "supervisor"}
           />
         )}
-        <main className="flex-1 w-full max-w-[1280px] px-4 sm:px-6 py-6">{children}</main>
+        {/* O teto existe para não esticar linha de texto até ficar ilegível,
+            mas 1280px sem mx-auto encostava tudo na sidebar e deixava o resto
+            de um monitor de 1920 como espaço morto à direita. As telas que
+            precisam de coluna estreita (item, detalhe do colaborador) já põem
+            o próprio max-w; o dashboard e o painel usam a largura toda. */}
+        <main className="flex-1 w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-6">{children}</main>
       </div>
     </div>
   );

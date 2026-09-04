@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { concluirItem, type Acao } from "../../acoes";
+import { concluirItem, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro, Aviso } from "@/components/aviso";
 import { hojeIso } from "@/lib/dominio";
 import type { ItemAberto } from "@/lib/tipos";
@@ -47,22 +47,27 @@ export function FormularioConcluir({ item }: { item: ItemAberto }) {
             aria-describedby="ajuda-data-documento"
           />
           <p id="ajuda-data-documento" className="text-caption text-ink-faint mt-1">
-            É esta data que define o próximo vencimento, não a data do exame.
+            Data de emissão do ASO. Serve de recuo se a de realização faltar.
           </p>
         </div>
 
         <div>
           <label className="label" htmlFor="data_realizado">
-            Data do exame
+            Data de realização do exame
           </label>
           <input
             id="data_realizado"
             name="data_realizado"
             type="date"
             className="field"
+            required
             max={hojeIso()}
             defaultValue={item.data_agendada ?? ""}
+            aria-describedby="ajuda-data-realizado"
           />
+          <p id="ajuda-data-realizado" className="text-caption text-ink-faint mt-1">
+            É esta data, lida dentro do PDF, que reinicia o ciclo de 12 meses.
+          </p>
         </div>
       </div>
 
@@ -94,10 +99,11 @@ export function FormularioConcluir({ item }: { item: ItemAberto }) {
       </div>
 
       {resultado === "inapto" && (
-        <Aviso tom="forte" titulo="Inapto não gera conformidade">
-          O item será encerrado, mas o colaborador continua bloqueado e nenhum
-          ciclo novo é aberto. Ele seguirá aparecendo como vencido ou sem
-          registro até haver um ASO apto.
+        <Aviso tom="forte" titulo="Inapto trava o processo">
+          O item não é encerrado: entra em tratativa de inapto e fica lá até
+          alguém resolver o caso explicitamente. A validade não é atualizada,
+          nenhum ciclo novo é aberto, e o colaborador segue aparecendo como
+          vencido ou sem registro.
         </Aviso>
       )}
 

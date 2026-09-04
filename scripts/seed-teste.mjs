@@ -1,10 +1,10 @@
 // Seed de dados fictícios para ambiente de teste/demonstração.
 //
-// Substitui completamente qualquer colaborador e supervisor reais por ~15
+// Substitui completamente qualquer colaborador e supervisor reais por 20
 // colaboradores fictícios (ajuste ao mvp.md, seção 2) cobrindo todos os
-// status do semáforo e todos os estágios do fluxo, incluindo o "ponto cego"
-// (sem data de referência). Cria também as 3 contas de teste (admin, qsms,
-// supervisor) com senha temporária.
+// status do semáforo e todos os estados da máquina da Fase 1 — inclusive os
+// dois "pontos cegos": sem data de referência, e sem processo nenhum. Cria
+// também as 3 contas de teste (admin, qsms, supervisor) com senha temporária.
 //
 // As datas são relativas à execução (hoje ± N dias): rodar este script em
 // dias diferentes continua produzindo os status corretos.
@@ -52,6 +52,13 @@ const COLABORADORES = [
   { matricula: 90013, nome: "Fernanda Lopes Guimarães", cargo: "Assistente Administrativo V", cpf: "45454545454", estagio: "sem_registro" },
   { matricula: 90014, nome: "Vinícius Tavares Correia", cargo: "Instalador Reparador Rede II", cpf: "56565656565", estagio: "data_proposta", offset: 5 },
   { matricula: 90015, nome: "Igor Barbosa Siqueira", cargo: "Supervisor Comercial II", cpf: "67676767676", estagio: "concluido", offset: 100 },
+  // Fase 1: os estados novos da máquina (plano de ação, seção 6.2).
+  { matricula: 90016, nome: "Leandro Pires Andrade", cargo: "Instalador Reparador Rede I", cpf: "78787878787", estagio: "data_solicitada", offset: 35 },
+  { matricula: 90017, nome: "Simone Cardoso Batista", cargo: "Instalador Serviços Comerc I", cpf: "89898989898", estagio: "enviado_clinica", offset: 18 },
+  { matricula: 90018, nome: "Wagner Duarte Machado", cargo: "Instalador Reparador Rede IV", cpf: "10101010101", estagio: "inapto_em_tratativa", offset: -12 },
+  { matricula: 90019, nome: "Elaine Moreira Sampaio", cargo: "Assistente Administrativo II", cpf: "13131313131", estagio: "cancelado", offset: 70 },
+  // Sem vigência e fora de qualquer processo: o ponto cego puro (semáforo preto).
+  { matricula: 90020, nome: "Otávio Ribeiro Fontes", cargo: "Auxiliar de Serviços Gerais", cpf: "14141414141", estagio: "sem_processo" },
 ];
 
 async function limpar() {
@@ -123,6 +130,11 @@ async function criarColaboradores(supervisorId, tipoRequisitoId) {
 }
 
 async function criarHistoricoDoColaborador(colaboradorId, tipoRequisitoId, c) {
+  // Sem evento e sem item: aparece na view só pelo cross join, como os ~177
+  // colaboradores reais sem data de referência. É o caso que o GIRO existe
+  // para tornar visível, então precisa estar no seed.
+  if (c.estagio === "sem_processo") return;
+
   if (c.estagio === "sem_registro") {
     // Sem evento nenhum: a view classifica como sem_registro sozinha. Item
     // entra na fila imediatamente, como o cron faria.
@@ -150,9 +162,66 @@ async function criarHistoricoDoColaborador(colaboradorId, tipoRequisitoId, c) {
 
   const vencimento = iso(addDays(hoje, c.offset));
 
+  if (c.estagio === "inapto_em_tratativa") {
+    // Exame feito, resultado inapto: o ciclo NÃO foi cumprido. O evento fica
+    // registrado, mas não conta como conformidade — a view ignora resultado
+    // inapto —, então o colaborador segue vencido e o item fica travado.
+    await supabase.from("eventos_requisito").insert({
+      colaborador_id: colaboradorId,
+      tipo_requisito_id: tipoRequisitoId,
+      data_realizado: iso(addDays(hoje, -20)),
+      data_documento: iso(addDays(hoje, -18)),
+      resultado: "inapto",
+      clinica: "ENGESEG",
+      medico: "Dr. João Teste",
+    });
+
+    await inserirItem(colaboradorId, tipoRequisitoId, {
+      etapa: "inapto_em_tratativa",
+      data_vencimento: vencimento,
+      desfecho: "fez_inapto",
+      clinica: "ENGESEG",
+      data_agendada: iso(addDays(hoje, -20)),
+      hora_agendada: "09:00",
+      compareceu: true,
+    });
+    return;
+  }
+
+  if (c.estagio === "cancelado") {
+    await inserirItem(colaboradorId, tipoRequisitoId, {
+      etapa: "cancelado",
+      data_vencimento: vencimento,
+    });
+    return;
+  }
+
+  if (c.estagio === "data_solicitada") {
+    await inserirItem(colaboradorId, tipoRequisitoId, {
+      etapa: "data_solicitada",
+      data_vencimento: vencimento,
+    });
+    return;
+  }
+
+  if (c.estagio === "enviado_clinica") {
+    await inserirItem(colaboradorId, tipoRequisitoId, {
+      etapa: "enviado_clinica",
+      data_vencimento: vencimento,
+      data_liberacao_proposta: iso(addDays(hoje, -3)),
+      clinica: "ENGESEG",
+      endereco: "Rua Fictícia, 100 — Gov. Valadares",
+      medico: "Dr. João Teste",
+      data_agendada: iso(hoje),
+      hora_agendada: "08:00",
+      dados_informados_em: new Date(hoje.getTime() - 86400000).toISOString(),
+    });
+    return;
+  }
+
   if (c.estagio === "concluido") {
-    // Só abre item se o cron diário já teria criado um (vencimento em até 60 dias).
-    if (c.offset <= 60) {
+    // Só abre item se o cron diário já teria criado um (vencimento em até 90 dias).
+    if (c.offset <= 90) {
       await inserirItem(colaboradorId, tipoRequisitoId, { etapa: "previsto", data_vencimento: vencimento });
     }
     return;
@@ -163,7 +232,7 @@ async function criarHistoricoDoColaborador(colaboradorId, tipoRequisitoId, c) {
       etapa: "agendado",
       data_vencimento: vencimento,
       data_liberacao_proposta: iso(addDays(hoje, -5)),
-      clinica: "Clínica Modelo",
+      clinica: "ENGESEG",
       endereco: "Rua Fictícia, 100 — Gov. Valadares",
       medico: "Dr. João Teste",
       data_agendada: iso(addDays(hoje, Math.min(c.offset - 2, 5))),
@@ -192,6 +261,8 @@ async function criarHistoricoDoColaborador(colaboradorId, tipoRequisitoId, c) {
       data_agendada: iso(addDays(hoje, c.offset - 3)),
       hora_agendada: "09:00",
       compareceu: true,
+      desfecho: "fez_apto",
+      dados_informados_em: new Date(hoje.getTime() - 3 * 86400000).toISOString(),
     });
   }
 }

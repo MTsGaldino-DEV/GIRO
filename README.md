@@ -32,7 +32,7 @@ senha" por e-mail.
 
 ```bash
 npm install
-cp .env.example .env.local     # preencher com as chaves do Supabase
+cp .env.example .env           # preencher com as chaves do Supabase
 npm run db:push                # aplica supabase/migrations/*.sql em ordem
 node scripts/criar-perfil.mjs admin voce@engelmig.com.br "Seu Nome" SuaSenha123
 npm run seed:teste             # base fictícia de 15 colaboradores + 3 contas
@@ -124,7 +124,8 @@ data de referência, que é o maior ponto cego da operação, continuaria invis�
 ### A máquina de estados mora no banco
 
 As transições não estão em server actions: são funções `SECURITY DEFINER` em
-`supabase/migrations/0002_maquina_estados.sql`, e triggers garantem que
+`supabase/migrations/0002_maquina_estados.sql` (estendidas em `0011`/`0012`,
+a camada de workflow da Fase 1), e triggers garantem que
 
 1. toda transição grave linha em `historico_item`;
 2. o SLA seja recalculado ao entrar em qualquer etapa;
@@ -136,19 +137,47 @@ disciplina de quem escreve o código não é regra, é convenção.
 
 | Etapa | Dono | SLA |
 |---|---|---|
-| `previsto` | Supervisor | 7 dias |
+| `previsto` (o "pendente" do plano) | Supervisor | 7 dias |
+| `data_solicitada` | Supervisor | 7 dias |
 | `data_proposta` | QSMS | 3 dias |
 | `agendado` | Supervisor | até a data agendada |
+| `enviado_clinica` | QSMS | até o dia seguinte ao exame |
 | `aguardando_documento` | QSMS | 5 dias |
-| `concluido` | — | gera o próximo ciclo, +12 meses |
+| `concluido` (o "finalizado") | — | gera o próximo ciclo, +12 meses |
+| `inapto_em_tratativa` | QSMS | sem prazo — travado |
+| `cancelado` | — | libera a chave de ciclo aberto |
+
+O desfecho do exame é um de cinco (`fn_registrar_desfecho`), e **quatro deles
+não fecham o ciclo**:
+
+| Desfecho | Vai para |
+|---|---|
+| `fez_apto` | `aguardando_documento` |
+| `fez_inapto` | `inapto_em_tratativa` — trava |
+| `faltou` | `data_solicitada` |
+| `incompleto` | `data_solicitada` |
+| `retorno_necessario` | `data_solicitada` |
 
 **Comparecimento não é conformidade.** O que zera a pendência é o documento com
-resultado `apto`. Resultado `inapto` conclui o item mas não abre ciclo novo e
-não gera conformidade — o colaborador permanece bloqueado.
+resultado `apto`, e o relógio de 12 meses parte da **data de realização do
+exame**, lida dentro do PDF — não da data de emissão do documento.
 
-`fn_propor_data` aceita chamada do QSMS além do supervisor: na prática o QSMS
-às vezes recebe a data por telefone e lança pelo supervisor. Quem não é da
-equipe continua barrado por `fn_exigir_acesso_ao_item`.
+Resultado `inapto` não encerra o item: ele entra em `inapto_em_tratativa` e não
+sai por fluxo normal. Não atualiza a validade, não abre ciclo novo, e continua
+ocupando a chave de ciclo aberto — o colaborador permanece bloqueado. A única
+saída é `fn_encerrar_inapto`, que exige motivo e leva a `cancelado`. O que
+significa "resolver" (tornar apto por novo exame, ou dispensar) ainda não foi
+definido com o QSMS, e o sistema não decide isso sozinho.
+
+Na Fase 1 o supervisor não tem login: o QSMS conduz o fluxo inteiro por
+`fn_registrar_data_supervisor`, que exige dizer em nome de quem a data está
+sendo lançada. `historico_item` guarda as duas coisas separadas — `autor` é o
+usuário real, `em_nome_de` é quem decidiu. Sem essa separação a auditoria
+registraria o QSMS como se ele tivesse escolhido a data sozinho.
+
+`fn_propor_data` (o caminho do supervisor logado, Fase 2) continua existindo e
+aceita chamada do QSMS. Quem não é da equipe continua barrado por
+`fn_exigir_acesso_ao_item`.
 
 ### Fuso horário
 
@@ -187,8 +216,8 @@ checagens dentro das RPCs, não as políticas. Os dois são necessários.
 
 | Rota | Quando | O que faz |
 |---|---|---|
-| `/api/cron/gerar-itens` | diário, 09:00 UTC (06:00 BRT) | cria itens para vencimentos em até 60 dias e para quem está sem registro |
-| `/api/cron/email-semanal` | segunda, 10:00 UTC (07:00 BRT) | um e-mail por supervisor, só com a equipe dele |
+| `/api/cron/gerar-itens` | diário, 09:00 UTC (06:00 BRT) | cria itens para vencimentos em até 90 dias e para quem está sem registro |
+| `/api/cron/email-semanal` | segunda, 10:00 UTC (07:00 BRT) | um e-mail por supervisor (só a equipe dele) **e** o digest interno do QSMS/admin: irregulares, processos parados e fora do prazo de marcação |
 
 Ambas são idempotentes. A geração de itens é protegida pelo índice único
 parcial `uq_item_aberto`; o e-mail, por `alertas_enviados` com referência no
@@ -201,6 +230,7 @@ Para testar o e-mail sem enviar nada:
 
 ```
 GET /api/cron/email-semanal?simular=1
+GET /api/cron/email-semanal?previa=qsms      # HTML do digest interno
 ```
 
 ---

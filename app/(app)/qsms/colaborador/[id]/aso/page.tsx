@@ -6,11 +6,9 @@ import { carregarItemAberto, carregarStatus } from "@/lib/colaborador";
 import { urlAssinada } from "@/lib/storage";
 import { Aviso, Vazio } from "@/components/aviso";
 import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO } from "@/lib/dominio";
-import { FormularioAgendar } from "../../../item/[id]/formulario-agendar";
-import { FormularioConcluir } from "../../../item/[id]/formulario-concluir";
-import { FormularioDevolver } from "../../../item/[id]/formulario-devolver";
-import { FormularioCemig } from "../../../item/[id]/formulario-cemig";
+import { AcoesItem } from "@/components/acoes-item";
 import { FormularioRetroativo } from "./formulario-retroativo";
+import type { Clinica } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "ASO" };
 export const dynamic = "force-dynamic";
@@ -34,16 +32,18 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
-  const [item, status, { data: eventosBrutos }, { data: tipo }] = await Promise.all([
-    carregarItemAberto(id),
-    carregarStatus(id),
-    supabase
-      .from("vw_eventos_colaborador")
-      .select("*")
-      .eq("colaborador_id", id)
-      .order("data_documento", { ascending: false }),
-    supabase.from("tipos_requisito").select("id").eq("nome", "ASO Periódico").maybeSingle(),
-  ]);
+  const [item, status, { data: eventosBrutos }, { data: tipo }, { data: clinicas }] =
+    await Promise.all([
+      carregarItemAberto(id),
+      carregarStatus(id),
+      supabase
+        .from("vw_eventos_colaborador")
+        .select("*")
+        .eq("colaborador_id", id)
+        .order("data_documento", { ascending: false }),
+      supabase.from("tipos_requisito").select("id").eq("nome", "ASO Periódico").maybeSingle(),
+      supabase.from("clinicas").select("*").eq("ativo", true).order("nome"),
+    ]);
 
   const eventos = (eventosBrutos ?? []) as EventoLinha[];
 
@@ -60,49 +60,7 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
     <div className="grid gap-5 max-w-[900px]">
       {item ? (
         <>
-          {item.etapa === "previsto" && (
-            <Aviso titulo="Aguardando a supervisão">
-              O item está com {item.supervisor_nome ?? "a supervisão"}, que precisa
-              informar a data em que libera o colaborador. Prazo desta etapa: 7 dias.
-            </Aviso>
-          )}
-
-          {item.etapa === "data_proposta" && (
-            <>
-              <div className="card">
-                <h2 className="text-[1.0625rem] mb-1">Agendar com a clínica</h2>
-                <p className="text-ink-muted text-label mb-4">
-                  A supervisão liberou o colaborador para{" "}
-                  <strong className="font-medium tabular">
-                    {formatarData(item.data_liberacao_proposta)}
-                  </strong>
-                  .
-                </p>
-                <FormularioAgendar item={item} />
-              </div>
-              <FormularioDevolver itemId={item.item_id} />
-            </>
-          )}
-
-          {item.etapa === "agendado" && (
-            <Aviso titulo="Aguardando o comparecimento">
-              O item está com a supervisão até {formatarData(item.data_agendada)}.
-              Quem confirma presença é o supervisor.
-            </Aviso>
-          )}
-
-          {item.etapa === "aguardando_documento" && (
-            <div className="card">
-              <h2 className="text-[1.0625rem] mb-1">Registrar resultado</h2>
-              <p className="text-ink-muted text-label mb-4">
-                O colaborador compareceu. O que zera a pendência é o documento —
-                comparecimento não é conformidade.
-              </p>
-              <FormularioConcluir item={item} />
-            </div>
-          )}
-
-          <FormularioCemig itemId={item.item_id} atual={item.comunicado_cemig_em} />
+          <AcoesItem item={item} clinicas={(clinicas ?? []) as Clinica[]} />
 
           <p className="text-caption text-ink-faint m-0">
             Etapa atual: {ETAPA_ROTULO[item.etapa]}. A visão focada deste ciclo,
@@ -113,7 +71,7 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
       ) : (
         <Aviso titulo="Nenhum ciclo em aberto">
           O item é criado automaticamente quando o vencimento entra na janela de
-          60 dias, ou pelo botão &ldquo;Gerar itens&rdquo; no painel.
+          90 dias, ou pelo botão &ldquo;Gerar itens&rdquo; no painel.
         </Aviso>
       )}
 

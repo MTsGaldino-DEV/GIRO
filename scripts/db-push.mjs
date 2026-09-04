@@ -19,7 +19,7 @@ carregarEnv(raiz);
 
 const url = process.env.SUPABASE_DB_URL;
 if (!url) {
-  console.error("Defina SUPABASE_DB_URL no .env.local (Supabase > Settings > Database).");
+  console.error("Defina SUPABASE_DB_URL no .env (Supabase > Settings > Database).");
   process.exit(1);
 }
 

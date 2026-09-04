@@ -1,4 +1,4 @@
-import type { Etapa, StatusConformidade, Dono, Situacao } from "./tipos";
+import type { Etapa, Desfecho, StatusConformidade, Dono, Situacao } from "./tipos";
 
 /**
  * Rótulos e formatação. Toda a nomenclatura visível ao usuário mora aqui,
@@ -34,20 +34,50 @@ export const STATUS_LEITURA: Record<StatusConformidade, string> = {
 };
 
 export const ETAPA_ROTULO: Record<Etapa, string> = {
-  previsto: "Previsto",
+  previsto: "Pendente",
+  data_solicitada: "Data solicitada",
   data_proposta: "Data proposta",
   agendado: "Agendado",
+  enviado_clinica: "Enviado à clínica",
   aguardando_documento: "Aguardando documento",
-  concluido: "Concluído",
+  concluido: "Finalizado",
+  inapto_em_tratativa: "Inapto — em tratativa",
+  cancelado: "Cancelado",
 };
 
 /** O que se espera de quem está com o item na mão. */
 export const ETAPA_ACAO: Record<Etapa, string> = {
-  previsto: "Informar a data em que o colaborador pode ser liberado",
-  data_proposta: "Agendar com a clínica",
-  agendado: "Garantir o comparecimento e confirmar presença",
-  aguardando_documento: "Obter o ASO da clínica e registrar o resultado",
+  previsto: "Solicitar ao supervisor a data em que o colaborador pode ser liberado",
+  data_solicitada: "Aguardar a data que o supervisor vai propor",
+  data_proposta: "Checar a clínica e agendar, ou devolver ao supervisor",
+  agendado: "Informar clínica, horário e orientações ao supervisor",
+  enviado_clinica: "Registrar o desfecho do exame",
+  aguardando_documento: "Obter o ASO da clínica, lançar no GESET e registrar a data de realização",
   concluido: "Nada — ciclo encerrado",
+  inapto_em_tratativa: "Resolver a tratativa clínica. O colaborador segue bloqueado",
+  cancelado: "Nada — item cancelado",
+};
+
+/**
+ * Os cinco desfechos (plano, seção 6.3).
+ *
+ * Quatro deles NÃO fecham o ciclo. Ir à clínica não é conformidade; só o
+ * documento com resultado apto reinicia o relógio de 12 meses.
+ */
+export const DESFECHO_ROTULO: Record<Desfecho, string> = {
+  fez_apto: "Fez e apto",
+  fez_inapto: "Fez e inapto",
+  faltou: "Faltou",
+  incompleto: "Foi mas não fez tudo",
+  retorno_necessario: "Fez, deu alteração e precisa de retorno",
+};
+
+export const DESFECHO_CONSEQUENCIA: Record<Desfecho, string> = {
+  fez_apto: "Segue para o documento. É o único desfecho que fecha o ciclo.",
+  fez_inapto: "Trava o processo. O colaborador permanece bloqueado até resolução explícita.",
+  faltou: "Reabre com o supervisor para propor nova data.",
+  incompleto: "Reabre com o supervisor para propor nova data.",
+  retorno_necessario: "Reabre com o supervisor para propor a data do retorno.",
 };
 
 export const DONO_ROTULO: Record<Dono, string> = {

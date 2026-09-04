@@ -34,6 +34,15 @@ const ITENS_SUPERVISOR: ItemNav[] = [{ href: "/supervisor", rotulo: "Painel", Ic
 const ITEM_ADMIN: ItemNav = { href: "/admin/usuarios", rotulo: "Gestão de usuários", Icone: IconeUsuarios };
 
 /**
+ * Aba Supervisão, visível só para admin (plano da Fase 1, seção 10).
+ *
+ * Na Fase 1 é scaffolding: o admin não tem equipe vinculada, então a tela abre
+ * vazia. O QSMS não vê a aba — abas são renderizadas pelo papel, e uma aba que
+ * nunca terá conteúdo para quem a vê só ensina a ignorá-la.
+ */
+const ITEM_SUPERVISAO: ItemNav = { href: "/supervisor", rotulo: "Supervisão", Icone: IconeSupervisores };
+
+/**
  * Sidebar fixa à esquerda.
  *
  * Substitui o cabeçalho de abas por um padrão de navegação lateral (ajuste ao
@@ -46,7 +55,8 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
   const pathname = usePathname();
   const ehSupervisor = perfil.papel === "supervisor";
   const itens = ehSupervisor ? ITENS_SUPERVISOR : ITENS_QSMS;
-  const itensComAdmin = perfil.papel === "admin" ? [...itens, ITEM_ADMIN] : itens;
+  const itensComAdmin =
+    perfil.papel === "admin" ? [...itens, ITEM_SUPERVISAO, ITEM_ADMIN] : itens;
 
   const inicial = (perfil.nome ?? perfil.email).trim().charAt(0).toUpperCase();
   const rotuloPapel = perfil.papel === "admin" ? "Administrador" : perfil.papel === "qsms" ? "QSMS" : "Supervisão";

@@ -106,7 +106,7 @@ export default async function VisaoGeral({ params }: { params: Promise<{ id: str
         ) : (
           <p className="text-ink-faint text-label m-0">
             Nenhum ciclo em aberto. O item é criado automaticamente quando o
-            vencimento entra na janela de 60 dias.
+            vencimento entra na janela de 90 dias.
           </p>
         )}
       </div>
