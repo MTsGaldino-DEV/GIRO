@@ -26,6 +26,14 @@ import {
 import { SeloStatus, CartaoContagem } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
+import { IconeReticencias } from "@/components/icones";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } from "@/lib/tipos";
 
 /**
@@ -318,11 +326,57 @@ function Linha({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
         </span>
       </td>
       <td>
-        <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary">
-          Abrir
-        </Link>
+        <div className="flex items-center justify-end gap-1.5">
+          <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
+            Abrir
+          </Link>
+          <MenuLinha item={item} />
+        </div>
       </td>
     </tr>
+  );
+}
+
+/**
+ * Menu "⋮" da linha — o que sobra depois que "Abrir" (a ação de todo dia,
+ * trabalhar o ciclo) ficou como botão visível. Nome do colaborador já leva ao
+ * perfil; aqui entram o que não tinha lugar nenhum na tabela: histórico e um
+ * jeito de compartilhar o item sem copiar a URL na mão.
+ */
+function MenuLinha({ item }: { item: ItemAberto }) {
+  // Some sozinho depois de 1,5s — não depende do menu continuar aberto, então
+  // o clique fecha o menu normalmente, como qualquer outro item.
+  const [copiado, setCopiado] = useState(false);
+
+  function copiarLink() {
+    navigator.clipboard.writeText(`${window.location.origin}/qsms/item/${item.item_id}`);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 1500);
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="btn btn--secondary btn--icone"
+          aria-label={`Mais ações — ${item.nome}`}
+          title={copiado ? "Link copiado!" : undefined}
+        >
+          <IconeReticencias />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <Link href={`/qsms/colaborador/${item.colaborador_id}`}>Ver colaborador</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href={`/qsms/colaborador/${item.colaborador_id}/historico`}>Ver histórico</Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={copiarLink}>Copiar link do item</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
