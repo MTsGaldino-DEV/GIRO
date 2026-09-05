@@ -643,3 +643,31 @@ a {
   .sidebar__item--ativo::before { left: -0.5rem; }
   .sidebar__item:hover { transform: none; }
 }
+
+/* --------------------------------------------------------------------------
+   Esqueleto de carregamento
+
+   Cinza neutro de propósito: as cores do semáforo são linguagem reservada de
+   conformidade (ver a regra no topo deste arquivo) e um esqueleto colorido
+   sugeriria um status que ainda não foi carregado.
+
+   A animação respeita prefers-reduced-motion pela regra global lá em cima,
+   que zera a duração de qualquer animação.
+   -------------------------------------------------------------------------- */
+
+.esqueleto {
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-mist) 25%,
+    var(--color-line) 37%,
+    var(--color-mist) 63%
+  );
+  background-size: 400% 100%;
+  animation: esqueleto-brilho 1.4s ease infinite;
+}
+
+@keyframes esqueleto-brilho {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}

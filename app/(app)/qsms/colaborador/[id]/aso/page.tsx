@@ -47,14 +47,19 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
 
   const eventos = (eventosBrutos ?? []) as EventoLinha[];
 
-  // Uma URL assinada por documento. São poucos por colaborador — ao contrário
-  // da lista, aqui não compensa complicar com assinatura em lote.
+  // Uma URL assinada por documento, todas de uma vez. Em série isto era uma
+  // ida ao Storage por exame, uma esperando a outra: um colaborador com cinco
+  // ASOs pagava cinco viagens antes da página aparecer.
+  const comDocumento = eventos.filter((e) => e.documento_url);
+  const assinadas = await Promise.all(
+    comDocumento.map((e) => urlAssinada(supabase, e.documento_url!))
+  );
+
   const links = new Map<string, string>();
-  for (const evento of eventos) {
-    if (!evento.documento_url) continue;
-    const url = await urlAssinada(supabase, evento.documento_url);
+  comDocumento.forEach((evento, i) => {
+    const url = assinadas[i];
     if (url) links.set(evento.id, url);
-  }
+  });
 
   return (
     <div className="grid gap-5 max-w-[900px]">

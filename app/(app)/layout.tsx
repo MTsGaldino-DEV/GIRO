@@ -1,17 +1,16 @@
 import { exigirPerfil } from "@/lib/perfil";
-import { criarClienteServidor } from "@/lib/supabase/server";
+import { obterResumoStatus } from "@/lib/colaborador";
 import { Sidebar } from "@/components/sidebar";
 import { BannerBase } from "@/components/banner-base";
-import type { ResumoStatus } from "@/lib/tipos";
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
-  const perfil = await exigirPerfil();
-  const supabase = await criarClienteServidor();
-
   // A view respeita RLS: o supervisor vê o buraco da equipe dele, o QSMS vê o
   // dos 261. Cada um é cobrado pelo que consegue resolver.
-  const { data } = await supabase.rpc("fn_resumo_status");
-  const resumo = (data?.[0] ?? null) as ResumoStatus | null;
+  //
+  // Em paralelo com o perfil de propósito: o resumo não depende dele — quem
+  // filtra por equipe é a RLS, a partir da mesma sessão. Se `exigirPerfil`
+  // redirecionar, o redirect propaga normalmente pelo Promise.all.
+  const [perfil, resumo] = await Promise.all([exigirPerfil(), obterResumoStatus()]);
 
   return (
     <div className="min-h-dvh flex">
