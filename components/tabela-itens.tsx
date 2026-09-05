@@ -26,6 +26,8 @@ import {
 import { SeloStatus, CartaoContagem } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
+import { usePerfilColaborador } from "@/components/perfil/contexto";
+import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { IconeReticencias } from "@/components/icones";
 import {
   DropdownMenu,
@@ -297,10 +299,9 @@ function Linha({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
         <div className="flex items-center gap-2.5 min-w-0">
           <AvatarColaborador nome={item.nome} fotoUrl={fotoUrl} />
           <div className="min-w-0">
-            {/* O nome leva à pessoa; o botão "Abrir" leva ao ciclo. */}
-            <Link href={`/qsms/colaborador/${item.colaborador_id}`} className="font-medium no-underline">
-              {item.nome}
-            </Link>
+            {/* O nome abre o perfil por cima da lista; o botão "Abrir" leva
+                ao ciclo. A tela cheia continua alcançável pelo menu "⋮". */}
+            <BotaoNomeColaborador colaboradorId={item.colaborador_id} nome={item.nome} />
             <span className="block text-caption text-ink-faint tabular">
               {item.matricula}
               {item.cargo ? ` · ${item.cargo}` : ""}
@@ -344,6 +345,7 @@ function Linha({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
  * jeito de compartilhar o item sem copiar a URL na mão.
  */
 function MenuLinha({ item }: { item: ItemAberto }) {
+  const { abrir: abrirPerfil } = usePerfilColaborador();
   // Some sozinho depois de 1,5s — não depende do menu continuar aberto, então
   // o clique fecha o menu normalmente, como qualquer outro item.
   const [copiado, setCopiado] = useState(false);
@@ -367,13 +369,18 @@ function MenuLinha({ item }: { item: ItemAberto }) {
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={`/qsms/colaborador/${item.colaborador_id}`}>Ver colaborador</Link>
+        <DropdownMenuItem onSelect={() => abrirPerfil(item.colaborador_id)}>
+          Ver colaborador
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/qsms/colaborador/${item.colaborador_id}/historico`}>Ver histórico</Link>
+        <DropdownMenuItem onSelect={() => abrirPerfil(item.colaborador_id, "historico")}>
+          Ver histórico
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href={`/qsms/colaborador/${item.colaborador_id}/visao-geral`}>
+            Abrir em tela cheia
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={copiarLink}>Copiar link do item</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

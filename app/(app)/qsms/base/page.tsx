@@ -6,6 +6,7 @@ import { formatarData, ORDEM_STATUS, STATUS_ROTULO, SITUACAO_ROTULO } from "@/li
 import { SeloStatus } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { LinhaBase } from "./linha";
+import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { LinhaStatus, ResumoStatus, StatusConformidade } from "@/lib/tipos";
 
@@ -152,12 +153,10 @@ export default async function PaginaBase({
               <tr key={`${linha.colaborador_id}-${linha.tipo_requisito_id}`}>
                 <td className="tabular text-ink-muted">{linha.matricula}</td>
                 <td>
-                  <Link
-                    href={`/qsms/colaborador/${linha.colaborador_id}`}
-                    className="font-medium no-underline"
-                  >
-                    {linha.nome}
-                  </Link>
+                  <BotaoNomeColaborador
+                    colaboradorId={linha.colaborador_id}
+                    nome={linha.nome}
+                  />
                   {linha.ultimo_documento_estimado && (
                     <span className="block text-caption text-ink-faint">data estimada</span>
                   )}

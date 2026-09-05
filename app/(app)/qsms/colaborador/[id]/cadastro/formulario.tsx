@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { salvarCadastro, type Acao } from "./acoes";
 import { MensagemErro } from "@/components/aviso";
@@ -28,6 +28,8 @@ function Botao() {
 export function FormularioCadastro({
   colaborador,
   supervisores,
+  origem = "Cadastro do colaborador",
+  aoSalvar,
 }: {
   colaborador: {
     id: string;
@@ -38,12 +40,28 @@ export function FormularioCadastro({
     supervisor_id: string | null;
   };
   supervisores: Supervisor[];
+  /** Vai para a trilha de auditoria, para distinguir de onde partiu a edição. */
+  origem?: string;
+  /**
+   * Chamado após salvar com sucesso.
+   *
+   * Existe para o painel flutuante: ali não há rota, então o `revalidatePath`
+   * da Server Action não tem o que revalidar e o cabeçalho continuaria com o
+   * supervisor antigo até fechar e reabrir. Na página cheia a prop fica de
+   * fora e o comportamento é o de sempre.
+   */
+  aoSalvar?: () => void;
 }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(salvarCadastro, null);
+
+  useEffect(() => {
+    if (estado?.ok) aoSalvar?.();
+  }, [estado, aoSalvar]);
 
   return (
     <form action={acao} className="grid gap-4">
       <input type="hidden" name="id" value={colaborador.id} />
+      <input type="hidden" name="origem" value={origem} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

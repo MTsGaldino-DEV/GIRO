@@ -45,10 +45,13 @@ export function EnvioFoto({
   colaboradorId,
   nome,
   fotoUrl,
+  origem = "Cadastro do colaborador",
 }: {
   colaboradorId: string;
   nome: string;
   fotoUrl: string | null;
+  /** Vai para a trilha de auditoria, para distinguir de onde partiu a troca. */
+  origem?: string;
 }) {
   const [estado, setEstado] = useState<Acao | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -69,6 +72,7 @@ export function EnvioFoto({
       const dados = new FormData();
       dados.set("id", colaboradorId);
       dados.set("foto", reduzida);
+      dados.set("origem", origem);
 
       setEstado(await salvarFoto(null, dados));
     } catch (erro) {

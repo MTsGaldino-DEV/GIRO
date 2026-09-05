@@ -233,6 +233,100 @@ async function main() {
   });
 
   // -------------------------------------------------------------------------
+  console.log("\nDocumentos e auditoria (0014)");
+  // -------------------------------------------------------------------------
+
+  // Um documento na equipe do A, criado com BYPASSRLS para o cenário existir.
+  const { rows: docA } = await client.query(
+    `insert into documentos_colaborador (colaborador_id, nome_arquivo, tipo, storage_path)
+     values ($1, 'exame-a.pdf', 'Exame Complementar', $2) returning id`,
+    [colA[0].id, `${colA[0].id}/teste.pdf`]
+  );
+
+  await sessao(uidA, async () => {
+    const { rows } = await client.query(
+      `select id from documentos_colaborador where colaborador_id = $1`,
+      [colA[0].id]
+    );
+    if (rows.length === 1) ok("supervisor A vê documento da própria equipe");
+    else erro("supervisor A vê documento da equipe dele", `veio ${rows.length}`);
+  });
+
+  await sessao(uidB, async () => {
+    const { rows } = await client.query(
+      `select id from documentos_colaborador where colaborador_id = $1`,
+      [colA[0].id]
+    );
+    if (rows.length === 0) ok("supervisor B não vê documento da equipe do A");
+    else erro("supervisor B não vê documento do A", `enxergou ${rows.length}`);
+  });
+
+  // A view precisa herdar a mesma barreira: é dela que a interface lê.
+  await sessao(uidB, async () => {
+    const { rows } = await client.query(
+      `select id from vw_documentos_colaborador where id = $1`,
+      [docA[0].id]
+    );
+    if (rows.length === 0) ok("vw_documentos_colaborador respeita a RLS (security_invoker)");
+    else erro("view de documentos respeita RLS", `enxergou ${rows.length}`);
+  });
+
+  await sessao(uidA, async () => {
+    try {
+      await client.query(
+        `insert into documentos_colaborador (colaborador_id, nome_arquivo, tipo, storage_path)
+         values ($1, 'forjado.pdf', 'Outro', 'x/forjado.pdf')`,
+        [colA[0].id]
+      );
+      erro("supervisor não anexa documento", "o insert foi aceito");
+    } catch (e) {
+      if (e.message.includes("row-level security")) ok("supervisor não pode anexar documento");
+      else erro("supervisor não anexa documento", `outro motivo: ${e.message}`);
+    }
+  });
+
+  // A tabela de auditoria não tem política de INSERT: nem supervisor nem QSMS
+  // escrevem direto. Só fn_registrar_auditoria, que carimba auth.uid().
+  await sessao(perfilQsms[0].id, async () => {
+    try {
+      await client.query(
+        `insert into auditoria_colaborador (colaborador_id, acao, entidade)
+         values ($1, 'alterou', 'colaborador')`,
+        [colA[0].id]
+      );
+      erro("auditoria não aceita insert direto", "o insert foi aceito");
+    } catch (e) {
+      if (e.message.includes("row-level security")) {
+        ok("auditoria não aceita escrita direta, nem do QSMS");
+      } else {
+        erro("auditoria não aceita insert direto", `outro motivo: ${e.message}`);
+      }
+    }
+  });
+
+  await sessao(uidA, async () => {
+    try {
+      await client.query(
+        `select fn_registrar_auditoria($1, 'alterou', 'colaborador', null, 'cargo', 'a', 'b', 'teste')`,
+        [colA[0].id]
+      );
+      erro("supervisor barrado na RPC de auditoria", "a chamada foi aceita");
+    } catch (e) {
+      if (e.message.includes("Sem permissão")) ok("supervisor barrado em fn_registrar_auditoria");
+      else erro("supervisor barrado na RPC de auditoria", `outro motivo: ${e.message}`);
+    }
+  });
+
+  await sessao(uidB, async () => {
+    const { rows } = await client.query(
+      `select id from fn_linha_do_tempo_colaborador($1, 50, 0)`,
+      [colA[0].id]
+    );
+    if (rows.length === 0) ok("supervisor B não lê a linha do tempo da equipe do A");
+    else erro("linha do tempo respeita equipe", `veio ${rows.length}`);
+  });
+
+  // -------------------------------------------------------------------------
   console.log("\nPerfis");
   // -------------------------------------------------------------------------
   await sessao(uidA, async () => {

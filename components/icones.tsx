@@ -130,3 +130,22 @@ export function IconePonto({ className }: Props) {
     </svg>
   );
 }
+
+/** X — fecha o painel do perfil. */
+export function IconeFechar({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
+  );
+}
+
+/** Folha com dobra — a aba Documentos. */
+export function IconeDocumento({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5L14 3Z" />
+      <path d="M14 3v4.5h4.5" />
+    </svg>
+  );
+}

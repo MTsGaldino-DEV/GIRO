@@ -11,6 +11,14 @@ export const BUCKET_ASOS = "asos";
  */
 export const BUCKET_FOTOS = "fotos";
 
+/**
+ * Bucket dos anexos do colaborador (avaliação psicológica, certificados, RG).
+ *
+ * Separado de `asos` porque as políticas diferem: `asos` é só QSMS na leitura;
+ * aqui o supervisor precisa enxergar o documento da própria equipe.
+ */
+export const BUCKET_DOCUMENTOS = "documentos";
+
 const TIPOS_ACEITOS = ["application/pdf", "image/jpeg", "image/png"];
 const TAMANHO_MAXIMO = 8 * 1024 * 1024;
 

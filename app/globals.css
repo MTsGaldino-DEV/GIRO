@@ -1008,3 +1008,186 @@ a {
   margin: 0.3125rem -0.3125rem;
   background: var(--color-line);
 }
+
+/* --------------------------------------------------------------------------
+   Diálogo e painel lateral (Radix)
+
+   O Perfil do Colaborador usa a variante `data-lado="direita"`: um painel que
+   entra pela borda e deixa a lista visível atrás. A escolha não é estética —
+   quem está trabalhando a fila do painel precisa continuar vendo onde estava
+   para não perder a posição ao fechar.
+   -------------------------------------------------------------------------- */
+
+.dialogo__cortina {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  /* Petróleo escuro translúcido, não preto: o mesmo tom da sombra dos cartões,
+     para o escurecimento parecer da mesma família visual. */
+  background: rgb(19 37 35 / 0.42);
+}
+
+.dialogo__cortina[data-state="open"] {
+  animation: cortina-entra var(--duracao-media) var(--ease-giro);
+}
+.dialogo__cortina[data-state="closed"] {
+  animation: cortina-sai var(--duracao-rapida) var(--ease-giro);
+}
+
+@keyframes cortina-entra { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cortina-sai   { from { opacity: 1; } to { opacity: 0; } }
+
+.dialogo {
+  position: fixed;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-alta);
+  /* O conteúdo rola dentro de `.dialogo__corpo`, não aqui: o cabeçalho com a
+     identificação do colaborador e as abas precisam ficar fixos enquanto se
+     percorre uma lista longa de exames ou de histórico. */
+  overflow: hidden;
+}
+
+/* Painel lateral — o formato do Perfil do Colaborador. */
+.dialogo[data-lado="direita"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(880px, 100vw);
+  border-left: 1px solid var(--color-line);
+}
+
+.dialogo[data-lado="direita"][data-state="open"] {
+  animation: painel-entra var(--duracao-lenta) var(--ease-giro);
+}
+.dialogo[data-lado="direita"][data-state="closed"] {
+  animation: painel-sai var(--duracao-media) var(--ease-giro);
+}
+
+@keyframes painel-entra { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes painel-sai   { from { transform: translateX(0); } to { transform: translateX(100%); } }
+
+/* Modal centrado — variante padrão, para confirmações e formulários curtos. */
+.dialogo[data-lado="centro"] {
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(560px, calc(100vw - 2rem));
+  max-height: calc(100dvh - 4rem);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.dialogo[data-lado="centro"][data-state="open"] {
+  animation: modal-entra var(--duracao-media) var(--ease-giro);
+}
+.dialogo[data-lado="centro"][data-state="closed"] {
+  animation: modal-sai var(--duracao-rapida) var(--ease-giro);
+}
+
+@keyframes modal-entra {
+  from { opacity: 0; scale: 0.97; }
+  to   { opacity: 1; scale: 1; }
+}
+@keyframes modal-sai {
+  from { opacity: 1; scale: 1; }
+  to   { opacity: 0; scale: 0.97; }
+}
+
+/* Em tela estreita o painel ocupa tudo: 880px num celular deixaria uma faixa
+   de lista inútil na lateral e espremeria a tabela de exames. */
+@media (max-width: 640px) {
+  .dialogo[data-lado="direita"] {
+    width: 100vw;
+    border-left: 0;
+  }
+}
+
+.dialogo__cabecalho {
+  flex-shrink: 0;
+  padding: 1.25rem 1.5rem 0;
+}
+
+.dialogo__corpo {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: var(--color-mist);
+}
+
+.dialogo__rodape {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.875rem 1.5rem;
+  border-top: 1px solid var(--color-line);
+}
+
+/* Botão de fechar no canto do cabeçalho. */
+.dialogo__fechar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-faint);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro);
+}
+.dialogo__fechar:hover {
+  background: var(--color-mist);
+  color: var(--color-ink);
+}
+
+/* Indicador compacto do cabeçalho do perfil.
+   Mais apertado que `.indicador` da página cheia — o painel tem 880px, não a
+   largura da tela, e quatro indicadores no formato original não caberiam. */
+.indicador-compacto {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  min-width: 0;
+}
+.indicador-compacto__rotulo {
+  font-size: var(--text-caption);
+  color: var(--color-ink-faint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.indicador-compacto__valor {
+  font-size: var(--text-label);
+  font-weight: 500;
+  margin-top: 0.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Nome do colaborador na tabela: abre o perfil, então é <button>. Herda a
+   aparência de link porque o comportamento percebido é o mesmo — clicar leva à
+   pessoa. A caixa do botão some para não engordar a linha. */
+.nome-colaborador {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 500;
+  color: var(--color-brand);
+  text-align: left;
+  cursor: pointer;
+}
+.nome-colaborador:hover {
+  color: var(--color-brand-hover);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
