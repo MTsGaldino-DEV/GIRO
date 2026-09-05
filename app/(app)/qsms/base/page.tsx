@@ -6,6 +6,7 @@ import { formatarData, ORDEM_STATUS, STATUS_ROTULO, SITUACAO_ROTULO } from "@/li
 import { SeloStatus } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { LinhaBase } from "./linha";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { LinhaStatus, ResumoStatus, StatusConformidade } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Conferência da base" };
@@ -63,14 +64,18 @@ export default async function PaginaBase({
 
   return (
     <div>
-      <div className="mb-5">
-        <h1>Conferência da base</h1>
-        <p className="text-ink-muted text-label mt-1 max-w-[70ch]">
-          Informe a data do último ASO de cada colaborador. Cada data registrada
-          aqui vira um evento retroativo e recoloca a pessoa no semáforo — sai de
-          &ldquo;sem registro&rdquo; e passa a ter vencimento calculado.
-        </p>
-      </div>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Cadastros" }, { rotulo: "Conferência da base" }]}
+        titulo="Conferência da base"
+        descricao={
+          <span className="block max-w-[70ch]">
+            Informe a data do último ASO de cada colaborador. Cada data
+            registrada aqui vira um evento retroativo e recoloca a pessoa no
+            semáforo — sai de &ldquo;sem registro&rdquo; e passa a ter
+            vencimento calculado.
+          </span>
+        }
+      />
 
       {resumo && (
         <div className="card mb-5 flex flex-wrap items-baseline gap-x-6 gap-y-2">

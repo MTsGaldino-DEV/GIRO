@@ -4,6 +4,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { Vazio } from "@/components/aviso";
 import { FormularioUsuario } from "./formulario-usuario";
 import { BotaoAtivo } from "./botao-ativo";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { Perfil, Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Gestão de usuários" };
@@ -22,12 +23,17 @@ export default async function PaginaUsuarios() {
 
   return (
     <div className="max-w-[900px]">
-      <h1>Gestão de usuários</h1>
-      <p className="text-ink-muted text-label mt-1 mb-5 max-w-[70ch]">
-        Não há autocadastro. Todo acesso — QSMS, Supervisor ou Admin — é criado
-        aqui, com senha temporária. Quem entra troca a senha em
-        &ldquo;Trocar senha&rdquo;.
-      </p>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Administração" }, { rotulo: "Gestão de usuários" }]}
+        titulo="Gestão de usuários"
+        descricao={
+          <span className="block max-w-[70ch]">
+            Não há autocadastro. Todo acesso — QSMS, Supervisor ou Admin — é
+            criado aqui, com senha temporária. Quem entra troca a senha em
+            &ldquo;Trocar senha&rdquo;.
+          </span>
+        }
+      />
 
       <div className="grid gap-5 lg:grid-cols-[320px_1fr] items-start">
         <div className="card">

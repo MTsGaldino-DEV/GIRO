@@ -6,6 +6,7 @@ import { ETAPA_ROTULO, formatarData, formatarHora, avisoJanelaUtil } from "@/lib
 import { SeloStatus } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import type { ItemAberto } from "@/lib/tipos";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 
 export const metadata: Metadata = { title: "Minha equipe" };
 export const dynamic = "force-dynamic";
@@ -42,14 +43,17 @@ export default async function PainelSupervisor() {
 
   return (
     <div className="max-w-[760px]">
-      <h1>Minha equipe</h1>
-      <p className="text-ink-muted text-label mt-1 mb-5">
-        {semEquipe
-          ? "A aba Supervisão fica pronta como base para a Fase 2. Na Fase 1 o supervisor não tem login e o QSMS conduz o fluxo inteiro, registrando as decisões em nome dele."
-          : meus.length === 0
-            ? "Nada esperando por você agora."
-            : `${meus.length} ${meus.length === 1 ? "item precisa" : "itens precisam"} da sua ação.`}
-      </p>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Operação" }, { rotulo: "Minha equipe" }]}
+        titulo="Minha equipe"
+        descricao={
+          semEquipe
+            ? "A aba Supervisão fica pronta como base para a Fase 2. Na Fase 1 o supervisor não tem login e o QSMS conduz o fluxo inteiro, registrando as decisões em nome dele."
+            : meus.length === 0
+              ? "Nada esperando por você agora."
+              : `${meus.length} ${meus.length === 1 ? "item precisa" : "itens precisam"} da sua ação.`
+        }
+      />
 
       {error && (
         <p role="alert" className="text-label mb-4">

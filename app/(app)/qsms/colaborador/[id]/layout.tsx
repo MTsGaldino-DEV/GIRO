@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { exigirQsms } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { Trilha } from "@/components/trilha";
 import {
   carregarColaborador,
   carregarStatus,
@@ -68,7 +68,13 @@ export default async function LayoutColaborador({
 
   return (
     <div>
-      <Link href="/qsms" className="text-label">← Voltar ao painel</Link>
+      <Trilha
+        degraus={[
+          { rotulo: "Operação" },
+          { rotulo: "Painel", href: "/qsms" },
+          { rotulo: colaborador.nome },
+        ]}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-4 mt-3 mb-5">
         <div className="flex items-center gap-4 min-w-0">

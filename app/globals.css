@@ -55,7 +55,34 @@
   /* Forma */
   --radius-sm: 6px;
   --radius: 10px;
+  --radius-md: 10px;   /* espelha --radius para o utilitário `rounded-md` */
   --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* Movimento
+     Uma curva só para a interface inteira. A aceleração do início e a
+     desaceleração do fim são o que fazem um painel denso parecer responder em
+     vez de saltar; duas curvas diferentes na mesma tela leem como dois
+     produtos. */
+  --ease-giro: cubic-bezier(0.4, 0, 0.2, 1);
+  --duracao-rapida: 150ms;
+  --duracao-media: 200ms;
+  --duracao-lenta: 250ms;
+
+  /* Elevação
+     A sombra é tingida de petróleo escuro (#132523), não de preto puro. Sombra
+     preta sobre a névoa quente do fundo (--color-mist, #F2F1EC) fica cinza-sujo
+     e faz o cartão parecer descolado; o tom da própria marca mantém o conjunto
+     coeso.
+
+     Cada nível soma duas camadas: um contato curto e quase opaco, que ancora a
+     borda do elemento, e uma difusa de raio grande com `spread` negativo, que
+     dá a distância. Uma sombra só sempre entrega ou contato ou distância, nunca
+     os dois. */
+  --shadow-plano:  0 1px 2px rgb(19 37 35 / 0.05);
+  --shadow-suave:  0 1px 2px rgb(19 37 35 / 0.06), 0 6px 16px -10px rgb(19 37 35 / 0.14);
+  --shadow-media:  0 1px 3px rgb(19 37 35 / 0.07), 0 12px 28px -14px rgb(19 37 35 / 0.18);
+  --shadow-alta:   0 2px 6px rgb(19 37 35 / 0.08), 0 24px 48px -20px rgb(19 37 35 / 0.24);
 
   /* Sidebar — tom escuro próprio, deliberadamente diferente de
      --color-status-vencido-bg (#23262B): a sidebar é cromia de navegação, não
@@ -65,6 +92,43 @@
   --color-sidebar-text: #8FA6A2;
   --color-sidebar-text-active: #FFFFFF;
   --color-sidebar-line: rgba(255, 255, 255, 0.08);
+
+  /* ------------------------------------------------------------------------
+     Ponte para o shadcn/ui
+
+     Os componentes de `components/ui` são o código canônico do shadcn e falam
+     em `bg-background`, `text-muted-foreground`, `border-input`, `ring-ring`.
+     Em vez de trazer a paleta oklch que o shadcn instala por padrão — que
+     seria uma segunda fonte de verdade para as mesmas cores — cada nome dele
+     aponta para o token do GIRO que já existe. Trocar a marca continua sendo
+     mexer num lugar só.
+
+     `--color-destructive` é o ponto sensível. No shadcn ele é vermelho e
+     aparece em botão de excluir. Aqui é grafite, de propósito: o vermelho é
+     linguagem reservada do semáforo (ver a regra no topo do arquivo), e um
+     botão "Excluir" vermelho ensinaria o olho a ler vermelho como "ação
+     perigosa" em vez de "colaborador vencido". A confirmação de uma ação
+     destrutiva é trabalho do texto e do diálogo, não da cor.
+     ------------------------------------------------------------------------ */
+  --color-background: var(--color-surface);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-brand);
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: var(--color-mist);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-mist);
+  --color-muted-foreground: var(--color-ink-muted);
+  --color-accent: var(--color-brand-wash);
+  --color-accent-foreground: var(--color-brand);
+  --color-destructive: var(--color-ink);
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-brand);
 }
 
 /* --------------------------------------------------------------------------
@@ -191,9 +255,22 @@ a {
 
 .card {
   background: var(--color-surface);
-  border: 1px solid var(--color-line);
+  /* A borda continua, mas quase invisível: existe só para o cartão não sumir
+     onde a sombra não aparece — modo de alto contraste, impressão, e o
+     `forced-colors` do Windows, que descarta box-shadow inteiro. Sem ela o
+     cartão vira um retângulo branco sem limite nesses contextos. */
+  border: 1px solid rgb(19 37 35 / 0.06);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
+  box-shadow: var(--shadow-suave);
+  transition: box-shadow var(--duracao-media) var(--ease-giro);
+}
+
+/* Cartão que é alvo de clique (filtro, atalho) sobe no hover. Cartão que só
+   exibe informação fica onde está — elevação é promessa de interação, e
+   prometer clique onde não há é ruído. */
+.card--interativo:hover {
+  box-shadow: var(--shadow-media);
 }
 
 /* Faixa fixa no topo enquanto houver colaborador sem data de referência.
@@ -226,7 +303,7 @@ a {
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
-  transition: background-color 0.14s ease, border-color 0.14s ease;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro);
   /* Alvo de toque confortável: o supervisor usa isso no celular, em campo. */
   min-height: 42px;
 }
@@ -308,11 +385,14 @@ a {
 }
 
 .tabela td {
-  padding: 0.75rem 0.875rem;
+  padding: 0.8125rem 0.875rem;
   vertical-align: middle;
   background: var(--color-surface);
-  border-block: 1px solid var(--color-line);
-  transition: background-color 0.14s ease, border-color 0.14s ease;
+  /* Transparente, não removida: a borda ainda ocupa 1px de cada lado e é o que
+     mantém a altura da linha estável. Removê-la encolheria toda a tabela em
+     2px por linha e reposicionaria o conteúdo no primeiro hover. */
+  border-block: 1px solid transparent;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro);
 }
 
 .tabela td:first-child {
@@ -322,11 +402,15 @@ a {
   /* Barra de acento: 0 em repouso, 3px no hover. Como é box-shadow inset e
      não borda, aparecer não empurra o conteúdo da célula. */
   box-shadow: inset 3px 0 0 -3px var(--color-brand);
-  transition: box-shadow 0.14s ease, background-color 0.14s ease, border-color 0.14s ease;
+  transition: box-shadow var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro);
+}
+
+.tabela td:first-child {
+  border-left: 1px solid transparent;
 }
 
 .tabela td:last-child {
-  border-right: 1px solid var(--color-line);
+  border-right: 1px solid transparent;
   border-start-end-radius: var(--radius);
   border-end-end-radius: var(--radius);
 }
@@ -346,13 +430,21 @@ a {
   box-shadow: inset 3px 0 0 0 var(--color-brand);
 }
 
-/* Elevação no hover. transform no <tr> não é confiável entre navegadores;
-   o filtro entrega a sombra sem mexer no layout da tabela. */
+/* Elevação da linha. `drop-shadow` e não `box-shadow` porque a linha é um
+   <tr>, que não pinta sombra própria — o filtro contorna a silhueta formada
+   pelos fundos das células, inclusive os cantos arredondados das pontas.
+   `transform` no <tr> não é confiável entre navegadores; o filtro entrega a
+   elevação sem mexer no layout da tabela.
+
+   Dois drop-shadow empilhados pelo mesmo motivo dos tokens de elevação: um
+   contato curto e um halo difuso. Não dá para usar var(--shadow-*) aqui, que
+   são sintaxe de box-shadow. */
 .tabela tbody tr {
-  transition: filter 0.14s ease;
+  filter: drop-shadow(0 1px 1px rgb(19 37 35 / 0.05)) drop-shadow(0 4px 10px rgb(19 37 35 / 0.05));
+  transition: filter var(--duracao-media) var(--ease-giro);
 }
 .tabela tbody tr:hover {
-  filter: drop-shadow(0 1px 2px rgb(35 38 43 / 0.07));
+  filter: drop-shadow(0 1px 2px rgb(19 37 35 / 0.07)) drop-shadow(0 8px 18px rgb(19 37 35 / 0.10));
 }
 
 /* Miniatura do colaborador na lista e no cabeçalho da página dele */
@@ -378,7 +470,7 @@ a {
    e mostrar qual está aplicado. Petróleo lavado, nunca a cor do status que o
    cartão conta — senão o cartão compete com o próprio selo que ele exibe. */
 .cartao-contagem {
-  transition: border-color 0.14s ease, background-color 0.14s ease, filter 0.14s ease;
+  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), filter var(--duracao-rapida) var(--ease-giro);
 }
 .cartao-contagem:hover {
   border-color: var(--color-brand);
@@ -409,7 +501,7 @@ a {
   white-space: nowrap;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  transition: color 0.14s ease, border-color 0.14s ease;
+  transition: color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro);
 }
 .abas__item:hover {
   color: var(--color-ink);
@@ -452,7 +544,7 @@ a {
   text-decoration: none;
   font-size: var(--text-label);
   font-variant-numeric: tabular-nums;
-  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro);
 }
 .paginacao__item:hover {
   border-color: var(--color-brand);
@@ -539,6 +631,25 @@ a {
 }
 .sidebar__logo-dot { color: var(--color-brand-light); }
 
+/* Blocos da navegação. O espaço entre grupos é maior que o espaço entre itens
+   do mesmo grupo — é a proximidade que agrupa, o rótulo só nomeia. */
+.sidebar__grupo + .sidebar__grupo {
+  margin-top: 1.125rem;
+}
+
+.sidebar__grupo-rotulo {
+  padding: 0 0.75rem 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+/* Só aparece no trilho de ícones, onde o rótulo some. Ver a media query no fim
+   desta seção. */
+.sidebar__grupo-traco { display: none; }
+
 .sidebar__item {
   position: relative;
   display: flex;
@@ -549,7 +660,7 @@ a {
   color: var(--color-sidebar-text);
   text-decoration: none;
   font-size: var(--text-body);
-  transition: background-color 0.14s ease, color 0.14s ease, transform 0.14s ease;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro), transform var(--duracao-rapida) var(--ease-giro);
 }
 
 /* O deslocamento sugere a direção da navegação — o item se move para onde
@@ -586,7 +697,7 @@ a {
 
 /* O chevron acompanha o mouse: confirma que o item ativo continua clicável. */
 .sidebar__item--ativo svg:last-child {
-  transition: transform 0.14s ease;
+  transition: transform var(--duracao-rapida) var(--ease-giro);
 }
 .sidebar__item--ativo:hover svg:last-child {
   transform: translateX(2px);
@@ -658,6 +769,14 @@ a {
   .sidebar__identidade { display: none; }
   .sidebar__acoes { flex-direction: column; gap: 0.25rem; }
   .sidebar__logo { justify-content: center; padding: 1.25rem 0; }
+  .sidebar__grupo-rotulo { display: none; }
+  .sidebar__grupo + .sidebar__grupo { margin-top: 0.5rem; }
+  .sidebar__grupo + .sidebar__grupo .sidebar__grupo-traco {
+    display: block;
+    height: 1px;
+    margin: 0 0.5rem 0.5rem;
+    background: var(--color-sidebar-line);
+  }
   /* O trilho usa px-2, não px-3: a barra indicadora acompanha para não sair
      da sidebar e ser cortada. */
   .sidebar__item--ativo::before { left: -0.5rem; }
@@ -704,4 +823,188 @@ a {
   cursor: pointer;
   font: inherit;
   color: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   Variantes de botão exigidas pelo componente shadcn
+
+   `.btn`, `.btn--primary` e `.btn--secondary` já existiam. As de baixo cobrem
+   o resto da API (`ghost`, `link`, `destructive` e os tamanhos), para que o
+   componente não precise pintar nada por conta própria.
+   -------------------------------------------------------------------------- */
+
+.btn--fantasma {
+  background: transparent;
+  color: var(--color-ink-muted);
+}
+.btn--fantasma:hover {
+  background: var(--color-brand-wash);
+  color: var(--color-brand);
+}
+
+/* `link` some com a caixa do botão mas mantém a altura mínima de toque: em
+   campo, no celular, um "Cancelar" de 18px de altura é um alvo que erra. */
+.btn--link {
+  background: transparent;
+  color: var(--color-brand);
+  padding-inline: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.btn--link:hover { color: var(--color-brand-hover); }
+
+/* Grafite, não vermelho — ver a ponte de tokens do shadcn no topo do arquivo. */
+.btn--destrutivo {
+  background: var(--color-ink);
+  color: #FFFFFF;
+}
+.btn--destrutivo:hover { background: #000000; }
+
+.btn--sm {
+  min-height: 34px;
+  padding: 0.375rem 0.75rem;
+  font-size: var(--text-label);
+}
+
+.btn--lg {
+  min-height: 48px;
+  padding: 0.75rem 1.375rem;
+}
+
+/* Quadrado, sem padding lateral: só o ícone. 34px continua acima do mínimo
+   confortável de toque quando o alvo é isolado, como o "⋮" no fim da linha. */
+.btn--icone {
+  min-height: 34px;
+  width: 34px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Etiqueta de metadado
+
+   Papel, polo, tipo de requisito. Nunca conformidade — essa é `.status--*`.
+   -------------------------------------------------------------------------- */
+
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.etiqueta--marca   { background: var(--color-brand-wash); color: var(--color-brand); }
+.etiqueta--neutra  { background: var(--color-mist); color: var(--color-ink-muted); }
+.etiqueta--contorno { border-color: var(--color-line-strong); color: var(--color-ink-muted); }
+.etiqueta--solida  { background: var(--color-brand); color: #FFFFFF; }
+
+/* --------------------------------------------------------------------------
+   Menu suspenso (Radix)
+
+   A cortina é o Radix que gerencia; aqui é só pintura e movimento. A entrada
+   sai do lado em que o menu abriu — `data-side` vem do Radix e já leva a
+   detecção de colisão em conta, então um menu que virou para cima anima para
+   cima. Animar sempre "de baixo" faria o menu invertido parecer que veio do
+   lugar errado.
+   -------------------------------------------------------------------------- */
+
+.menu-suspenso {
+  z-index: 50;
+  min-width: 12rem;
+  max-height: var(--radix-dropdown-menu-content-available-height);
+  overflow-y: auto;
+  padding: 0.3125rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-alta);
+  transform-origin: var(--radix-dropdown-menu-content-transform-origin);
+}
+
+.menu-suspenso[data-state="open"] {
+  animation: menu-entra var(--duracao-media) var(--ease-giro);
+}
+.menu-suspenso[data-state="closed"] {
+  animation: menu-sai var(--duracao-rapida) var(--ease-giro);
+}
+
+@keyframes menu-entra {
+  from { opacity: 0; scale: 0.96; }
+  to   { opacity: 1; scale: 1; }
+}
+@keyframes menu-sai {
+  from { opacity: 1; scale: 1; }
+  to   { opacity: 0; scale: 0.96; }
+}
+
+.menu-suspenso__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4375rem 0.5625rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-label);
+  color: var(--color-ink);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro);
+}
+
+/* O Radix marca com `data-highlighted` tanto o item sob o mouse quanto o
+   alcançado pelo teclado. Estilizar só `:hover` deixaria a navegação por setas
+   sem realce nenhum — o menu ficaria inutilizável sem mouse. */
+.menu-suspenso__item[data-highlighted] {
+  background: var(--color-brand-wash);
+  color: var(--color-brand);
+}
+
+.menu-suspenso__item[data-disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.menu-suspenso__item[data-variant="destructive"] {
+  color: var(--color-ink);
+  font-weight: 500;
+}
+.menu-suspenso__item[data-variant="destructive"][data-highlighted] {
+  background: var(--color-ink);
+  color: #FFFFFF;
+}
+
+.menu-suspenso__item[data-inset="true"] { padding-left: 1.75rem; }
+
+.menu-suspenso__item--marcavel { padding-left: 0.375rem; }
+
+/* Largura fixa mesmo vazia: sem ela, marcar um item empurraria o texto de
+   todos os outros para o lado. */
+.menu-suspenso__marca {
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  flex-shrink: 0;
+}
+
+.menu-suspenso__rotulo {
+  padding: 0.4375rem 0.5625rem 0.25rem;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+.menu-suspenso__divisor {
+  height: 1px;
+  margin: 0.3125rem -0.3125rem;
+  background: var(--color-line);
 }

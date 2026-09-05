@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirSupervisor } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { Trilha } from "@/components/trilha";
 import { FichaItem } from "@/components/ficha-item";
 import { Timeline, type EntradaHistorico } from "@/components/timeline";
 import { Aviso } from "@/components/aviso";
@@ -34,7 +34,13 @@ export default async function ItemSupervisor({ params }: { params: Promise<{ id:
 
   return (
     <div className="max-w-[760px]">
-      <Link href="/supervisor" className="text-label">← Voltar</Link>
+      <Trilha
+        degraus={[
+          { rotulo: "Operação" },
+          { rotulo: "Minha equipe", href: "/supervisor" },
+          { rotulo: item.nome },
+        ]}
+      />
 
       <div className="mt-3 grid gap-5">
         <FichaItem item={item} />

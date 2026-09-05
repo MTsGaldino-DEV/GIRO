@@ -4,6 +4,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso, Vazio } from "@/components/aviso";
 import { FormularioSupervisor } from "./formulario-supervisor";
 import { VinculoEmMassa } from "./vinculo-massa";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Supervisores" };
@@ -63,13 +64,18 @@ export default async function PaginaSupervisores({
 
   return (
     <div>
-      <h1>Supervisores e equipes</h1>
-      <p className="text-ink-muted text-label mt-1 mb-5 max-w-[70ch]">
-        Cadastrar o supervisor aqui só registra a equipe. O login dele (com
-        senha) é liberado em Gestão de usuários. Vincular colaboradores define
-        quem aparece no painel de quem e quem recebe qual e-mail na
-        segunda-feira.
-      </p>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Cadastros" }, { rotulo: "Supervisores" }]}
+        titulo="Supervisores e equipes"
+        descricao={
+          <span className="block max-w-[70ch]">
+            Cadastrar o supervisor aqui só registra a equipe. O login dele (com
+            senha) é liberado em Gestão de usuários. Vincular colaboradores
+            define quem aparece no painel de quem e quem recebe qual e-mail na
+            segunda-feira.
+          </span>
+        }
+      />
 
       {semSupervisor > 0 && (
         <div className="mb-5">

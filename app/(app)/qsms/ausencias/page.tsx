@@ -5,6 +5,7 @@ import { Aviso, Vazio } from "@/components/aviso";
 import { formatarData, TIPO_AUSENCIA_ROTULO } from "@/lib/dominio";
 import { FormularioAusencia } from "./formulario";
 import { BotaoRemover } from "./botao-remover";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 
 export const metadata: Metadata = { title: "Ausências" };
 export const dynamic = "force-dynamic";
@@ -38,12 +39,17 @@ export default async function PaginaAusencias() {
 
   return (
     <div className="max-w-[900px]">
-      <h1>Ausências</h1>
-      <p className="text-ink-muted text-label mt-1 mb-5 max-w-[70ch]">
-        Férias, atestados e afastamentos. O sistema usa isso para calcular a
-        janela útil e para impedir agendamento em dia que o colaborador não
-        estará disponível.
-      </p>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Cadastros" }, { rotulo: "Ausências" }]}
+        titulo="Ausências"
+        descricao={
+          <span className="block max-w-[70ch]">
+            Férias, atestados e afastamentos. O sistema usa isso para calcular a
+            janela útil e para impedir agendamento em dia que o colaborador não
+            estará disponível.
+          </span>
+        }
+      />
 
       <div className="mb-5">
         <Aviso titulo="Pendência P7 do plano — origem das ausências">

@@ -5,6 +5,7 @@ import { TabelaItens } from "@/components/tabela-itens";
 import { assinarFotos, obterResumoStatus, obterPolos } from "@/lib/colaborador";
 import { buscarPaginaItens, type FiltrosPainel } from "@/lib/consulta-itens";
 import { BotaoGerarItens } from "./gerar-itens";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { ResumoStatus, Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Painel do QSMS" };
@@ -50,16 +51,18 @@ export default async function PainelQsms({
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
-        <div>
-          <h1>Painel do QSMS</h1>
-          <p className="text-ink-muted text-label mt-1">
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Operação" }, { rotulo: "Painel" }]}
+        titulo="Painel do QSMS"
+        descricao={
+          <>
             {total} {total === 1 ? "item em aberto" : "itens em aberto"}
             {temFiltro && " no filtro atual"}.
-          </p>
-        </div>
+          </>
+        }
+      >
         <BotaoGerarItens />
-      </div>
+      </CabecalhoPagina>
 
       <TabelaItens
         inicial={{ itens, total, erro }}

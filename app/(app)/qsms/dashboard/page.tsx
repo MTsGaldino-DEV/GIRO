@@ -7,6 +7,7 @@ import { GraficoConclusoes, type PontoMes } from "@/components/grafico-conclusoe
 import { Vazio } from "@/components/aviso";
 import { ORDEM_STATUS, ETAPA_ROTULO, DONO_ROTULO } from "@/lib/dominio";
 import { AtualizacaoAutomatica } from "./atualizacao";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { ResumoStatus, Etapa, Dono } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -82,16 +83,18 @@ export default async function Dashboard() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
-        <div>
-          <h1>Dashboard</h1>
-          <p className="text-ink-muted text-label mt-1">
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Operação" }, { rotulo: "Dashboard" }]}
+        titulo="Dashboard"
+        descricao={
+          <>
             A operação inteira numa tela. Para trabalhar a fila, use o{" "}
             <Link href="/qsms">painel</Link>.
-          </p>
-        </div>
+          </>
+        }
+      >
         <AtualizacaoAutomatica />
-      </div>
+      </CabecalhoPagina>
 
       {resumo && (
         <>

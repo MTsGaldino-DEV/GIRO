@@ -101,3 +101,32 @@ export function IconeChevron({ className }: Props) {
     </svg>
   );
 }
+
+/** Três pontos verticais — abre o menu de ações de uma linha da tabela. */
+export function IconeReticencias({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="12" cy="5" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.25" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Marca de seleção — itens de menu do tipo checkbox. */
+export function IconeConfere({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="m5 12.5 4.5 4.5L19 7" />
+    </svg>
+  );
+}
+
+/** Ponto cheio — itens de menu do tipo radio. */
+export function IconePonto({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="12" cy="12" r="4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
