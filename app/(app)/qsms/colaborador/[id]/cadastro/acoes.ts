@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirAdmin, exigirQsms } from "@/lib/perfil";
 import { BUCKET_FOTOS } from "@/lib/colaborador";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -128,6 +128,16 @@ async function registrarMudancasDeCadastro(
     { campo: "supervisor", de: anteriorSupervisor, para: novoSupervisor },
   ];
 
+  await registrarCampos(supabase, colaboradorId, comparacoes, origem);
+}
+
+/** Uma linha por campo que mudou. Compartilhado pelos dois formulários. */
+async function registrarCampos(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  colaboradorId: string,
+  comparacoes: { campo: string; de: string | null; para: string | null }[],
+  origem: string
+): Promise<void> {
   for (const { campo, de, para } of comparacoes) {
     if (de === para) continue;
     try {
@@ -227,4 +237,167 @@ export async function salvarFoto(_anterior: Acao | null, formData: FormData): Pr
   revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
   revalidatePath("/qsms");
   return { ok: true, mensagem: "Foto atualizada." };
+}
+
+// ---------------------------------------------------------------------------
+
+/** Só dígitos: é como a base guarda, e comparar formatos diferentes geraria
+ *  uma linha de auditoria falsa a cada salvamento. */
+function apenasDigitos(valor: string): string {
+  return valor.replace(/\D/g, "");
+}
+
+const esquemaFolha = z.object({
+  id: z.string().uuid(),
+  nome: z.string().trim().min(3, "Nome muito curto.").max(160),
+  matricula: z.coerce
+    .number({ message: "Matrícula precisa ser um número." })
+    .int("Matrícula precisa ser um número inteiro.")
+    .positive("Matrícula precisa ser positiva.")
+    .max(2147483647),
+  cpf: z
+    .string()
+    .transform(apenasDigitos)
+    .refine((v) => v === "" || v.length === 11, "CPF precisa ter 11 dígitos."),
+  uen: z.string().trim().max(120),
+  data_admissao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.").or(z.literal("")),
+  data_nascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.").or(z.literal("")),
+});
+
+/**
+ * Edita o que vem da folha: nome, matrícula, CPF, UEN e datas.
+ *
+ * Separado de `salvarCadastro` porque são operações diferentes com permissões
+ * diferentes. Lotação e supervisor o QSMS conhece melhor que o RH e edita todo
+ * dia; identidade é correção de cadastro, e uma matrícula trocada por engano
+ * reaponta ASOs, itens e histórico de uma pessoa para outra.
+ *
+ * `exigirAdmin()` é regra de produto, não barreira de banco: a política
+ * `colaboradores_escrita_qsms` é `for all` e `fn_e_qsms()` já inclui os dois
+ * papéis, então um usuário QSMS que chame o PostgREST direto continua podendo
+ * escrever estas colunas — como sempre pôde. Transformar isso em barreira real
+ * exigiria um trigger, que não faz parte desta entrega.
+ */
+export async function salvarDadosDaFolha(
+  _anterior: Acao | null,
+  formData: FormData
+): Promise<Acao> {
+  await exigirAdmin();
+
+  const analise = esquemaFolha.safeParse({
+    id: formData.get("id"),
+    nome: formData.get("nome"),
+    matricula: formData.get("matricula"),
+    cpf: formData.get("cpf") ?? "",
+    uen: formData.get("uen") ?? "",
+    data_admissao: formData.get("data_admissao") ?? "",
+    data_nascimento: formData.get("data_nascimento") ?? "",
+  });
+
+  if (!analise.success) {
+    return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const { id, nome, matricula, cpf, uen, data_admissao, data_nascimento } = analise.data;
+  const origem = String(formData.get("origem") ?? "Cadastro do colaborador");
+
+  const supabase = await criarClienteServidor();
+
+  const { data: antes } = await supabase
+    .from("colaboradores")
+    .select("nome, matricula, cpf, uen, data_admissao, data_nascimento")
+    .eq("id", id)
+    .maybeSingle();
+
+  const { error } = await supabase
+    .from("colaboradores")
+    .update({
+      nome,
+      matricula,
+      cpf: cpf || null,
+      uen: uen || null,
+      data_admissao: data_admissao || null,
+      data_nascimento: data_nascimento || null,
+    })
+    .eq("id", id);
+
+  if (error) {
+    // `matricula` é única na base. A mensagem crua do Postgres cita o nome do
+    // índice e não diz de quem é a matrícula ocupada.
+    if (error.code === "23505") {
+      return { ok: false, erro: `A matrícula ${matricula} já pertence a outro colaborador.` };
+    }
+    return { ok: false, erro: error.message };
+  }
+
+  if (antes) {
+    await registrarCampos(
+      supabase,
+      id,
+      [
+        { campo: "nome", de: (antes.nome as string) ?? null, para: nome },
+        {
+          campo: "matrícula",
+          de: antes.matricula === null ? null : String(antes.matricula),
+          para: String(matricula),
+        },
+        { campo: "CPF", de: (antes.cpf as string) ?? null, para: cpf || null },
+        { campo: "UEN", de: (antes.uen as string) ?? null, para: uen || null },
+        {
+          campo: "admissão",
+          de: (antes.data_admissao as string) ?? null,
+          para: data_admissao || null,
+        },
+        {
+          campo: "nascimento",
+          de: (antes.data_nascimento as string) ?? null,
+          para: data_nascimento || null,
+        },
+      ],
+      origem
+    );
+  }
+
+  revalidatePath(`/qsms/colaborador/${id}`, "layout");
+  revalidatePath("/qsms");
+  revalidatePath("/qsms/base");
+  return { ok: true, mensagem: "Dados da folha atualizados." };
+}
+
+/**
+ * Desliga ou reativa o colaborador.
+ *
+ * Não é exclusão: a linha continua na base com todo o histórico, ASOs e
+ * documentos. O que muda é que `vw_status_colaborador` e a geração de itens
+ * filtram por `ativo = true`, então um desligado sai do semáforo e para de
+ * gerar pendência — ninguém é cobrado por quem não trabalha mais aqui.
+ * Reativar devolve tudo, sem perda.
+ */
+export async function alternarAtivo(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  await exigirAdmin();
+
+  const analise = z
+    .object({ id: z.string().uuid(), ativo: z.enum(["true", "false"]) })
+    .safeParse({ id: formData.get("id"), ativo: formData.get("ativo") });
+
+  if (!analise.success) return { ok: false, erro: "Dados inválidos." };
+
+  const { id } = analise.data;
+  const ativo = analise.data.ativo === "true";
+  const supabase = await criarClienteServidor();
+
+  const { error } = await supabase.from("colaboradores").update({ ativo }).eq("id", id);
+  if (error) return { ok: false, erro: error.message };
+
+  await registrarCampos(
+    supabase,
+    id,
+    [{ campo: "situação no quadro", de: ativo ? "desligado" : "ativo", para: ativo ? "ativo" : "desligado" }],
+    String(formData.get("origem") ?? "Cadastro do colaborador")
+  );
+
+  revalidatePath(`/qsms/colaborador/${id}`, "layout");
+  revalidatePath("/qsms");
+  revalidatePath("/qsms/base");
+  return { ok: true, mensagem: ativo ? "Colaborador reativado." : "Colaborador desligado." };
 }

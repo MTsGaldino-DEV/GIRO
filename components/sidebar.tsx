@@ -32,6 +32,7 @@ const ITEM_BASE: ItemNav = { href: "/qsms/base", rotulo: "Base", Icone: IconeBas
 const ITEM_SUPERVISORES: ItemNav = { href: "/qsms/supervisores", rotulo: "Supervisores", Icone: IconeSupervisores };
 const ITEM_AUSENCIAS: ItemNav = { href: "/qsms/ausencias", rotulo: "Ausências", Icone: IconeAusencias };
 const ITEM_USUARIOS: ItemNav = { href: "/admin/usuarios", rotulo: "Gestão de usuários", Icone: IconeUsuarios };
+const ITEM_DESLIGADOS: ItemNav = { href: "/admin/desligados", rotulo: "Desligados", Icone: IconeBase };
 
 /**
  * Aba Supervisão, visível só para admin (plano da Fase 1, seção 10).
@@ -62,7 +63,7 @@ function gruposDoPapel(papel: Perfil["papel"]): GrupoNav[] {
   ];
 
   if (papel === "admin") {
-    grupos.push({ rotulo: "Administração", itens: [ITEM_SUPERVISAO, ITEM_USUARIOS] });
+    grupos.push({ rotulo: "Administração", itens: [ITEM_SUPERVISAO, ITEM_USUARIOS, ITEM_DESLIGADOS] });
   }
 
   return grupos;

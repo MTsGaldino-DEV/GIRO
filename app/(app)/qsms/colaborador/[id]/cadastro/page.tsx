@@ -4,6 +4,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarColaborador, assinarFoto } from "@/lib/colaborador";
 import { formatarData } from "@/lib/dominio";
 import { FormularioCadastro } from "./formulario";
+import { BotaoDesligar, FormularioFolha } from "./formulario-folha";
 import { EnvioFoto } from "./envio-foto";
 import type { Supervisor } from "@/lib/tipos";
 
@@ -20,8 +21,9 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 }
 
 export default async function AbaCadastro({ params }: { params: Promise<{ id: string }> }) {
-  await exigirQsms();
+  const perfil = await exigirQsms();
   const { id } = await params;
+  const ehAdmin = perfil.papel === "admin";
 
   const colaborador = await carregarColaborador(id);
   const supabase = await criarClienteServidor();
@@ -41,17 +43,22 @@ export default async function AbaCadastro({ params }: { params: Promise<{ id: st
       <div className="card">
         <h2 className="text-[1.0625rem] mb-1">Dados da folha</h2>
         <p className="text-ink-muted text-label mb-4">
-          Vêm do RH e não são editáveis aqui: corrigir nesta tela criaria
-          divergência silenciosa com a folha na próxima reimportação.
+          {ehAdmin
+            ? "Identificação do colaborador. Toda alteração fica no histórico, com o valor anterior."
+            : "Vêm do RH e só o admin edita."}
         </p>
-        <dl className="grid gap-x-6 gap-y-4 grid-cols-2 sm:grid-cols-3 m-0">
-          <Campo rotulo="Matrícula">{colaborador.matricula}</Campo>
-          <Campo rotulo="Nome">{colaborador.nome}</Campo>
-          <Campo rotulo="CPF">{colaborador.cpf ?? "—"}</Campo>
-          <Campo rotulo="Admissão">{formatarData(colaborador.data_admissao)}</Campo>
-          <Campo rotulo="Nascimento">{formatarData(colaborador.data_nascimento)}</Campo>
-          <Campo rotulo="UEN">{colaborador.uen ?? "—"}</Campo>
-        </dl>
+        {ehAdmin ? (
+          <FormularioFolha colaborador={colaborador} />
+        ) : (
+          <dl className="grid gap-x-6 gap-y-4 grid-cols-2 sm:grid-cols-3 m-0">
+            <Campo rotulo="Matrícula">{colaborador.matricula}</Campo>
+            <Campo rotulo="Nome">{colaborador.nome}</Campo>
+            <Campo rotulo="CPF">{colaborador.cpf ?? "—"}</Campo>
+            <Campo rotulo="Admissão">{formatarData(colaborador.data_admissao)}</Campo>
+            <Campo rotulo="Nascimento">{formatarData(colaborador.data_nascimento)}</Campo>
+            <Campo rotulo="UEN">{colaborador.uen ?? "—"}</Campo>
+          </dl>
+        )}
       </div>
 
       <div className="card">
@@ -64,6 +71,18 @@ export default async function AbaCadastro({ params }: { params: Promise<{ id: st
           supervisores={(supervisoresBrutos ?? []) as Supervisor[]}
         />
       </div>
+
+      {ehAdmin && (
+        <div className="card">
+          <h2 className="text-[1.0625rem] mb-1">Quadro</h2>
+          <p className="text-ink-muted text-label mb-4">
+            {colaborador.ativo
+              ? "Colaborador ativo: entra no semáforo e gera pendência de ASO."
+              : "Colaborador desligado."}
+          </p>
+          <BotaoDesligar colaborador={colaborador} />
+        </div>
+      )}
     </div>
   );
 }

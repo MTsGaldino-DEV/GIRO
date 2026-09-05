@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import type { Papel } from "@/lib/tipos";
 
 export const ABAS_PERFIL = [
   { chave: "visao-geral", rotulo: "Visão geral" },
@@ -15,6 +16,8 @@ export type AbaPerfil = (typeof ABAS_PERFIL)[number]["chave"];
 interface EstadoPerfil {
   colaboradorId: string | null;
   aba: AbaPerfil;
+  /** Papel do usuário logado, para decidir o que a aba Cadastro deixa editar. */
+  papel: Papel;
   abrir: (colaboradorId: string, aba?: AbaPerfil) => void;
   trocarAba: (aba: AbaPerfil) => void;
   fechar: () => void;
@@ -37,7 +40,13 @@ const Contexto = createContext<EstadoPerfil | null>(null);
  * duplicar estrutura de rotas — as telas cheias em /qsms/colaborador/[id]/...
  * continuam existindo e funcionando por link direto, intocadas.
  */
-export function ProvedorPerfilColaborador({ children }: { children: React.ReactNode }) {
+export function ProvedorPerfilColaborador({
+  papel,
+  children,
+}: {
+  papel: Papel;
+  children: React.ReactNode;
+}) {
   const [colaboradorId, setColaboradorId] = useState<string | null>(null);
   const [aba, setAba] = useState<AbaPerfil>("visao-geral");
 
@@ -50,8 +59,8 @@ export function ProvedorPerfilColaborador({ children }: { children: React.ReactN
   const trocarAba = useCallback((proxima: AbaPerfil) => setAba(proxima), []);
 
   const valor = useMemo(
-    () => ({ colaboradorId, aba, abrir, trocarAba, fechar }),
-    [colaboradorId, aba, abrir, trocarAba, fechar]
+    () => ({ colaboradorId, aba, papel, abrir, trocarAba, fechar }),
+    [colaboradorId, aba, papel, abrir, trocarAba, fechar]
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

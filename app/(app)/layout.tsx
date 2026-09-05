@@ -15,7 +15,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   const [perfil, resumo] = await Promise.all([exigirPerfil(), obterResumoStatus()]);
 
   return (
-    <ProvedorPerfilColaborador>
+    <ProvedorPerfilColaborador papel={perfil.papel}>
       <div className="min-h-dvh flex">
         <Sidebar perfil={perfil} />
         <div className="flex-1 flex flex-col min-w-0">

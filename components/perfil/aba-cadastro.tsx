@@ -3,11 +3,16 @@
 import { useEffect, useState } from "react";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { FormularioCadastro } from "@/app/(app)/qsms/colaborador/[id]/cadastro/formulario";
+import {
+  BotaoDesligar,
+  FormularioFolha,
+} from "@/app/(app)/qsms/colaborador/[id]/cadastro/formulario-folha";
 import { EnvioFoto } from "@/app/(app)/qsms/colaborador/[id]/cadastro/envio-foto";
 import { formatarData } from "@/lib/dominio";
 import { carregarSupervisoresAtivos } from "@/lib/consulta-colaborador";
 import type { ResumoColaborador } from "@/lib/consulta-colaborador";
 import type { Supervisor } from "@/lib/tipos";
+import { usePerfilColaborador } from "./contexto";
 
 /**
  * Aba Cadastro.
@@ -18,8 +23,9 @@ import type { Supervisor } from "@/lib/tipos";
  * `colaboradores_escrita_qsms` no banco. O painel não abre nenhuma porta que a
  * página já não abrisse.
  *
- * Nome, matrícula e CPF seguem só de leitura pelo motivo original: vêm da folha
- * e editá-los aqui criaria divergência silenciosa na próxima reimportação.
+ * Os dados da folha — nome, matrícula, CPF, UEN e datas — só viram formulário
+ * para admin. A checagem de verdade é `exigirAdmin()` dentro da Server Action;
+ * o papel aqui decide apenas o que aparece na tela.
  */
 export function AbaCadastro({
   resumo,
@@ -28,8 +34,10 @@ export function AbaCadastro({
   resumo: ResumoColaborador;
   aoAtualizar: () => void;
 }) {
+  const { papel } = usePerfilColaborador();
   const [supervisores, setSupervisores] = useState<Supervisor[] | null>(null);
   const { colaborador, fotoUrl } = resumo;
+  const ehAdmin = papel === "admin";
 
   useEffect(() => {
     let ativo = true;
@@ -46,8 +54,17 @@ export function AbaCadastro({
       <div className="card">
         <h3 className="mb-1">Dados da folha</h3>
         <p className="text-ink-muted text-label mb-3">
-          Vêm da importação e não são editáveis aqui.
+          {ehAdmin
+            ? "Identificação do colaborador. Toda alteração fica na aba Histórico, com o valor anterior."
+            : "Vêm da importação e só o admin edita."}
         </p>
+        {ehAdmin ? (
+          <FormularioFolha
+            colaborador={colaborador}
+            origem="Perfil do Colaborador"
+            aoSalvar={aoAtualizar}
+          />
+        ) : (
         <dl className="grid gap-x-6 gap-y-3 grid-cols-2 sm:grid-cols-3 m-0">
           <div>
             <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">Nome</dt>
@@ -78,6 +95,7 @@ export function AbaCadastro({
             <dd className="m-0 mt-0.5 text-label">{colaborador.uen ?? "—"}</dd>
           </div>
         </dl>
+        )}
       </div>
 
       <div className="card">
@@ -110,6 +128,22 @@ export function AbaCadastro({
           />
         )}
       </div>
+
+      {ehAdmin && (
+        <div className="card">
+          <h3 className="mb-1">Quadro</h3>
+          <p className="text-ink-muted text-label mb-4">
+            {colaborador.ativo
+              ? "Colaborador ativo: entra no semáforo e gera pendência de ASO."
+              : "Colaborador desligado."}
+          </p>
+          <BotaoDesligar
+            colaborador={colaborador}
+            origem="Perfil do Colaborador"
+            aoSalvar={aoAtualizar}
+          />
+        </div>
+      )}
     </div>
   );
 }
