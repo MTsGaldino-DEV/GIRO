@@ -1,9 +1,10 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { criarClienteServidor } from "./supabase/server";
+import { BUCKET_FOTOS } from "./storage";
 import type { ItemAberto, LinhaStatus, ResumoStatus } from "./tipos";
 
-export const BUCKET_FOTOS = "fotos";
+export { BUCKET_FOTOS } from "./storage";
 
 export interface ColaboradorCompleto {
   id: string;

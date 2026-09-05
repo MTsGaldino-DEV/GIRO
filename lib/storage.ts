@@ -2,6 +2,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const BUCKET_ASOS = "asos";
 
+/**
+ * Bucket das fotos de colaborador.
+ *
+ * Mora aqui, junto de BUCKET_ASOS, e não em lib/colaborador.ts: aquele módulo
+ * importa `next/headers` para montar o cliente de servidor, então importá-lo
+ * de um componente de navegador quebra o build inteiro.
+ */
+export const BUCKET_FOTOS = "fotos";
+
 const TIPOS_ACEITOS = ["application/pdf", "image/jpeg", "image/png"];
 const TAMANHO_MAXIMO = 8 * 1024 * 1024;
 

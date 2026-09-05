@@ -117,6 +117,8 @@ export interface ItemAberto extends LinhaStatus {
   dados_informados_em: string | null;
   data_limite_marcar: string;
   limite_marcacao_estourado: boolean;
+  /** Caminho no bucket de fotos, não URL. Assinado por quem exibe. */
+  foto_url: string | null;
 }
 
 export interface ResumoStatus {
