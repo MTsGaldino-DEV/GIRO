@@ -4,6 +4,7 @@ import { useActionState, useCallback, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { MensagemErro, Vazio } from "@/components/aviso";
+import { Badge } from "@/components/ui/badge";
 import { formatarData, formatarDataHora } from "@/lib/dominio";
 import {
   carregarDocumentos,
@@ -11,6 +12,7 @@ import {
   type DocumentoColaborador,
 } from "@/lib/consulta-colaborador";
 import { anexarDocumento, type Acao } from "@/app/(app)/qsms/colaborador/acoes-documentos";
+import { EditarDocumento } from "./editar-documento";
 
 /** Bytes em algo legível. 8 MB é o teto, então KB e MB bastam. */
 function tamanhoLegivel(bytes: number | null): string {
@@ -36,15 +38,17 @@ function BotaoEnviar() {
  * complementar não tinham onde existir — é o primeiro passo para acomodar
  * requisitos além do ASO, sem construir o motor de requisitos ainda.
  *
- * Nesta V1 só há anexar, listar e baixar. Editar metadados e excluir ficaram
- * fora de propósito: são o tipo de escrita que precisa de regra de permissão
- * pensada, e a decisão foi entregar o caminho feliz primeiro.
+ * Anexar, listar, baixar, editar metadados e remover. Trocar o arquivo de um
+ * documento existente não é possível de propósito — isso exigiria versionamento,
+ * que está fora desta entrega; quem precisa de outra versão anexa um documento
+ * novo e remove o antigo, e as duas ações ficam na trilha.
  */
 export function AbaDocumentos({ colaboradorId }: { colaboradorId: string }) {
   const [documentos, setDocumentos] = useState<DocumentoColaborador[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [carregando, setCarregando] = useState(true);
   const [estado, acao] = useActionState<Acao | null, FormData>(anexarDocumento, null);
+  const [emEdicao, setEmEdicao] = useState<DocumentoColaborador | null>(null);
 
   const buscar = useCallback(async () => {
     const supabase = criarClienteNavegador();
@@ -163,8 +167,9 @@ export function AbaDocumentos({ colaboradorId }: { colaboradorId: string }) {
                   <th scope="col">Tipo</th>
                   <th scope="col">Data</th>
                   <th scope="col">Validade</th>
+                  <th scope="col">Status</th>
                   <th scope="col">Anexado por</th>
-                  <th scope="col"><span className="sr-only">Arquivo</span></th>
+                  <th scope="col"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -179,13 +184,18 @@ export function AbaDocumentos({ colaboradorId }: { colaboradorId: string }) {
                     </td>
                     <td className="text-label">{doc.tipo}</td>
                     <td className="tabular">{formatarData(doc.data_documento)}</td>
-                    <td className="tabular">
-                      {formatarData(doc.data_validade)}
-                      {/* Vencido é grafite, não vermelho: o vermelho pertence ao
-                          semáforo do ASO. Documento fora da validade é um aviso,
-                          não um status de conformidade do colaborador. */}
-                      {doc.vencido && (
-                        <span className="block text-caption text-ink font-medium">vencido</span>
+                    <td className="tabular">{formatarData(doc.data_validade)}</td>
+                    <td className="text-label">
+                      {/* Etiqueta neutra, nunca cor de semáforo: verde, âmbar e
+                          vermelho são linguagem reservada da conformidade do
+                          colaborador. Documento fora da validade é um aviso de
+                          documento, não um status de quem pode trabalhar. */}
+                      {doc.data_validade === null ? (
+                        <span className="text-ink-faint">sem validade</span>
+                      ) : doc.vencido ? (
+                        <Badge variant="secondary" className="font-medium">Vencido</Badge>
+                      ) : (
+                        <Badge variant="outline">Vigente</Badge>
                       )}
                     </td>
                     <td className="text-label">
@@ -195,18 +205,28 @@ export function AbaDocumentos({ colaboradorId }: { colaboradorId: string }) {
                       </span>
                     </td>
                     <td>
-                      {links[doc.id] ? (
-                        <a
-                          href={links[doc.id]}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-label"
+                      <div className="flex items-center gap-2 whitespace-nowrap">
+                        {links[doc.id] ? (
+                          <a
+                            href={links[doc.id]}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-label"
+                          >
+                            Abrir
+                          </a>
+                        ) : (
+                          <span className="text-caption text-ink-faint">indisponível</span>
+                        )}
+                        <button
+                          type="button"
+                          className="text-label text-ink-muted underline underline-offset-2 bg-transparent border-0 cursor-pointer p-0"
+                          onClick={() => setEmEdicao(doc)}
                         >
-                          Abrir
-                        </a>
-                      ) : (
-                        <span className="text-caption text-ink-faint">indisponível</span>
-                      )}
+                          Editar
+                          <span className="sr-only"> {doc.nome_arquivo}</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -215,6 +235,14 @@ export function AbaDocumentos({ colaboradorId }: { colaboradorId: string }) {
           </div>
         )}
       </div>
+
+      <EditarDocumento
+        key={emEdicao?.id ?? "nenhum"}
+        documento={emEdicao}
+        aberto={emEdicao !== null}
+        aoFechar={() => setEmEdicao(null)}
+        aoConcluir={buscar}
+      />
     </div>
   );
 }

@@ -17,7 +17,7 @@
 
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { addDays, subMonths, format } from "date-fns";
+import { addDays, addMonths, subMonths, format } from "date-fns";
 import { criarClienteAdmin } from "./lib/supabase.mjs";
 import { carregarEnv } from "./lib/env.mjs";
 
@@ -302,8 +302,98 @@ async function criarConta({ email, nome, papel, supervisorId }) {
     { onConflict: "id" }
   );
   if (erroPerfil) throw new Error(`Falha ao gravar perfil de ${email}: ${erroPerfil.message}`);
+
+  return usuarioId;
 }
 
+
+/**
+ * Documentos e trilha de auditoria, para o Perfil do Colaborador abrir com
+ * conteudo em vez de abas vazias.
+ *
+ * As tres situacoes de validade existem de proposito - vigente, vencido e sem
+ * validade - porque a coluna Status da aba precisa ser vista nos tres estados.
+ *
+ * O arquivo e um PDF minimo gerado aqui, nao um upload real: o que se quer
+ * semear e o metadado e a trilha. Mesmo assim vai para o bucket, para o botao
+ * "Abrir" e a URL assinada poderem ser testados ponta a ponta.
+ */
+async function criarDocumentosEAuditoria(colaboradorIds, autorId) {
+  const emMeses = (n) => iso(addMonths(hoje, n));
+
+  const modelos = [
+    { nome: "avaliacao-psicologica.pdf", tipo: "Avaliação Psicológica", validade: emMeses(14), descricao: "Aptidão para trabalho em altura" },
+    { nome: "certificado-nr10.pdf", tipo: "Certificado de Treinamento", validade: emMeses(-2), descricao: "NR-10 básico" },
+    { nome: "rg.pdf", tipo: "Documento Pessoal", validade: null, descricao: null },
+  ];
+
+  // PDF minimo valido: abre em qualquer visualizador sem parecer corrompido.
+  const pdf = Buffer.from(
+    "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+      "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
+      "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n" +
+      "trailer<</Root 1 0 R>>\n%%EOF\n"
+  );
+
+  let criados = 0;
+  for (const colaboradorId of colaboradorIds.slice(0, 4)) {
+    for (const modelo of modelos) {
+      const caminho = `${colaboradorId}/${Date.now()}-${modelo.nome}`;
+      await supabase.storage
+        .from("documentos")
+        .upload(caminho, pdf, { contentType: "application/pdf", upsert: true });
+
+      const { data: doc } = await supabase
+        .from("documentos_colaborador")
+        .insert({
+          colaborador_id: colaboradorId,
+          nome_arquivo: modelo.nome,
+          tipo: modelo.tipo,
+          storage_path: caminho,
+          tamanho_bytes: pdf.length,
+          mime_type: "application/pdf",
+          data_documento: emMeses(-10),
+          data_validade: modelo.validade,
+          descricao: modelo.descricao,
+          criado_por: autorId,
+          atualizado_por: autorId,
+        })
+        .select("id")
+        .maybeSingle();
+
+      // Inserido direto porque o seed roda com service_role, que ignora RLS.
+      // Pela aplicacao isso passa por fn_registrar_auditoria, que carimba
+      // auth.uid() - aqui nao ha sessao para carimbar.
+      await supabase.from("auditoria_colaborador").insert({
+        colaborador_id: colaboradorId,
+        usuario_id: autorId,
+        acao: "anexou",
+        entidade: "documento",
+        entidade_id: doc?.id ?? null,
+        valor_novo: modelo.nome,
+        origem: "Seed de teste",
+      });
+
+      criados++;
+    }
+
+    // Uma alteracao de cadastro por colaborador, para o Historico mostrar as
+    // duas gramaticas da timeline: transicao de etapa e campo alterado.
+    await supabase.from("auditoria_colaborador").insert({
+      colaborador_id: colaboradorId,
+      usuario_id: autorId,
+      acao: "alterou",
+      entidade: "colaborador",
+      entidade_id: colaboradorId,
+      campo: "cargo",
+      valor_anterior: "Auxiliar de Serviços Gerais",
+      valor_novo: "Instalador Reparador Rede I",
+      origem: "Seed de teste",
+    });
+  }
+
+  return criados;
+}
 async function main() {
   await limpar();
 
@@ -314,7 +404,7 @@ async function main() {
   await criarColaboradores(supervisorId, tipoRequisitoId);
 
   console.log("Criando contas de teste…");
-  await criarConta({ email: "teste.admin@giro.local", nome: "Admin de Teste", papel: "admin" });
+  const adminId = await criarConta({ email: "teste.admin@giro.local", nome: "Admin de Teste", papel: "admin" });
   await criarConta({ email: "teste.qsms@giro.local", nome: "QSMS de Teste", papel: "qsms" });
   await criarConta({
     email: "teste.supervisor@giro.local",
@@ -322,6 +412,19 @@ async function main() {
     papel: "supervisor",
     supervisorId,
   });
+
+  const { data: colaboradores } = await supabase
+    .from("colaboradores")
+    .select("id")
+    .gte("matricula", 90001)
+    .lte("matricula", 90020)
+    .order("matricula");
+
+  const totalDocs = await criarDocumentosEAuditoria(
+    (colaboradores ?? []).map((c) => c.id),
+    adminId
+  );
+  console.log(`Criando ${totalDocs} documentos e trilha de auditoria...`);
 
   console.log("\nSeed concluído.");
   console.log(`Senha temporária das 3 contas: ${SENHA_TESTE}`);

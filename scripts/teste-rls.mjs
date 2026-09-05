@@ -317,6 +317,66 @@ async function main() {
     }
   });
 
+  // Edicao e exclusao de documento (secoes 19 e 20): mesma barreira do anexo.
+  await sessao(uidA, async () => {
+    const { rowCount } = await client.query(
+      `update documentos_colaborador set tipo = $2 where id = $1`,
+      [docA[0].id, "FORJADO"]
+    );
+    if (rowCount === 0) ok("supervisor nao edita metadado de documento");
+    else erro("supervisor nao edita documento", `alterou ${rowCount} linha(s)`);
+  });
+
+  await sessao(uidA, async () => {
+    const { rowCount } = await client.query(
+      `delete from documentos_colaborador where id = $1`,
+      [docA[0].id]
+    );
+    if (rowCount === 0) ok("supervisor nao exclui documento");
+    else erro("supervisor nao exclui documento", `apagou ${rowCount} linha(s)`);
+  });
+
+  // Admin herda o alcance do QSMS via fn_e_qsms(), que desde 0007 aceita os
+  // dois papeis. Sem este teste, uma mudanca em fn_papel() poderia trancar o
+  // admin fora do perfil sem nada falhar.
+  const { rows: perfilAdmin } = await client.query(
+    `select id from perfis where papel = $1 and ativo limit 1`,
+    ["admin"]
+  );
+
+  if (perfilAdmin.length === 0) {
+    erro("admin mantem acesso adequado", "nenhum perfil admin ativo na base");
+  } else {
+    await sessao(perfilAdmin[0].id, async () => {
+      const { rows } = await client.query(
+        `select id from vw_documentos_colaborador where colaborador_id = $1`,
+        [colA[0].id]
+      );
+      if (rows.length === 1) ok("admin le documentos como o QSMS");
+      else erro("admin le documentos", `veio ${rows.length}`);
+    });
+
+    await sessao(perfilAdmin[0].id, async () => {
+      const { rowCount } = await client.query(
+        `update documentos_colaborador set descricao = $2 where id = $1`,
+        [docA[0].id, "editado pelo admin"]
+      );
+      if (rowCount === 1) ok("admin edita metadado de documento");
+      else erro("admin edita documento", `alterou ${rowCount} linha(s)`);
+    });
+
+    await sessao(perfilAdmin[0].id, async () => {
+      try {
+        await client.query(
+          `select fn_registrar_auditoria($1, $2, $3, null, $4, $5, $6, $7)`,
+          [colA[0].id, "removeu", "documento", "tipo", "exame-a.pdf", null, "Teste"]
+        );
+        ok("admin grava auditoria pela RPC");
+      } catch (e) {
+        erro("admin grava auditoria", e.message);
+      }
+    });
+  }
   await sessao(uidB, async () => {
     const { rows } = await client.query(
       `select id from fn_linha_do_tempo_colaborador($1, 50, 0)`,

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { Vazio } from "@/components/aviso";
-import { ETAPA_ROTULO, SITUACAO_ROTULO, formatarDataHora } from "@/lib/dominio";
+import { ETAPA_ROTULO, SITUACAO_ROTULO, formatarData, formatarDataHora } from "@/lib/dominio";
 import {
   carregarLinhaDoTempo,
   HISTORICO_POR_PAGINA,
@@ -23,6 +23,9 @@ const CAMPO_ROTULO: Record<string, string> = {
 function valorLegivel(campo: string | null, valor: string | null): string {
   if (valor === null || valor === "") return "vazio";
   if (campo === "situacao") return SITUACAO_ROTULO[valor as Situacao] ?? valor;
+  // Datas de documento chegam em ISO. "de 2027-03-01 para 2027-06-01" obriga o
+  // leitor a traduzir; a trilha existe justamente para ser lida de relance.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) return formatarData(valor);
   return valor;
 }
 
@@ -70,6 +73,11 @@ function Entrada({ entrada }: { entrada: EntradaLinhaDoTempo }) {
         ) : entrada.acao === "anexou" ? (
           <span>
             anexou <span className="font-medium break-words">{entrada.valor_novo}</span>
+          </span>
+        ) : entrada.acao === "removeu" ? (
+          <span>
+            removeu <span className="font-medium break-words">{entrada.valor_anterior}</span>
+            {entrada.campo && <span className="text-ink-faint"> ({entrada.campo})</span>}
           </span>
         ) : entrada.entidade === "foto" ? (
           // A foto anterior é apagada do bucket na troca, então não há "de → para"
