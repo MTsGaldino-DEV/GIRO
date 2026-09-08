@@ -140,6 +140,16 @@ export function IconeFechar({ className }: Props) {
   );
 }
 
+/** Lápis — abre a edição de um campo do cadastro. */
+export function IconeLapis({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 20h4L19.5 8.5a2.12 2.12 0 0 0-3-3L5 17v3Z" />
+      <path d="M14.5 6.5l3 3" />
+    </svg>
+  );
+}
+
 /** Folha com dobra — a aba Documentos. */
 export function IconeDocumento({ className }: Props) {
   return (

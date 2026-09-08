@@ -5,84 +5,12 @@ import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { exigirAdmin, exigirQsms } from "@/lib/perfil";
 import { BUCKET_FOTOS } from "@/lib/colaborador";
+import { SITUACAO_ROTULO } from "@/lib/dominio";
+import { CAMPOS_COLABORADOR, type CampoColaborador } from "@/lib/campos-colaborador";
+import type { Situacao } from "@/lib/tipos";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
-const esquema = z.object({
-  id: z.string().uuid(),
-  cargo: z.string().trim().max(120).optional(),
-  polo: z.string().trim().max(120).optional(),
-  local: z.string().trim().max(160).optional(),
-  situacao: z.enum([
-    "trabalhando",
-    "ferias",
-    "auxilio_doenca",
-    "atestado",
-    "afastamento",
-    "outro",
-  ]),
-  supervisor_id: z.string().uuid().or(z.literal("")),
-});
-
-/**
- * Edita o cadastro.
- *
- * Nome, matrícula e CPF ficam de fora: vêm da folha e corrigi-los aqui criaria
- * divergência silenciosa com o RH na próxima reimportação. O que se edita aqui
- * é o que a operação do QSMS conhece melhor que a folha — lotação, situação e
- * de quem a pessoa responde.
- */
-export async function salvarCadastro(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
-
-  const analise = esquema.safeParse({
-    id: formData.get("id"),
-    cargo: formData.get("cargo") ?? undefined,
-    polo: formData.get("polo") ?? undefined,
-    local: formData.get("local") ?? undefined,
-    situacao: formData.get("situacao"),
-    supervisor_id: formData.get("supervisor_id") ?? "",
-  });
-
-  if (!analise.success) {
-    return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
-  }
-
-  const { id, cargo, polo, local, situacao, supervisor_id } = analise.data;
-  const origem = String(formData.get("origem") ?? "Cadastro do colaborador");
-
-  const supabase = await criarClienteServidor();
-
-  // Lê antes de escrever: a auditoria precisa do valor anterior, e depois do
-  // UPDATE ele não existe mais em lugar nenhum. Os nomes de supervisor vêm
-  // junto porque "Carlos → Maria" é legível e "uuid → uuid" não é.
-  const { data: antes } = await supabase
-    .from("colaboradores")
-    .select("cargo, polo, local, situacao, supervisor_id, supervisores(nome)")
-    .eq("id", id)
-    .maybeSingle();
-
-  const { error } = await supabase
-    .from("colaboradores")
-    .update({
-      cargo: cargo || null,
-      polo: polo || null,
-      local: local || null,
-      situacao,
-      supervisor_id: supervisor_id || null,
-    })
-    .eq("id", id);
-
-  if (error) return { ok: false, erro: error.message };
-
-  await registrarMudancasDeCadastro(supabase, id, antes, analise.data, origem);
-
-  revalidatePath(`/qsms/colaborador/${id}`, "layout");
-  revalidatePath("/qsms");
-  return { ok: true, mensagem: "Cadastro atualizado." };
-}
-
-/** Linha de auditoria do supervisor precisa de nome, não de uuid. */
 async function nomeDoSupervisor(
   supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
   supervisorId: string
@@ -108,30 +36,6 @@ async function nomeDoSupervisor(
  * é uma escolha: perder uma linha de auditoria é ruim, reverter uma edição
  * bem-sucedida por causa dela é pior.
  */
-async function registrarMudancasDeCadastro(
-  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
-  colaboradorId: string,
-  antes: Record<string, unknown> | null,
-  depois: { cargo?: string; polo?: string; local?: string; situacao: string; supervisor_id: string },
-  origem: string
-): Promise<void> {
-  if (!antes) return;
-
-  const anteriorSupervisor = (antes.supervisores as { nome: string } | null)?.nome ?? null;
-  const novoSupervisor = await nomeDoSupervisor(supabase, depois.supervisor_id);
-
-  const comparacoes: { campo: string; de: string | null; para: string | null }[] = [
-    { campo: "cargo", de: (antes.cargo as string) ?? null, para: depois.cargo || null },
-    { campo: "polo", de: (antes.polo as string) ?? null, para: depois.polo || null },
-    { campo: "local", de: (antes.local as string) ?? null, para: depois.local || null },
-    { campo: "situacao", de: (antes.situacao as string) ?? null, para: depois.situacao },
-    { campo: "supervisor", de: anteriorSupervisor, para: novoSupervisor },
-  ];
-
-  await registrarCampos(supabase, colaboradorId, comparacoes, origem);
-}
-
-/** Uma linha por campo que mudou. Compartilhado pelos dois formulários. */
 async function registrarCampos(
   supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
   colaboradorId: string,
@@ -247,8 +151,26 @@ function apenasDigitos(valor: string): string {
   return valor.replace(/\D/g, "");
 }
 
-const esquemaFolha = z.object({
-  id: z.string().uuid(),
+const dataOpcional = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.")
+  .or(z.literal(""))
+  .transform((v) => v || null);
+
+const opcional = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => v || null);
+
+/**
+ * Como cada campo é validado. Chaves iguais às de `CAMPOS_COLABORADOR`.
+ *
+ * Fica aqui e não no módulo compartilhado para o zod não viajar junto para o
+ * navegador: o componente só precisa de rótulo e tipo de entrada.
+ */
+const ESQUEMAS: Record<CampoColaborador, z.ZodType> = {
   nome: z.string().trim().min(3, "Nome muito curto.").max(160),
   matricula: z.coerce
     .number({ message: "Matrícula precisa ser um número." })
@@ -258,111 +180,135 @@ const esquemaFolha = z.object({
   cpf: z
     .string()
     .transform(apenasDigitos)
-    .refine((v) => v === "" || v.length === 11, "CPF precisa ter 11 dígitos."),
-  uen: z.string().trim().max(120),
-  data_admissao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.").or(z.literal("")),
-  data_nascimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida.").or(z.literal("")),
-});
+    .refine((v) => v === "" || v.length === 11, "CPF precisa ter 11 dígitos.")
+    .transform((v) => v || null),
+  uen: opcional(120),
+  data_admissao: dataOpcional,
+  data_nascimento: dataOpcional,
+  cargo: opcional(120),
+  polo: opcional(120),
+  local: opcional(160),
+  situacao: z.enum([
+    "trabalhando",
+    "ferias",
+    "auxilio_doenca",
+    "atestado",
+    "afastamento",
+    "outro",
+  ]),
+  supervisor_id: z
+    .string()
+    .uuid("Supervisor inválido.")
+    .or(z.literal(""))
+    .transform((v) => v || null),
+};
 
 /**
- * Edita o que vem da folha: nome, matrícula, CPF, UEN e datas.
+ * Salva um campo do cadastro, sozinho.
  *
- * Separado de `salvarCadastro` porque são operações diferentes com permissões
- * diferentes. Lotação e supervisor o QSMS conhece melhor que o RH e edita todo
- * dia; identidade é correção de cadastro, e uma matrícula trocada por engano
- * reaponta ASOs, itens e histórico de uma pessoa para outra.
+ * A lista fechada `CAMPOS_COLABORADOR` é a barreira: sem ela, o `campo` que
+ * chega do formulário escreveria qualquer coluna da tabela — `ativo`,
+ * `foto_url`, `id`. Cada campo declara também quem pode escrevê-lo, e é isso
+ * que separa a identidade (só admin, porque trocar matrícula reaponta ASOs,
+ * itens e histórico de uma pessoa para outra) da lotação (o QSMS mexe todo
+ * dia).
  *
- * `exigirAdmin()` é regra de produto, não barreira de banco: a política
- * `colaboradores_escrita_qsms` é `for all` e `fn_e_qsms()` já inclui os dois
- * papéis, então um usuário QSMS que chame o PostgREST direto continua podendo
- * escrever estas colunas — como sempre pôde. Transformar isso em barreira real
- * exigiria um trigger, que não faz parte desta entrega.
+ * Salvar campo a campo custa uma coisa: não existe mais "cancelar tudo". Cada
+ * confirmação já gravou. Para cadastro é o comportamento certo — corrigir o
+ * cargo não tem por que depender de o supervisor estar certo na mesma tela.
  */
-export async function salvarDadosDaFolha(
-  _anterior: Acao | null,
-  formData: FormData
-): Promise<Acao> {
-  await exigirAdmin();
-
-  const analise = esquemaFolha.safeParse({
-    id: formData.get("id"),
-    nome: formData.get("nome"),
-    matricula: formData.get("matricula"),
-    cpf: formData.get("cpf") ?? "",
-    uen: formData.get("uen") ?? "",
-    data_admissao: formData.get("data_admissao") ?? "",
-    data_nascimento: formData.get("data_nascimento") ?? "",
-  });
-
-  if (!analise.success) {
-    return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
+export async function salvarCampo(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  const bruto = String(formData.get("campo") ?? "");
+  if (!Object.hasOwn(CAMPOS_COLABORADOR, bruto)) {
+    return { ok: false, erro: "Campo inválido." };
   }
+  const campo = bruto as CampoColaborador;
+  const definicao = CAMPOS_COLABORADOR[campo];
 
-  const { id, nome, matricula, cpf, uen, data_admissao, data_nascimento } = analise.data;
+  if (definicao.papel === "admin") await exigirAdmin();
+  else await exigirQsms();
+
+  const id = z.string().uuid().safeParse(formData.get("colaborador_id"));
+  if (!id.success) return { ok: false, erro: "Colaborador inválido." };
+
+  const analise = ESQUEMAS[campo].safeParse(formData.get("valor") ?? "");
+  if (!analise.success) {
+    return { ok: false, erro: analise.error.issues[0]?.message ?? "Valor inválido." };
+  }
+  const valor = analise.data as string | number | null;
   const origem = String(formData.get("origem") ?? "Cadastro do colaborador");
 
   const supabase = await criarClienteServidor();
 
-  const { data: antes } = await supabase
+  // Lê antes de escrever: depois do UPDATE o valor anterior não existe mais em
+  // lugar nenhum, e é metade do que a trilha precisa registrar.
+  // A seleção é montada em tempo de execução, então o parser de tipos do
+  // supabase-js não consegue inferir a forma da linha — daí o cast.
+  const selecao = campo === "supervisor_id" ? "supervisor_id, supervisores(nome)" : campo;
+  const { data } = await supabase
     .from("colaboradores")
-    .select("nome, matricula, cpf, uen, data_admissao, data_nascimento")
-    .eq("id", id)
+    .select(selecao)
+    .eq("id", id.data)
     .maybeSingle();
+  const antes = (data ?? null) as Record<string, unknown> | null;
 
   const { error } = await supabase
     .from("colaboradores")
-    .update({
-      nome,
-      matricula,
-      cpf: cpf || null,
-      uen: uen || null,
-      data_admissao: data_admissao || null,
-      data_nascimento: data_nascimento || null,
-    })
-    .eq("id", id);
+    .update({ [campo]: valor })
+    .eq("id", id.data);
 
   if (error) {
-    // `matricula` é única na base. A mensagem crua do Postgres cita o nome do
-    // índice e não diz de quem é a matrícula ocupada.
+    // `matricula` é única na base, e a mensagem crua do Postgres cita o nome do
+    // índice em vez de dizer de quem é a matrícula ocupada.
     if (error.code === "23505") {
-      return { ok: false, erro: `A matrícula ${matricula} já pertence a outro colaborador.` };
+      return { ok: false, erro: `A matrícula ${valor} já pertence a outro colaborador.` };
     }
     return { ok: false, erro: error.message };
   }
 
-  if (antes) {
-    await registrarCampos(
-      supabase,
-      id,
-      [
-        { campo: "nome", de: (antes.nome as string) ?? null, para: nome },
-        {
-          campo: "matrícula",
-          de: antes.matricula === null ? null : String(antes.matricula),
-          para: String(matricula),
-        },
-        { campo: "CPF", de: (antes.cpf as string) ?? null, para: cpf || null },
-        { campo: "UEN", de: (antes.uen as string) ?? null, para: uen || null },
-        {
-          campo: "admissão",
-          de: (antes.data_admissao as string) ?? null,
-          para: data_admissao || null,
-        },
-        {
-          campo: "nascimento",
-          de: (antes.data_nascimento as string) ?? null,
-          para: data_nascimento || null,
-        },
-      ],
-      origem
-    );
-  }
+  const { de, para } = await textoDaMudanca(supabase, campo, antes, valor);
+  await registrarCampos(supabase, id.data, [{ campo: definicao.auditoria, de, para }], origem);
 
-  revalidatePath(`/qsms/colaborador/${id}`, "layout");
+  revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
   revalidatePath("/qsms");
   revalidatePath("/qsms/base");
-  return { ok: true, mensagem: "Dados da folha atualizados." };
+  return { ok: true, mensagem: `${definicao.rotulo} atualizado.` };
 }
+
+/**
+ * O par antes/depois como uma pessoa lê.
+ *
+ * "Carlos → Maria" é legível; "uuid → uuid" não é, e "ferias → trabalhando"
+ * está a meio caminho. As datas ficam em ISO de propósito: quem formata é a
+ * linha do tempo, que já trata o formato.
+ */
+async function textoDaMudanca(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  campo: CampoColaborador,
+  antes: Record<string, unknown> | null,
+  valor: string | number | null
+): Promise<{ de: string | null; para: string | null }> {
+  if (campo === "supervisor_id") {
+    const anterior = (antes?.supervisores as { nome: string } | null | undefined)?.nome ?? null;
+    return { de: anterior, para: valor ? await nomeDoSupervisor(supabase, String(valor)) : null };
+  }
+
+  if (campo === "situacao") {
+    const anterior = (antes?.situacao as string | null) ?? null;
+    return {
+      de: anterior ? SITUACAO_ROTULO[anterior as Situacao] ?? anterior : null,
+      para: SITUACAO_ROTULO[valor as Situacao] ?? String(valor),
+    };
+  }
+
+  const anterior = antes?.[campo] ?? null;
+  return {
+    de: anterior === null ? null : String(anterior),
+    para: valor === null ? null : String(valor),
+  };
+}
+
+// ---------------------------------------------------------------------------
 
 /**
  * Desliga ou reativa o colaborador.

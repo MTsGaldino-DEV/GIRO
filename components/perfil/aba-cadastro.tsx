@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
-import { FormularioCadastro } from "@/app/(app)/qsms/colaborador/[id]/cadastro/formulario";
-import {
-  BotaoDesligar,
-  FormularioFolha,
-} from "@/app/(app)/qsms/colaborador/[id]/cadastro/formulario-folha";
+import { FichaCadastro } from "@/app/(app)/qsms/colaborador/[id]/cadastro/ficha-cadastro";
+import { BotaoDesligar } from "@/app/(app)/qsms/colaborador/[id]/cadastro/botao-desligar";
 import { EnvioFoto } from "@/app/(app)/qsms/colaborador/[id]/cadastro/envio-foto";
-import { formatarData } from "@/lib/dominio";
 import { carregarSupervisoresAtivos } from "@/lib/consulta-colaborador";
 import type { ResumoColaborador } from "@/lib/consulta-colaborador";
 import type { Supervisor } from "@/lib/tipos";
@@ -17,15 +13,11 @@ import { usePerfilColaborador } from "./contexto";
 /**
  * Aba Cadastro.
  *
- * Reutiliza `FormularioCadastro` e `EnvioFoto` da página cheia — os mesmos
- * componentes, chamando as mesmas Server Actions. As permissões continuam
- * valendo onde sempre valeram: `exigirQsms()` na ação e a política
- * `colaboradores_escrita_qsms` no banco. O painel não abre nenhuma porta que a
- * página já não abrisse.
- *
- * Os dados da folha — nome, matrícula, CPF, UEN e datas — só viram formulário
- * para admin. A checagem de verdade é `exigirAdmin()` dentro da Server Action;
- * o papel aqui decide apenas o que aparece na tela.
+ * Reutiliza `FichaCadastro`, `EnvioFoto` e `BotaoDesligar` da página cheia — os
+ * mesmos componentes, chamando as mesmas Server Actions. As permissões
+ * continuam valendo onde sempre valeram: `exigirQsms()` / `exigirAdmin()` na
+ * ação e a política `colaboradores_escrita_qsms` no banco. O painel não abre
+ * nenhuma porta que a página já não abrisse.
  */
 export function AbaCadastro({
   resumo,
@@ -37,7 +29,6 @@ export function AbaCadastro({
   const { papel } = usePerfilColaborador();
   const [supervisores, setSupervisores] = useState<Supervisor[] | null>(null);
   const { colaborador, fotoUrl } = resumo;
-  const ehAdmin = papel === "admin";
 
   useEffect(() => {
     let ativo = true;
@@ -51,52 +42,19 @@ export function AbaCadastro({
 
   return (
     <div className="grid gap-4">
-      <div className="card">
-        <h3 className="mb-1">Dados da folha</h3>
-        <p className="text-ink-muted text-label mb-3">
-          {ehAdmin
-            ? "Identificação do colaborador. Toda alteração fica na aba Histórico, com o valor anterior."
-            : "Vêm da importação e só o admin edita."}
-        </p>
-        {ehAdmin ? (
-          <FormularioFolha
-            colaborador={colaborador}
-            origem="Perfil do Colaborador"
-            aoSalvar={aoAtualizar}
-          />
-        ) : (
-        <dl className="grid gap-x-6 gap-y-3 grid-cols-2 sm:grid-cols-3 m-0">
-          <div>
-            <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">Nome</dt>
-            <dd className="m-0 mt-0.5 text-label break-words">{colaborador.nome}</dd>
-          </div>
-          <div>
-            <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">Matrícula</dt>
-            <dd className="m-0 mt-0.5 text-label tabular">{colaborador.matricula}</dd>
-          </div>
-          <div>
-            <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">CPF</dt>
-            <dd className="m-0 mt-0.5 text-label tabular">{colaborador.cpf ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">Admissão</dt>
-            <dd className="m-0 mt-0.5 text-label tabular">
-              {formatarData(colaborador.data_admissao)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">Nascimento</dt>
-            <dd className="m-0 mt-0.5 text-label tabular">
-              {formatarData(colaborador.data_nascimento)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-caption text-ink-faint uppercase tracking-[0.04em]">UEN</dt>
-            <dd className="m-0 mt-0.5 text-label">{colaborador.uen ?? "—"}</dd>
-          </div>
-        </dl>
-        )}
-      </div>
+      {/* A ficha só entra depois da lista de supervisores: o campo mostraria
+          "Sem supervisor" para quem tem um, e salvar dali apagaria o vínculo. */}
+      {supervisores === null ? (
+        <div className="esqueleto h-64" aria-busy="true" />
+      ) : (
+        <FichaCadastro
+          colaborador={colaborador}
+          supervisores={supervisores}
+          papel={papel}
+          origem="Perfil do Colaborador"
+          aoSalvar={aoAtualizar}
+        />
+      )}
 
       <div className="card">
         <h3 className="mb-1">Foto</h3>
@@ -111,25 +69,7 @@ export function AbaCadastro({
         />
       </div>
 
-      <div className="card">
-        <h3 className="mb-1">Lotação e vínculo</h3>
-        <p className="text-ink-muted text-label mb-4">
-          Toda alteração aqui fica registrada na aba Histórico, com o valor
-          anterior e o novo.
-        </p>
-        {supervisores === null ? (
-          <div className="esqueleto h-48" aria-busy="true" />
-        ) : (
-          <FormularioCadastro
-            colaborador={colaborador}
-            supervisores={supervisores}
-            origem="Perfil do Colaborador"
-            aoSalvar={aoAtualizar}
-          />
-        )}
-      </div>
-
-      {ehAdmin && (
+      {papel === "admin" && (
         <div className="card">
           <h3 className="mb-1">Quadro</h3>
           <p className="text-ink-muted text-label mb-4">

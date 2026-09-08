@@ -340,9 +340,14 @@ function Linha({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
 
 /**
  * Menu "⋮" da linha — o que sobra depois que "Abrir" (a ação de todo dia,
- * trabalhar o ciclo) ficou como botão visível. Nome do colaborador já leva ao
- * perfil; aqui entram o que não tinha lugar nenhum na tabela: histórico e um
- * jeito de compartilhar o item sem copiar a URL na mão.
+ * trabalhar o ciclo) ficou como botão visível.
+ *
+ * Só duas entradas de propósito. O painel já tem aba de Histórico e o menu
+ * levava direto a ela, mas um atalho que só pula um clique dentro de uma tela
+ * que vai abrir de qualquer jeito não paga o item a mais para ler. E "abrir em
+ * tela cheia" oferecia uma segunda maneira de ver a mesma pessoa, com aparência
+ * diferente — quem clicava por engano perdia a posição na fila, que é
+ * justamente o que o painel existe para evitar.
  */
 function MenuLinha({ item }: { item: ItemAberto }) {
   const { abrir: abrirPerfil } = usePerfilColaborador();
@@ -372,15 +377,7 @@ function MenuLinha({ item }: { item: ItemAberto }) {
         <DropdownMenuItem onSelect={() => abrirPerfil(item.colaborador_id)}>
           Ver colaborador
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => abrirPerfil(item.colaborador_id, "historico")}>
-          Ver histórico
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href={`/qsms/colaborador/${item.colaborador_id}/visao-geral`}>
-            Abrir em tela cheia
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuItem onSelect={copiarLink}>Copiar link do item</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
