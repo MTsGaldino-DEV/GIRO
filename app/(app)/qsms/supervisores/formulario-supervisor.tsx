@@ -8,7 +8,7 @@ import { MensagemErro } from "@/components/aviso";
 function Botao() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary w-full" disabled={pending}>
+    <button type="submit" className="btn btn--primary w-full" disabled={pending} aria-busy={pending}>
       {pending ? "Cadastrando…" : "Cadastrar e liberar acesso"}
     </button>
   );

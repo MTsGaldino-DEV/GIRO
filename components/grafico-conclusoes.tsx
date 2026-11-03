@@ -98,10 +98,13 @@ export function GraficoConclusoes({ dados }: { dados: PontoMes[] }) {
                   height={alturaBarra}
                   rx={4}
                   fill="var(--color-brand)"
+                  className="grafico-barra"
+                  style={{ "--i": i } as React.CSSProperties}
                 >
+                  {/* Texto único: o React 19 trata <title> como metadado e quebra a
+                      hidratação quando ele recebe vários filhos. */}
                   <title>
-                    {rotulo(ponto.mes)}: {ponto.quantidade}{" "}
-                    {ponto.quantidade === 1 ? "ASO concluído" : "ASOs concluídos"}
+                    {`${rotulo(ponto.mes)}: ${ponto.quantidade} ${ponto.quantidade === 1 ? "ASO concluído" : "ASOs concluídos"}`}
                   </title>
                 </rect>
               )}

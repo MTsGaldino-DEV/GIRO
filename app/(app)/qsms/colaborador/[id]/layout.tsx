@@ -114,7 +114,8 @@ export default async function LayoutColaborador({
 
       <AbasColaborador id={id} />
 
-      {children}
+      {/* O cabeçalho fica parado entre abas; só o conteúdo da aba entra. */}
+      <div className="conteudo-pagina">{children}</div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { STATUS_CLASSE, STATUS_LEITURA, rotuloStatus } from "@/lib/dominio";
 import type { StatusConformidade } from "@/lib/tipos";
+import { NumeroAnimado } from "@/components/numero-animado";
 
 /**
  * O semáforo. Única superfície do sistema autorizada a usar verde, âmbar,
@@ -33,7 +34,9 @@ export function CartaoContagem({
 }) {
   return (
     <div className="card cartao-contagem px-4 py-3" data-ativo={ativo ? "true" : undefined}>
-      <div className="text-[1.75rem] leading-tight font-medium tabular">{quantidade}</div>
+      <div className="text-[1.75rem] leading-tight font-medium tabular">
+        <NumeroAnimado valor={quantidade} />
+      </div>
       <div className="mt-1">
         <SeloStatus status={status} dias={null} />
       </div>

@@ -21,3 +21,9 @@ data/*.json
 .vercel
 .DS_Store
 Thumbs.db
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# Rascunhos do brainstorming (mockups locais)
+.superpowers/

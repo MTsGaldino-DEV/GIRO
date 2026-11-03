@@ -23,7 +23,7 @@ import {
 function BotaoSalvar() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary btn--sm" disabled={pending}>
+    <button type="submit" className="btn btn--primary btn--sm" disabled={pending} aria-busy={pending}>
       {pending ? "Salvando…" : "Salvar"}
     </button>
   );
@@ -32,7 +32,7 @@ function BotaoSalvar() {
 function BotaoExcluir() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--destrutivo btn--sm" disabled={pending}>
+    <button type="submit" className="btn btn--destrutivo btn--sm" disabled={pending} aria-busy={pending}>
       {pending ? "Removendo…" : "Remover definitivamente"}
     </button>
   );

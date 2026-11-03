@@ -12,7 +12,7 @@ function Botao({ rotulo, ocupado, classe = "btn btn--primary" }: {
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={classe} disabled={pending}>
+    <button type="submit" className={classe} disabled={pending} aria-busy={pending}>
       {pending ? ocupado : rotulo}
     </button>
   );

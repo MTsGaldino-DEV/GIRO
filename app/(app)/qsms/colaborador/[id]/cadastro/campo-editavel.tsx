@@ -19,7 +19,7 @@ function BotaoConfirmar({ rotulo }: { rotulo: string }) {
     <button
       type="submit"
       className="btn btn--primary btn--icone"
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
       aria-label={`Salvar ${rotulo}`}
       title="Salvar"
     >

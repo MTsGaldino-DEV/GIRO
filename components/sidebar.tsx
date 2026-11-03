@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Perfil } from "@/lib/tipos";
@@ -86,6 +87,72 @@ function estaAtivo(href: string, pathname: string): boolean {
   return pathname.startsWith(href);
 }
 
+interface Retangulo {
+  x: number;
+  y: number;
+  largura: number;
+  altura: number;
+}
+
+function medir(el: HTMLElement): Retangulo {
+  return { x: el.offsetLeft, y: el.offsetTop, largura: el.offsetWidth, altura: el.offsetHeight };
+}
+
+function estiloRetangulo(r: Retangulo | null): React.CSSProperties | undefined {
+  if (!r) return undefined;
+  return { transform: `translate(${r.x}px, ${r.y}px)`, width: r.largura, height: r.altura };
+}
+
+/**
+ * Pílula que desliza até o item ativo e sombra que segue o mouse.
+ *
+ * Mede os itens depois de pintar e posiciona dois elementos absolutos atrás
+ * deles. Até a primeira medição, o CSS mantém o fundo do próprio item ativo
+ * (ver `data-pilula` em globals.css), então a primeira pintura nunca sai sem
+ * destaque. ResizeObserver cobre a troca para o trilho de ícones.
+ */
+function usePilulaDeslizante(pathname: string) {
+  const navRef = useRef<HTMLElement>(null);
+  const [pilula, setPilula] = useState<Retangulo | null>(null);
+  const [sombra, setSombra] = useState<Retangulo | null>(null);
+  const [sombraVisivel, setSombraVisivel] = useState(false);
+  const [pronta, setPronta] = useState(false);
+
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+
+    function posicionar() {
+      const ativo = nav!.querySelector<HTMLElement>('[aria-current="page"]');
+      setPilula(ativo ? medir(ativo) : null);
+    }
+
+    posicionar();
+    // A pílula aparece só no quadro seguinte, já no lugar: sem isso ela
+    // deslizaria do topo da sidebar até o item na primeira pintura.
+    const quadro = requestAnimationFrame(() => setPronta(true));
+    const observador = new ResizeObserver(posicionar);
+    observador.observe(nav);
+    return () => {
+      cancelAnimationFrame(quadro);
+      observador.disconnect();
+    };
+  }, [pathname]);
+
+  return {
+    navRef,
+    pronta,
+    pilula,
+    sombra,
+    sombraVisivel,
+    aoEntrarNoItem: (evento: React.MouseEvent<HTMLElement>) => {
+      setSombra(medir(evento.currentTarget));
+      setSombraVisivel(true);
+    },
+    aoSairDaNav: () => setSombraVisivel(false),
+  };
+}
+
 /**
  * Sidebar fixa à esquerda.
  *
@@ -99,6 +166,7 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
   const pathname = usePathname();
   const ehSupervisor = perfil.papel === "supervisor";
   const grupos = gruposDoPapel(perfil.papel);
+  const deslizante = usePilulaDeslizante(pathname);
 
   // Com um grupo só, o rótulo classifica nada: seria um cabeçalho para uma
   // lista de um item. O supervisor cai nesse caso.
@@ -117,7 +185,25 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
         </span>
       </Link>
 
-      <nav aria-label="Seções" className="flex-1 px-2 md:px-3 py-2 overflow-y-auto">
+      <nav
+        ref={deslizante.navRef}
+        aria-label="Seções"
+        className="flex-1 px-2 md:px-3 py-2 overflow-y-auto"
+        data-pilula={deslizante.pronta ? "pronta" : undefined}
+        onMouseLeave={deslizante.aoSairDaNav}
+      >
+        <span
+          className="sidebar__sombra"
+          aria-hidden
+          data-visivel={deslizante.sombraVisivel && deslizante.sombra ? "true" : undefined}
+          style={estiloRetangulo(deslizante.sombra)}
+        />
+        <span
+          className="sidebar__pilula"
+          aria-hidden
+          data-visivel={deslizante.pilula ? "true" : undefined}
+          style={estiloRetangulo(deslizante.pilula)}
+        />
         {grupos.map((grupo) => (
           <div key={grupo.rotulo} className="sidebar__grupo">
             {mostrarRotulos && (
@@ -137,6 +223,7 @@ export function Sidebar({ perfil }: { perfil: Perfil }) {
                     href={item.href}
                     aria-current={ativo ? "page" : undefined}
                     className={`sidebar__item ${ativo ? "sidebar__item--ativo" : ""}`}
+                    onMouseEnter={deslizante.aoEntrarNoItem}
                   >
                     <item.Icone className="shrink-0" />
                     <span className="hidden md:inline truncate">{item.rotulo}</span>

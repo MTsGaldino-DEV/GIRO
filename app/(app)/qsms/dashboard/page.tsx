@@ -8,6 +8,7 @@ import { Vazio } from "@/components/aviso";
 import { ORDEM_STATUS, ETAPA_ROTULO, DONO_ROTULO } from "@/lib/dominio";
 import { AtualizacaoAutomatica } from "./atualizacao";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { NumeroAnimado } from "@/components/numero-animado";
 import type { ResumoStatus, Etapa, Dono } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -34,7 +35,7 @@ interface LinhaSupervisor {
 }
 
 /** Barra de proporção. Petróleo, nunca cor de status: mede volume, não risco. */
-function BarraProporcao({ valor, total }: { valor: number; total: number }) {
+function BarraProporcao({ valor, total, indice = 0 }: { valor: number; total: number; indice?: number }) {
   const porcento = total > 0 ? Math.round((valor / total) * 100) : 0;
   return (
     <div
@@ -43,8 +44,8 @@ function BarraProporcao({ valor, total }: { valor: number; total: number }) {
       role="presentation"
     >
       <div
-        className="h-full rounded-full"
-        style={{ width: `${porcento}%`, background: "var(--color-brand)" }}
+        className="h-full rounded-full barra-proporcao__valor"
+        style={{ width: `${porcento}%`, background: "var(--color-brand)", "--i": indice } as React.CSSProperties}
       />
     </div>
   );
@@ -123,7 +124,7 @@ export default async function Dashboard() {
             <Vazio>Nenhum item em aberto.</Vazio>
           ) : (
             <ul className="list-none p-0 m-0 grid gap-3">
-              {etapas.map((linha) => (
+              {etapas.map((linha, indice) => (
                 <li key={`${linha.etapa}-${linha.dono}`}>
                   <Link
                     href={`/qsms?etapa=${linha.etapa}`}
@@ -144,7 +145,7 @@ export default async function Dashboard() {
                         )}
                       </span>
                     </div>
-                    <BarraProporcao valor={Number(linha.quantidade)} total={totalAbertos} />
+                    <BarraProporcao valor={Number(linha.quantidade)} total={totalAbertos} indice={indice} />
                   </Link>
                 </li>
               ))}
@@ -165,7 +166,9 @@ export default async function Dashboard() {
             ].map((faixa) => (
               <div key={faixa.rotulo} className="flex items-baseline justify-between gap-3">
                 <dt className="text-label text-ink-muted">{faixa.rotulo}</dt>
-                <dd className="m-0 text-[1.25rem] font-medium tabular">{Number(faixa.valor)}</dd>
+                <dd className="m-0 text-[1.25rem] font-medium tabular">
+                  <NumeroAnimado valor={Number(faixa.valor)} />
+                </dd>
               </div>
             ))}
           </dl>

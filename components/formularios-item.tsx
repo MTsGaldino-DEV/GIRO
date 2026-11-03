@@ -31,7 +31,7 @@ function Botao({ rotulo, ocupado, variante = "primary" }: {
 }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={`btn btn--${variante}`} disabled={pending}>
+    <button type="submit" className={`btn btn--${variante}`} disabled={pending} aria-busy={pending}>
       {pending ? ocupado : rotulo}
     </button>
   );

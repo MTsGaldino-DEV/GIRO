@@ -10,7 +10,7 @@ function Botao({ nome }: { nome: string }) {
     <button
       type="submit"
       className="text-label text-ink-muted underline underline-offset-2 bg-transparent border-0 cursor-pointer p-2 -m-2"
-      disabled={pending}
+      disabled={pending} aria-busy={pending}
     >
       {pending ? "Removendo…" : "Remover"}
       <span className="sr-only"> a ausência de {nome}</span>

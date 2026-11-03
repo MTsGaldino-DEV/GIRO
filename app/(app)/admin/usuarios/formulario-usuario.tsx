@@ -9,7 +9,7 @@ import type { Supervisor } from "@/lib/tipos";
 function Botao() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary w-full" disabled={pending}>
+    <button type="submit" className="btn btn--primary w-full" disabled={pending} aria-busy={pending}>
       {pending ? "Criando…" : "Criar acesso"}
     </button>
   );

@@ -18,7 +18,7 @@ interface ColaboradorSimples {
 function Botao({ quantidade }: { quantidade: number }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary" disabled={pending || quantidade === 0}>
+    <button type="submit" className="btn btn--primary" disabled={pending || quantidade === 0} aria-busy={pending}>
       {pending ? "Vinculando…" : `Vincular ${quantidade || ""}`.trim()}
     </button>
   );

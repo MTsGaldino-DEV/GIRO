@@ -8,7 +8,7 @@ import { MensagemErro } from "@/components/aviso";
 function Botao({ rotulo }: { rotulo: string }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary w-full" disabled={pending}>
+    <button type="submit" className="btn btn--primary w-full" disabled={pending} aria-busy={pending}>
       {pending ? "Registrando…" : rotulo}
     </button>
   );

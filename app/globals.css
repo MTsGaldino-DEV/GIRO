@@ -263,13 +263,14 @@ a {
   border-radius: var(--radius-lg);
   padding: 1.25rem;
   box-shadow: var(--shadow-suave);
-  transition: box-shadow var(--duracao-media) var(--ease-giro);
+  transition: box-shadow var(--duracao-media) var(--ease-giro), transform var(--duracao-media) var(--ease-giro);
 }
 
 /* Cartão que é alvo de clique (filtro, atalho) sobe no hover. Cartão que só
    exibe informação fica onde está — elevação é promessa de interação, e
    prometer clique onde não há é ruído. */
 .card--interativo:hover {
+  transform: translateY(-2px);
   box-shadow: var(--shadow-media);
 }
 
@@ -303,7 +304,7 @@ a {
   font-weight: 500;
   line-height: 1.2;
   cursor: pointer;
-  transition: background-color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro);
+  transition: background-color var(--duracao-rapida) var(--ease-giro), border-color var(--duracao-rapida) var(--ease-giro), transform var(--duracao-rapida) var(--ease-giro);
   /* Alvo de toque confortável: o supervisor usa isso no celular, em campo. */
   min-height: 42px;
 }
@@ -470,11 +471,12 @@ a {
    e mostrar qual está aplicado. Petróleo lavado, nunca a cor do status que o
    cartão conta — senão o cartão compete com o próprio selo que ele exibe. */
 .cartao-contagem {
-  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), filter var(--duracao-rapida) var(--ease-giro);
+  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), transform var(--duracao-media) var(--ease-giro), box-shadow var(--duracao-media) var(--ease-giro);
 }
 .cartao-contagem:hover {
   border-color: var(--color-brand);
-  filter: drop-shadow(0 1px 2px rgb(35 38 43 / 0.07));
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-media);
 }
 .cartao-contagem[data-ativo="true"] {
   border-color: var(--color-brand);
@@ -1190,4 +1192,179 @@ a {
   color: var(--color-brand-hover);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* ==========================================================================
+   Movimento (redesign QSMS, 03/11/2026)
+
+   Tudo aqui usa a curva única --ease-giro e as durações do tema. A regra
+   global de prefers-reduced-motion, no começo do arquivo, zera a duração de
+   qualquer animação e transição: quem pede menos movimento vê o estado final
+   direto, sem precisar de exceção em cada bloco.
+   ========================================================================== */
+
+/* Entrada da página: o conteúdo sobe de leve ao trocar de aba. O esqueleto
+   (aria-busy) fica de fora — ele já tem o brilho próprio, e entrar duas vezes
+   seguidas (esqueleto, depois página) leria como tremido. */
+@keyframes entra-pagina {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.conteudo-pagina > :not([aria-busy="true"]) {
+  animation: entra-pagina var(--duracao-lenta) var(--ease-giro) both;
+}
+
+/* Número contando de zero até o valor.
+   Feito em CSS com @property: o número sai pronto do servidor, sem piscar o
+   valor final antes do JavaScript carregar. O texto real vai em sr-only (ver
+   components/numero-animado.tsx); este é só o desenho. */
+@property --numero {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+@keyframes conta-numero {
+  from { --numero: 0; }
+  to   { --numero: var(--valor); }
+}
+.numero-animado {
+  --numero: var(--valor);
+  counter-reset: numero var(--numero);
+  animation: conta-numero 900ms var(--ease-giro) both;
+  font-variant-numeric: tabular-nums;
+}
+.numero-animado::after {
+  content: counter(numero);
+}
+
+/* Gráficos crescendo a partir da base. --i escalona as barras. */
+@keyframes cresce-vertical {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes cresce-horizontal {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.grafico-barra {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: cresce-vertical 600ms var(--ease-giro) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+.barra-proporcao__valor {
+  transform-origin: left;
+  animation: cresce-horizontal 600ms var(--ease-giro) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+/* Pílula deslizante da navegação.
+   Um elemento só, que desliza até o item ativo; uma "sombra" mais clara segue
+   o mouse. Enquanto o JavaScript não mede os itens (primeira pintura), o item
+   ativo mantém o fundo próprio e a pílula fica escondida — data-pilula="pronta"
+   é o que troca um pelo outro. */
+.sidebar nav { position: relative; }
+.sidebar__pilula,
+.sidebar__sombra {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: var(--radius);
+  pointer-events: none;
+  opacity: 0;
+}
+.sidebar__pilula {
+  z-index: 0;
+  background: var(--color-sidebar-active);
+  box-shadow: 0 4px 14px -4px rgb(14 124 116 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  transition: transform 380ms var(--ease-giro), height 380ms var(--ease-giro), width 380ms var(--ease-giro);
+}
+/* A barra indicadora vai junto com a pílula. */
+.sidebar__pilula::before {
+  content: "";
+  position: absolute;
+  left: -0.75rem;
+  top: 20%;
+  width: 3px;
+  height: 60%;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-brand-light);
+}
+.sidebar__sombra {
+  z-index: 0;
+  background: rgb(255 255 255 / 0.06);
+  transition: transform var(--duracao-lenta) var(--ease-giro), height var(--duracao-lenta) var(--ease-giro), opacity var(--duracao-media) var(--ease-giro);
+}
+.sidebar nav[data-pilula="pronta"] .sidebar__pilula[data-visivel="true"] { opacity: 1; }
+.sidebar nav[data-pilula="pronta"] .sidebar__sombra[data-visivel="true"] { opacity: 1; }
+.sidebar nav[data-pilula="pronta"] .sidebar__item { z-index: 1; }
+.sidebar nav[data-pilula="pronta"] .sidebar__item:hover { background: transparent; }
+.sidebar nav[data-pilula="pronta"] .sidebar__item--ativo,
+.sidebar nav[data-pilula="pronta"] .sidebar__item--ativo:hover { background: transparent; }
+.sidebar nav[data-pilula="pronta"] .sidebar__item--ativo::before { display: none; }
+@media (max-width: 767px) {
+  .sidebar__pilula::before { left: -0.5rem; }
+}
+
+/* Barra de progresso no topo durante a troca de página.
+   Avança rápido no começo e vai desacelerando sem chegar ao fim — só completa
+   quando a página nova chega. Mesmo desenho da barra dentro do botão. */
+@keyframes progresso-avanca {
+  0%   { transform: scaleX(0); }
+  10%  { transform: scaleX(0.35); }
+  40%  { transform: scaleX(0.7); }
+  100% { transform: scaleX(0.92); }
+}
+.barra-navegacao {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 3px;
+  transform-origin: left;
+  transform: scaleX(0);
+  background: var(--color-brand-light);
+  box-shadow: 0 0 8px rgb(79 179 166 / 0.8);
+  pointer-events: none;
+  opacity: 0;
+}
+.barra-navegacao[data-estado="carregando"] {
+  opacity: 1;
+  animation: progresso-avanca 8s var(--ease-giro) forwards;
+}
+.barra-navegacao[data-estado="concluindo"] {
+  opacity: 0;
+  transform: scaleX(1);
+  transition: transform var(--duracao-media) var(--ease-giro), opacity var(--duracao-lenta) var(--ease-giro) 120ms;
+}
+
+/* Botão ocupado: a barra enche por dentro enquanto a ação roda no servidor.
+   aria-busy vem do useFormStatus de cada formulário. O botão desabilitado
+   normalmente esmaece; ocupado ele fica com a cor cheia, porque é a barra
+   que conta o que está acontecendo. */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.btn[aria-busy="true"] {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn[aria-busy="true"]:disabled {
+  opacity: 1;
+  cursor: progress;
+}
+.btn[aria-busy="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform-origin: left;
+  background: rgb(255 255 255 / 0.22);
+  animation: progresso-avanca 8s var(--ease-giro) forwards;
+}
+.btn--secondary[aria-busy="true"]::before,
+.btn--fantasma[aria-busy="true"]::before {
+  background: var(--color-brand-wash);
 }

@@ -17,7 +17,7 @@ const MENSAGENS_SUCESSO: Record<string, string> = {
 function Botao() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary w-full mt-4" disabled={pending}>
+    <button type="submit" className="btn btn--primary w-full mt-4" disabled={pending} aria-busy={pending}>
       {pending ? "Entrando…" : "Entrar"}
     </button>
   );

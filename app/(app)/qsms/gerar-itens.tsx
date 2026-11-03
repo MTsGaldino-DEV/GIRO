@@ -7,7 +7,7 @@ import { gerarItens, type ResultadoGeracao } from "./acoes";
 function Botao() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary" disabled={pending}>
+    <button type="submit" className="btn btn--primary" disabled={pending} aria-busy={pending}>
       {pending ? "Gerando…" : "Gerar itens"}
     </button>
   );
