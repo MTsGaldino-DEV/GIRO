@@ -5,6 +5,7 @@ import { Aviso, Vazio } from "@/components/aviso";
 import { FormularioSupervisor } from "./formulario-supervisor";
 import { VinculoEmMassa } from "./vinculo-massa";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { Info } from "@/components/info";
 import type { Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Supervisores" };
@@ -68,11 +69,9 @@ export default async function PaginaSupervisores({
         trilha={[{ rotulo: "Cadastros" }, { rotulo: "Supervisores" }]}
         titulo="Supervisores e equipes"
         descricao={
-          <span className="block max-w-[70ch]">
-            Cadastrar o supervisor aqui só registra a equipe. O login dele (com
-            senha) é liberado em Gestão de usuários. Vincular colaboradores
-            define quem aparece no painel de quem e quem recebe qual e-mail na
-            segunda-feira.
+          <span className="inline-flex items-center gap-2">
+            Equipes e vínculos de cada supervisor.
+            <Info>Cadastrar aqui só registra a equipe; o login é liberado em Gestão de usuários. O vínculo define quem aparece no painel de quem e quem recebe qual e-mail na segunda-feira.</Info>
           </span>
         }
       />
@@ -88,7 +87,7 @@ export default async function PaginaSupervisores({
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[340px_1fr] items-start">
+      <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
         <div className="grid gap-5">
           <div className="card">
             <h2 className="text-[1.0625rem] mb-3">Cadastrar supervisor</h2>

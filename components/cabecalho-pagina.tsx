@@ -10,6 +10,9 @@ export type { DegrauTrilha };
  * "qsms › colaborador › 3f2a…", que não é navegação, é o caminho do arquivo. O
  * nome do colaborador só a página que já o carregou conhece.
  *
+ * Assenta sobre a faixa escura abaixo da navegação; `.cabecalho-pagina` em
+ * globals.css inverte as cores do título, da trilha e do subtítulo.
+ *
  * É Server Component: nenhum estado, nenhum evento. Colocar "use client" aqui
  * arrastaria todas as páginas que o usam para o bundle do navegador.
  */
@@ -26,7 +29,7 @@ export function CabecalhoPagina({
   children?: React.ReactNode;
 }) {
   return (
-    <header className="mb-5">
+    <header className="cabecalho-pagina mb-5">
       {trilha && trilha.length > 0 && <Trilha degraus={trilha} className="mb-2" />}
 
       <div className="flex flex-wrap items-start justify-between gap-4">

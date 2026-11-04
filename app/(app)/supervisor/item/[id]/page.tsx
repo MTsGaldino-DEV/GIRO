@@ -35,6 +35,7 @@ export default async function ItemSupervisor({ params }: { params: Promise<{ id:
   return (
     <div className="max-w-[760px]">
       <Trilha
+        className="cabecalho-pagina"
         degraus={[
           { rotulo: "Operação" },
           { rotulo: "Minha equipe", href: "/supervisor" },

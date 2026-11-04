@@ -68,6 +68,7 @@ export default async function LayoutColaborador({
 
   return (
     <div>
+      <div className="cabecalho-pagina">
       <Trilha
         degraus={[
           { rotulo: "Operação" },
@@ -95,6 +96,7 @@ export default async function LayoutColaborador({
         </div>
 
         {status && <SeloStatus status={status.status} dias={status.dias_restantes} titulo />}
+      </div>
       </div>
 
       <div className="grid gap-3 mb-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

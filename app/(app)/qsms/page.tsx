@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { exigirQsms } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { TabelaItens } from "@/components/tabela-itens";
+import { GradeItens } from "@/components/grade-itens";
 import { assinarFotos, obterResumoStatus, obterPolos } from "@/lib/colaborador";
 import { buscarPaginaItens, type FiltrosPainel } from "@/lib/consulta-itens";
 import { BotaoGerarItens } from "./gerar-itens";
@@ -12,9 +12,9 @@ export const metadata: Metadata = { title: "Painel do QSMS" };
 export const dynamic = "force-dynamic";
 
 /**
- * Casca do painel: autenticação, contagens e a primeira página da tabela.
+ * Casca do painel: autenticação, contagens e a primeira página da grade.
  *
- * Daqui em diante quem manda é `TabelaItens`, no navegador — filtro, ordenação
+ * Daqui em diante quem manda é `GradeItens`, no navegador — filtro, ordenação
  * e paginação viraram consulta direta ao Postgres, sem passar por aqui. Esta
  * página continua renderizando a primeira página no servidor para que o HTML
  * nunca chegue vazio e um link filtrado, colado no chat, abra já com conteúdo.
@@ -64,7 +64,7 @@ export default async function PainelQsms({
         <BotaoGerarItens />
       </CabecalhoPagina>
 
-      <TabelaItens
+      <GradeItens
         inicial={{ itens, total, erro }}
         filtrosIniciais={filtros}
         fotosIniciais={fotosIniciais}

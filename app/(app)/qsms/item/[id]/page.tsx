@@ -41,19 +41,21 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
 
     return (
       <div className="max-w-[760px]">
-        <Trilha
-          degraus={[
-            { rotulo: "Operação" },
-            { rotulo: "Painel", href: "/qsms" },
-            { rotulo: colaborador?.nome ?? "Item encerrado" },
-          ]}
-        />
-        <h1 className="mt-3">{colaborador?.nome ?? "Item encerrado"}</h1>
-        <p className="text-ink-muted text-label mt-1 mb-5">
-          {etapa === "cancelado"
-            ? "Item cancelado. O motivo está no histórico abaixo."
-            : `${ETAPA_ROTULO[etapa]}. O próximo vencimento já está em outro item.`}
-        </p>
+        <div className="cabecalho-pagina">
+          <Trilha
+            degraus={[
+              { rotulo: "Operação" },
+              { rotulo: "Painel", href: "/qsms" },
+              { rotulo: colaborador?.nome ?? "Item encerrado" },
+            ]}
+          />
+          <h1 className="mt-3">{colaborador?.nome ?? "Item encerrado"}</h1>
+          <p className="text-ink-muted text-label mt-1 mb-5">
+            {etapa === "cancelado"
+              ? "Item cancelado. O motivo está no histórico abaixo."
+              : `${ETAPA_ROTULO[etapa]}. O próximo vencimento já está em outro item.`}
+          </p>
+        </div>
         <div className="card">
           <h2 className="text-[1.0625rem] mb-3">Histórico</h2>
           <Timeline entradas={(historico ?? []) as EntradaHistorico[]} />
@@ -72,6 +74,7 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
   return (
     <div className="max-w-[900px]">
       <Trilha
+        className="cabecalho-pagina"
         degraus={[
           { rotulo: "Operação" },
           { rotulo: "Painel", href: "/qsms" },

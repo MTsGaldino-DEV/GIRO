@@ -6,6 +6,7 @@ import { formatarData, TIPO_AUSENCIA_ROTULO } from "@/lib/dominio";
 import { FormularioAusencia } from "./formulario";
 import { BotaoRemover } from "./botao-remover";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { Info } from "@/components/info";
 
 export const metadata: Metadata = { title: "Ausências" };
 export const dynamic = "force-dynamic";
@@ -43,10 +44,9 @@ export default async function PaginaAusencias() {
         trilha={[{ rotulo: "Cadastros" }, { rotulo: "Ausências" }]}
         titulo="Ausências"
         descricao={
-          <span className="block max-w-[70ch]">
-            Férias, atestados e afastamentos. O sistema usa isso para calcular a
-            janela útil e para impedir agendamento em dia que o colaborador não
-            estará disponível.
+          <span className="inline-flex items-center gap-2">
+            Férias, atestados e afastamentos.
+            <Info>Usados para calcular a janela útil e para impedir agendamento em dia que o colaborador não estará disponível.</Info>
           </span>
         }
       />
@@ -60,7 +60,7 @@ export default async function PaginaAusencias() {
         </Aviso>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[320px_1fr] items-start">
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start">
         <div className="card">
           <h2 className="text-[1.0625rem] mb-3">Registrar</h2>
           <FormularioAusencia colaboradores={colaboradores ?? []} />

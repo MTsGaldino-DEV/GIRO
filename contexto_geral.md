@@ -196,7 +196,7 @@ Toda a lógica está no Postgres, não na aplicação.
 
 ## 12. Testes — **parcial (integração em SQL); unitários ausentes**
 
-Não há Jest, Vitest, Playwright ou qualquer runner no `package.json`, nem script `test`, nem arquivos `*.test.*` / `*.spec.*` no repositório.
+Não há Jest, Vitest ou runner unitário no `package.json`. Desde 03/11/2026 há Playwright para E2E: `npm run test:e2e`, config em [playwright.config.ts](playwright.config.ts), specs em [e2e/](e2e/) (por ora só o smoke da tela de login).
 
 O que existe são scripts Node que abrem conexão `pg` contra o banco real usando `SUPABASE_DB_URL`:
 

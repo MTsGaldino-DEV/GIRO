@@ -17,6 +17,8 @@ data/*.csv
 data/*.CSV
 data/*.json
 !data/.gitkeep
+# Listas enviadas pelo RH (CPF e RG): mesma regra de data/.
+import/
 
 .vercel
 .DS_Store
@@ -27,3 +29,9 @@ Thumbs.db
 
 # Rascunhos do brainstorming (mockups locais)
 .superpowers/
+
+# Playwright — relatórios e artefatos de execução
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

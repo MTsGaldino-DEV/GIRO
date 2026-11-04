@@ -32,7 +32,12 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  // getClaims e não getUser: o projeto assina os tokens com chave assimétrica
+  // (ES256), então a assinatura é conferida aqui com a chave pública em cache,
+  // sem ida ao servidor de autenticação a cada clique. Token vencido continua
+  // sendo renovado — getClaims passa pela sessão, que faz o refresh e grava o
+  // cookie novo em setAll.
+  await supabase.auth.getClaims();
 
   return response;
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Info } from "@/components/info";
 
 /**
  * Faixa fixa no topo de todas as telas enquanto houver colaborador sem data de
@@ -20,11 +21,15 @@ export function BannerBase({
 
   return (
     <div className="banner-base" role="status">
-      <span>
-        <strong className="font-medium tabular">{semRegistro}</strong> de{" "}
-        <span className="tabular">{total}</span> colaboradores sem data de
-        referência. Sem isso não dá para distinguir quem está regular de quem
-        nunca fez o exame.
+      <span className="inline-flex items-center gap-2">
+        <span>
+          <strong className="font-medium tabular">{semRegistro}</strong> de{" "}
+          <span className="tabular">{total}</span> colaboradores sem data de referência
+        </span>
+        <Info>
+          Sem a data do último ASO não dá para distinguir quem está regular de
+          quem nunca fez o exame.
+        </Info>
       </span>
       {mostrarLink && (
         <Link

@@ -15,7 +15,8 @@ export function ehChaveOrdenacao(v: string | undefined): v is ChaveOrdenacao {
   return !!v && v in COLUNAS_ORDENAVEIS;
 }
 
-export const POR_PAGINA = 25;
+// 24 e não 25: divide por 2, 3 e 4, as colunas da grade de cartões do painel.
+export const POR_PAGINA = 24;
 
 /** Valor de supervisor que representa "nenhum vínculo", já que null não vai na URL. */
 export const SEM_SUPERVISOR = "sem-supervisor";

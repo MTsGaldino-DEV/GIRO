@@ -5,6 +5,7 @@ import { Vazio } from "@/components/aviso";
 import { FormularioUsuario } from "./formulario-usuario";
 import { BotaoAtivo } from "./botao-ativo";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { Info } from "@/components/info";
 import type { Perfil, Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Gestão de usuários" };
@@ -27,15 +28,14 @@ export default async function PaginaUsuarios() {
         trilha={[{ rotulo: "Administração" }, { rotulo: "Gestão de usuários" }]}
         titulo="Gestão de usuários"
         descricao={
-          <span className="block max-w-[70ch]">
-            Não há autocadastro. Todo acesso — QSMS, Supervisor ou Admin — é
-            criado aqui, com senha temporária. Quem entra troca a senha em
-            &ldquo;Trocar senha&rdquo;.
+          <span className="inline-flex items-center gap-2">
+            Todo acesso é criado aqui, com senha temporária.
+            <Info>Não há autocadastro, para nenhum papel. Quem entra troca a senha no menu da própria conta, no canto da barra.</Info>
           </span>
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[320px_1fr] items-start">
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start">
         <div className="card">
           <h2 className="text-[1.0625rem] mb-3">Novo acesso</h2>
           <FormularioUsuario supervisores={(supervisores ?? []) as Supervisor[]} />

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { rotaInicial } from "@/lib/perfil";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
@@ -58,7 +59,7 @@ export async function entrar(_anterior: Acao | null, formData: FormData): Promis
   // `proximo` vem do link do e-mail semanal, portanto do usuário. Aceitar só
   // caminho relativo evita virar redirect aberto para fora do domínio.
   const seguro = proximo && proximo.startsWith("/") && !proximo.startsWith("//") ? proximo : null;
-  redirect(seguro ?? (perfil.papel === "supervisor" ? "/supervisor" : "/qsms"));
+  redirect(seguro ?? rotaInicial(perfil));
 }
 
 // ---------------------------------------------------------------------------

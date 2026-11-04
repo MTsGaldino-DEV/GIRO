@@ -37,8 +37,8 @@ function Indicador({ rotulo, children }: { rotulo: string; children: React.React
 /**
  * Painel flutuante do Perfil do Colaborador.
  *
- * Entra pela direita e deixa a lista visível atrás: quem está trabalhando a
- * fila precisa continuar vendo onde estava para não perder a posição ao fechar.
+ * Abre como janela no meio da tela, sobre a lista: ao fechar, a lista volta
+ * igual, sem perder a posição de quem está trabalhando a fila.
  *
  * O cabeçalho e os indicadores carregam de imediato; cada aba busca os próprios
  * dados só quando é aberta. Documentos e Histórico são as mais caras (URLs
@@ -85,7 +85,7 @@ export function PainelPerfilColaborador() {
 
   return (
     <Dialog open={aberto} onOpenChange={(estado) => !estado && fechar()}>
-      <DialogContent lado="direita" aria-describedby={undefined}>
+      <DialogContent lado="janela" aria-describedby={undefined}>
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">

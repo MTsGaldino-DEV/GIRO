@@ -279,7 +279,8 @@ a {
 .banner-base {
   background: var(--color-status-vencido-bg);
   color: var(--color-status-vencido-fg);
-  padding: 0.75rem 1.25rem;
+  /* O texto alinha com a coluna de 1680px da barra e do conteúdo. */
+  padding: 0.75rem max(1.5rem, calc((100% - 1680px) / 2 + 1.5rem));
   font-size: var(--text-label);
   display: flex;
   align-items: center;
@@ -491,6 +492,9 @@ a {
   display: flex;
   gap: 0.25rem;
   overflow-x: auto;
+  /* O sublinhado das abas passa 1px da borda (margin-bottom: -1px); sem isto
+     o navegador cria rolagem vertical e mostra setinhas ao lado das abas. */
+  overflow-y: hidden;
   border-bottom: 1px solid var(--color-line);
   margin-bottom: 1.25rem;
 }
@@ -613,124 +617,157 @@ a {
 }
 
 /* --------------------------------------------------------------------------
-   Sidebar (ajuste ao MVP, seção 3)
+   Navegação no topo e faixa escura (redesign do QSMS, 03/11/2026)
+
+   A sidebar virou barra no topo. Abaixo dela, a mesma cor escura continua por
+   uma faixa onde o cabeçalho de cada tela assenta, e os cartões da tela sobem
+   por cima da borda dessa faixa — referência "Employees" enviada por Matheus.
+   A cor é a da antiga sidebar (#132523), deliberadamente diferente do preto
+   reservado do semáforo.
    -------------------------------------------------------------------------- */
 
-.sidebar {
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 40;
   background: var(--color-sidebar-bg);
-  border-right: 1px solid var(--color-sidebar-line);
+  border-bottom: 1px solid var(--color-sidebar-line);
 }
 
-.sidebar__logo {
+.topo__interno {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: 4rem;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+@media (min-width: 640px) {
+  .topo__interno { padding: 0 1.5rem; gap: 2rem; }
+}
+
+.topo__logo {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: 1.25rem 1rem;
+  flex-shrink: 0;
   color: var(--color-sidebar-text-active);
   font-weight: 500;
   letter-spacing: 0.06em;
   font-size: var(--text-body);
 }
-.sidebar__logo-dot { color: var(--color-brand-light); }
+.topo__logo-dot { color: var(--color-brand-light); }
 
-/* Blocos da navegação. O espaço entre grupos é maior que o espaço entre itens
-   do mesmo grupo — é a proximidade que agrupa, o rótulo só nomeia. */
-.sidebar__grupo + .sidebar__grupo {
-  margin-top: 1.125rem;
-}
-
-.sidebar__grupo-rotulo {
-  padding: 0 0.75rem 0.375rem;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.32);
-}
-
-/* Só aparece no trilho de ícones, onde o rótulo some. Ver a media query no fim
-   desta seção. */
-.sidebar__grupo-traco { display: none; }
-
-.sidebar__item {
+.topo__nav {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: var(--radius);
-  color: var(--color-sidebar-text);
-  text-decoration: none;
-  font-size: var(--text-body);
-  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro), transform var(--duracao-rapida) var(--ease-giro);
-}
-
-/* O deslocamento sugere a direção da navegação — o item se move para onde
-   o clique vai levar. */
-.sidebar__item:hover {
-  color: var(--color-sidebar-text-active);
-  background: rgba(255, 255, 255, 0.05);
-  transform: translateX(2px);
-}
-
-.sidebar__item--ativo,
-.sidebar__item--ativo:hover {
-  background: var(--color-sidebar-active);
-  color: var(--color-sidebar-text-active);
-  font-weight: 500;
-  transform: none;
-}
-
-/* Barra indicadora do item ativo.
-   Substitui o recorte côncavo da referência, que exigiria radial-gradient em
-   duas pontas e quebraria a cada mudança de altura do item. Três linhas de
-   CSS entregam a mesma leitura de "aba selecionada". */
-.sidebar__item--ativo::before {
-  content: "";
-  position: absolute;
-  left: -0.75rem;
-  top: 50%;
-  translate: 0 -50%;
-  width: 3px;
-  height: 60%;
-  border-radius: 0 3px 3px 0;
-  background: var(--color-brand-light);
-}
-
-/* O chevron acompanha o mouse: confirma que o item ativo continua clicável. */
-.sidebar__item--ativo svg:last-child {
-  transition: transform var(--duracao-rapida) var(--ease-giro);
-}
-.sidebar__item--ativo:hover svg:last-child {
-  transform: translateX(2px);
-}
-
-/* Padding lateral alinhado ao ícone dos itens de navegação (12px do
-   container + 12px do item), para o avatar cair na mesma coluna vertical. */
-.sidebar__usuario {
-  border-top: 1px solid var(--color-sidebar-line);
-  padding: 0.875rem 0.625rem 0.875rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.sidebar__identidade {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
+  gap: 0.25rem;
+  flex: 1;
   min-width: 0;
 }
 
-.sidebar__acoes {
-  display: flex;
+.topo__item {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  flex-shrink: 0;
+  gap: 0.5rem;
+  height: 2.5rem;
+  padding: 0 0.875rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-sidebar-text);
+  font: inherit;
+  font-size: var(--text-label);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro);
+}
+.topo__item:hover,
+.topo__item[data-state="open"] {
+  color: var(--color-sidebar-text-active);
+  background: rgb(255 255 255 / 0.06);
+}
+.topo__item[data-ativo="true"] {
+  color: var(--color-sidebar-text-active);
+  background: var(--color-sidebar-active);
+  font-weight: 500;
 }
 
-.sidebar__avatar {
+/* A seta do grupo aponta para baixo e gira quando o menu abre. */
+.topo__seta {
+  width: 14px;
+  height: 14px;
+  rotate: 90deg;
+  opacity: 0.7;
+  transition: rotate var(--duracao-media) var(--ease-giro);
+}
+.topo__item[data-state="open"] .topo__seta { rotate: -90deg; }
+
+/* Pílula deslizante: um elemento só, que desliza até o item ativo; uma
+   "sombra" mais clara segue o mouse. Enquanto o JavaScript não mede os itens
+   (primeira pintura), o item ativo mantém o fundo próprio e a pílula fica
+   escondida — data-pilula="pronta" é o que troca um pelo outro. */
+.topo__pilula,
+.topo__sombra {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 999px;
+  pointer-events: none;
+  opacity: 0;
+}
+.topo__pilula {
+  z-index: 0;
+  background: var(--color-sidebar-active);
+  box-shadow: 0 4px 14px -4px rgb(14 124 116 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.12);
+  transition: transform 380ms var(--ease-giro), height 380ms var(--ease-giro), width 380ms var(--ease-giro);
+}
+/* O sublinhado vai junto com a pílula. */
+.topo__pilula::after {
+  content: "";
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: -0.75rem;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--color-brand-light);
+}
+.topo__sombra {
+  z-index: 0;
+  background: rgb(255 255 255 / 0.07);
+  transition: transform var(--duracao-lenta) var(--ease-giro), width var(--duracao-lenta) var(--ease-giro), opacity var(--duracao-media) var(--ease-giro);
+}
+.topo__nav[data-pilula="pronta"] .topo__pilula[data-visivel="true"] { opacity: 1; }
+.topo__nav[data-pilula="pronta"] .topo__sombra[data-visivel="true"] { opacity: 1; }
+.topo__nav[data-pilula="pronta"] .topo__item { z-index: 1; }
+.topo__nav[data-pilula="pronta"] .topo__item:hover,
+.topo__nav[data-pilula="pronta"] .topo__item[data-ativo="true"] { background: transparent; }
+
+.topo__usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duracao-rapida) var(--ease-giro);
+}
+.topo__usuario:hover,
+.topo__usuario[data-state="open"] { background: rgb(255 255 255 / 0.08); }
+
+.topo__avatar {
   display: grid;
   place-items: center;
   width: 32px;
@@ -742,48 +779,383 @@ a {
   font-weight: 500;
   flex-shrink: 0;
 }
+.topo__identidade { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.topo__nome {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: var(--color-sidebar-text-active);
+}
+.topo__papel { font-size: var(--text-caption); color: var(--color-sidebar-text); }
 
-.sidebar__botao-icone {
+/* Tela estreita: só ícones. O rótulo continua no DOM para o leitor de tela. */
+@media (max-width: 767px) {
+  .topo__rotulo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .topo__item { padding: 0 0.75rem; }
+  .topo__seta { display: none; }
+  .topo__identidade { display: none; }
+  .topo__usuario { padding: 0.25rem; }
+}
+
+/* Grade de cartões do painel (era tabela até 03/11/2026). */
+.grade-itens {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Entram em cascata, um cartão atrás do outro. Ao filtrar, só os cartões
+   novos entram — os que continuam têm a mesma chave e ficam onde estão. */
+.grade-itens > li {
+  display: flex;
+  animation: entra-pagina var(--duracao-lenta) var(--ease-giro) both;
+  animation-delay: calc(min(var(--i, 0), 12) * 25ms);
+}
+/* Cartão no formato da referência "Employees": foto no centro, em cima. */
+.cartao-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 1.5rem 1.25rem 1.25rem;
+  text-align: center;
+}
+.cartao-item__canto {
+  position: absolute;
+  top: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+}
+.cartao-item__canto--esquerda { left: 1rem; }
+.cartao-item__canto--direita { right: 0.875rem; }
+.cartao-item__canto .info { margin-top: 0.375rem; color: var(--color-ink-muted); }
+
+.cartao-item__dias {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+  text-align: left;
+}
+.cartao-item__dias-numero {
+  font-size: 1.625rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--color-ink);
+}
+.cartao-item__dias-rotulo {
+  margin-top: 0.25rem;
+  font-size: 0.6875rem;
+  color: var(--color-ink-faint);
+}
+
+.cartao-item .avatar-colaborador { margin-top: 0.5rem; box-shadow: 0 0 0 4px var(--color-surface), 0 0 0 5px var(--color-line); }
+.cartao-item__nome {
+  display: block;
+  max-width: 100%;
+  margin-top: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.cartao-item__cargo {
+  display: block;
+  max-width: 100%;
+  margin: 0.125rem 0 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-caption);
+  color: var(--color-ink-faint);
+}
+.cartao-item__dados {
+  display: grid;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 1rem 0;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--color-line);
+  text-align: left;
+}
+.cartao-item__dados > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.cartao-item__dados dt {
+  flex-shrink: 0;
+  font-size: var(--text-caption);
+  color: var(--color-ink-faint);
+}
+.cartao-item__dados dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-label);
+  font-weight: 500;
+}
+/* O botão desce até o pé do cartão: numa linha da grade, os "Abrir" ficam
+   alinhados mesmo com nomes e cargos de tamanhos diferentes. */
+.cartao-item__abrir { margin-top: auto; }
+
+/* Dashboard "ação primeiro" (03/11/2026). */
+.urgencia {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  padding: 1.125rem 1.25rem;
+  color: var(--color-ink);
+}
+.urgencia__rotulo {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+.urgencia__numero {
+  font-size: 2.5rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.parado {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid var(--color-line);
+}
+.parado:first-child { border-top: 0; padding-top: 0; }
+.parado__dias { white-space: nowrap; font-size: var(--text-label); }
+.parado__dias[data-estourado="true"]::after { content: ""; }
+
+.bola { display: flex; flex-direction: column; min-width: 0; }
+
+/* Rosca de status: tons do selo misturados — o fundo do selo é claro demais
+   para um arco fino e o texto, escuro demais para separar fatias vizinhas. */
+.rosca__arco {
+  animation: rosca-desenha 800ms var(--ease-giro) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+@keyframes rosca-desenha { from { stroke-dasharray: 0 400; } }
+.rosca__marca { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.rosca__arco--ok           { stroke: color-mix(in srgb, var(--color-status-regular-fg) 68%, var(--color-status-regular-bg)); }
+.rosca__arco--programar    { stroke: color-mix(in srgb, var(--color-status-programar-fg) 62%, var(--color-status-programar-bg)); }
+.rosca__arco--atencao      { stroke: color-mix(in srgb, var(--color-status-atencao-fg) 62%, var(--color-status-atencao-bg)); }
+.rosca__arco--critico      { stroke: color-mix(in srgb, var(--color-status-critico-fg) 78%, var(--color-status-critico-bg)); }
+.rosca__arco--vencido      { stroke: var(--color-status-vencido-bg); }
+.rosca__arco--sem_registro { stroke: color-mix(in srgb, var(--color-status-vencido-bg) 72%, var(--color-status-vencido-fg)); }
+span.rosca__marca.rosca__arco--ok           { background: color-mix(in srgb, var(--color-status-regular-fg) 68%, var(--color-status-regular-bg)); }
+span.rosca__marca.rosca__arco--programar    { background: color-mix(in srgb, var(--color-status-programar-fg) 62%, var(--color-status-programar-bg)); }
+span.rosca__marca.rosca__arco--atencao      { background: color-mix(in srgb, var(--color-status-atencao-fg) 62%, var(--color-status-atencao-bg)); }
+span.rosca__marca.rosca__arco--critico      { background: color-mix(in srgb, var(--color-status-critico-fg) 78%, var(--color-status-critico-bg)); }
+span.rosca__marca.rosca__arco--vencido      { background: var(--color-status-vencido-bg); }
+span.rosca__marca.rosca__arco--sem_registro { background: color-mix(in srgb, var(--color-status-vencido-bg) 72%, var(--color-status-vencido-fg)); }
+span.rosca__marca { animation: none; }
+
+/* --------------------------------------------------------------------------
+   Telas de acesso — "papel de eletro" (components/casca-login.tsx)
+   -------------------------------------------------------------------------- */
+
+.login-painel {
+  position: relative;
+  overflow: hidden;
+  display: none;
+  background: radial-gradient(110% 90% at 75% 45%, #1d3a37 0%, var(--color-sidebar-bg) 55%, #0c1817 100%);
+  color: #FFFFFF;
+}
+@media (min-width: 1024px) {
+  .login-painel { display: block; }
+}
+.login-painel__fundo { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Véu só atrás do texto, embaixo: cobrindo o painel inteiro ele apagava a
+   animação (foi o defeito do primeiro mockup). */
+.login-painel__veu {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(12 24 23 / 0.92) 0%, rgb(12 24 23 / 0.55) 28%, transparent 50%);
+  pointer-events: none;
+}
+.login-painel__logo { position: absolute; left: 3rem; top: 2.75rem; width: 210px; height: auto; }
+.login-painel__texto { position: absolute; left: 3rem; right: 3rem; bottom: 3.5rem; max-width: 30rem; }
+.login-painel__chamada,
+.login-chamada {
+  margin: 0 0 0.75rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-brand-light);
+}
+.login-chamada { color: var(--color-brand); margin-bottom: 0.375rem; }
+.login-painel__titulo {
+  margin: 0;
+  font-size: clamp(1.75rem, 2.4vw, 2.375rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.eletro__traco {
+  fill: none;
+  stroke: var(--color-brand-light);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  /* 78 de traço e 22 de vão: o vão é a "borracha" que passa à frente da
+     varredura apagando o desenho antigo, como no monitor de verdade. */
+  stroke-dasharray: 78 22;
+  filter: drop-shadow(0 0 5px rgb(79 179 166 / 0.85));
+  animation: eletro-varre 3.2s linear infinite;
+}
+@keyframes eletro-varre { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+
+.eletro__onda {
+  fill: none;
+  stroke: var(--color-brand-light);
+  stroke-width: 1.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: eletro-onda 1.6s ease-out infinite;
+}
+.eletro__onda--segunda { stroke-width: 1; animation-delay: 0.8s; }
+@keyframes eletro-onda {
+  0%   { transform: scale(0.55); opacity: 0.7; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+/* Lado do formulário: névoa com textura de pontos que some no centro, para o
+   formulário assentar num campo limpo. */
+.login-lado {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  border: 0;
-  color: var(--color-sidebar-text);
-  cursor: pointer;
-  text-decoration: none;
+  min-height: 100dvh;
+  padding: 2.5rem 1.5rem;
+  background: var(--color-mist);
 }
-.sidebar__botao-icone:hover {
-  color: var(--color-sidebar-text-active);
-  background: rgba(255, 255, 255, 0.08);
+.login-lado::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(var(--color-line-strong) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: radial-gradient(circle at center, transparent 28%, #000 78%);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.login-lado__conteudo {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  animation: entra-pagina 400ms var(--ease-giro) both;
 }
 
-/* Trilho de ícones (<768px): o avatar é decorativo e não cabe ao lado dos dois
-   botões em 64px de largura. Some ele e empilha as ações, que são o que o
-   supervisor precisa alcançar no celular. */
-@media (max-width: 767px) {
-  .sidebar__usuario {
-    padding: 0.75rem 0;
-    justify-content: center;
-  }
-  .sidebar__identidade { display: none; }
-  .sidebar__acoes { flex-direction: column; gap: 0.25rem; }
-  .sidebar__logo { justify-content: center; padding: 1.25rem 0; }
-  .sidebar__grupo-rotulo { display: none; }
-  .sidebar__grupo + .sidebar__grupo { margin-top: 0.5rem; }
-  .sidebar__grupo + .sidebar__grupo .sidebar__grupo-traco {
-    display: block;
-    height: 1px;
-    margin: 0 0.5rem 0.5rem;
-    background: var(--color-sidebar-line);
-  }
-  /* O trilho usa px-2, não px-3: a barra indicadora acompanha para não sair
-     da sidebar e ser cortada. */
-  .sidebar__item--ativo::before { left: -0.5rem; }
-  .sidebar__item:hover { transform: none; }
+/* Explicação recolhida em "ⓘ" (components/info.tsx). */
+.info {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-style: italic;
+  line-height: 1;
+  opacity: 0.6;
+  cursor: help;
+  vertical-align: middle;
+  transition: opacity var(--duracao-rapida) var(--ease-giro);
 }
+.info:hover,
+.info:focus-visible { opacity: 1; }
+.info__dica {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 0.5rem);
+  z-index: 45;
+  width: max-content;
+  max-width: 280px;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink);
+  color: #FFFFFF;
+  box-shadow: var(--shadow-alta);
+  font-size: var(--text-caption);
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  /* display:none fechada, não só opacity 0: invisível, ela ainda ocupava
+     largura e criava rolagem horizontal no celular quando o ⓘ fica perto da
+     borda. A entrada vem do @starting-style. */
+  display: none;
+  translate: -50% 0;
+  transition: opacity var(--duracao-rapida) var(--ease-giro), translate var(--duracao-rapida) var(--ease-giro);
+}
+.info[data-lado="cima"] .info__dica { top: auto; bottom: calc(100% + 0.5rem); }
+.info:hover .info__dica,
+.info:focus-visible .info__dica { display: block; }
+@starting-style {
+  .info:hover .info__dica,
+  .info:focus-visible .info__dica { opacity: 0; translate: -50% -4px; }
+}
+
+/* Faixa escura abaixo da navegação. Fundo da área, não elemento próprio: não
+   anima na troca de página e não depende de qual tela está aberta. */
+@media (max-width: 639px) {
+  .banner-base { padding-inline: 1rem; }
+}
+
+.faixa-app {
+  background:
+    linear-gradient(var(--color-sidebar-bg), var(--color-sidebar-bg)) top / 100% 10.5rem no-repeat;
+}
+
+/* O cabeçalho de cada tela fica sobre a faixa, então inverte as cores. */
+.cabecalho-pagina h1 { color: #FFFFFF; }
+.cabecalho-pagina .text-ink-muted { color: rgb(255 255 255 / 0.68); }
+.cabecalho-pagina .text-ink-faint { color: rgb(255 255 255 / 0.5); }
+.cabecalho-pagina a { color: var(--color-brand-light); }
+.cabecalho-pagina [data-slot="breadcrumb"],
+.cabecalho-pagina [data-slot="breadcrumb"] a,
+.cabecalho-pagina [data-slot="breadcrumb-page"] { color: rgb(255 255 255 / 0.55); }
+.cabecalho-pagina [data-slot="breadcrumb"] a:hover { color: #FFFFFF; }
+.cabecalho-pagina .esqueleto { opacity: 0.12; }
+.cabecalho-pagina .btn--secondary {
+  background: rgb(255 255 255 / 0.08);
+  border-color: rgb(255 255 255 / 0.18);
+  color: #FFFFFF;
+}
+.cabecalho-pagina .btn--secondary:hover { background: rgb(255 255 255 / 0.14); }
 
 /* --------------------------------------------------------------------------
    Esqueleto de carregamento
@@ -1014,10 +1386,10 @@ a {
 /* --------------------------------------------------------------------------
    Diálogo e painel lateral (Radix)
 
-   O Perfil do Colaborador usa a variante `data-lado="direita"`: um painel que
-   entra pela borda e deixa a lista visível atrás. A escolha não é estética —
-   quem está trabalhando a fila do painel precisa continuar vendo onde estava
-   para não perder a posição ao fechar.
+   O Perfil do Colaborador usa a variante `data-lado="janela"`: uma janela
+   ampla no meio da tela (era painel lateral até 03/11/2026; Matheus preferiu
+   a informação centrada). A lista continua atrás da cortina e volta igual ao
+   fechar, então a posição na fila não se perde.
    -------------------------------------------------------------------------- */
 
 .dialogo__cortina {
@@ -1096,6 +1468,42 @@ a {
 @keyframes modal-sai {
   from { opacity: 1; scale: 1; }
   to   { opacity: 0; scale: 0.97; }
+}
+
+/* Janela ampla no meio da tela — o formato do Perfil do Colaborador.
+   Altura fixa, não "até caber": trocar de aba não faz a janela pular de
+   tamanho, só o corpo rola. */
+.dialogo[data-lado="janela"] {
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(1040px, calc(100vw - 3rem));
+  height: min(860px, calc(100dvh - 3rem));
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+}
+
+.dialogo[data-lado="janela"][data-state="open"] {
+  animation: janela-entra var(--duracao-lenta) var(--ease-giro);
+}
+.dialogo[data-lado="janela"][data-state="closed"] {
+  animation: modal-sai var(--duracao-media) var(--ease-giro);
+}
+
+@keyframes janela-entra {
+  from { opacity: 0; scale: 0.96; transform: translateY(12px); }
+  to   { opacity: 1; scale: 1; transform: none; }
+}
+
+/* Em tela estreita a janela ocupa tudo: margem de 1,5rem num celular só
+   espreme a tabela de exames. */
+@media (max-width: 640px) {
+  .dialogo[data-lado="janela"] {
+    width: 100vw;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
 }
 
 /* Em tela estreita o painel ocupa tudo: 880px num celular deixaria uma faixa
@@ -1256,54 +1664,6 @@ a {
   transform-origin: left;
   animation: cresce-horizontal 600ms var(--ease-giro) both;
   animation-delay: calc(var(--i, 0) * 40ms);
-}
-
-/* Pílula deslizante da navegação.
-   Um elemento só, que desliza até o item ativo; uma "sombra" mais clara segue
-   o mouse. Enquanto o JavaScript não mede os itens (primeira pintura), o item
-   ativo mantém o fundo próprio e a pílula fica escondida — data-pilula="pronta"
-   é o que troca um pelo outro. */
-.sidebar nav { position: relative; }
-.sidebar__pilula,
-.sidebar__sombra {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-radius: var(--radius);
-  pointer-events: none;
-  opacity: 0;
-}
-.sidebar__pilula {
-  z-index: 0;
-  background: var(--color-sidebar-active);
-  box-shadow: 0 4px 14px -4px rgb(14 124 116 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.12);
-  transition: transform 380ms var(--ease-giro), height 380ms var(--ease-giro), width 380ms var(--ease-giro);
-}
-/* A barra indicadora vai junto com a pílula. */
-.sidebar__pilula::before {
-  content: "";
-  position: absolute;
-  left: -0.75rem;
-  top: 20%;
-  width: 3px;
-  height: 60%;
-  border-radius: 0 3px 3px 0;
-  background: var(--color-brand-light);
-}
-.sidebar__sombra {
-  z-index: 0;
-  background: rgb(255 255 255 / 0.06);
-  transition: transform var(--duracao-lenta) var(--ease-giro), height var(--duracao-lenta) var(--ease-giro), opacity var(--duracao-media) var(--ease-giro);
-}
-.sidebar nav[data-pilula="pronta"] .sidebar__pilula[data-visivel="true"] { opacity: 1; }
-.sidebar nav[data-pilula="pronta"] .sidebar__sombra[data-visivel="true"] { opacity: 1; }
-.sidebar nav[data-pilula="pronta"] .sidebar__item { z-index: 1; }
-.sidebar nav[data-pilula="pronta"] .sidebar__item:hover { background: transparent; }
-.sidebar nav[data-pilula="pronta"] .sidebar__item--ativo,
-.sidebar nav[data-pilula="pronta"] .sidebar__item--ativo:hover { background: transparent; }
-.sidebar nav[data-pilula="pronta"] .sidebar__item--ativo::before { display: none; }
-@media (max-width: 767px) {
-  .sidebar__pilula::before { left: -0.5rem; }
 }
 
 /* Barra de progresso no topo durante a troca de página.

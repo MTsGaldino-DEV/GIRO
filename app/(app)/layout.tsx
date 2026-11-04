@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { exigirPerfil } from "@/lib/perfil";
 import { obterResumoStatus } from "@/lib/colaborador";
-import { Sidebar } from "@/components/sidebar";
+import { BarraTopo } from "@/components/barra-topo";
 import { BannerBase } from "@/components/banner-base";
 import { ProvedorPerfilColaborador } from "@/components/perfil/contexto";
 import { PainelPerfilColaborador } from "@/components/perfil/painel-perfil";
@@ -23,21 +23,20 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       <Suspense fallback={null}>
         <BarraNavegacao />
       </Suspense>
-      <div className="min-h-dvh flex">
-        <Sidebar perfil={perfil} />
-        <div className="flex-1 flex flex-col min-w-0">
-          {resumo && (
-            <BannerBase
-              semRegistro={Number(resumo.sem_registro)}
-              total={Number(resumo.total)}
-              mostrarLink={perfil.papel !== "supervisor"}
-            />
-          )}
-        {/* O teto existe para não esticar linha de texto até ficar ilegível,
-            mas 1280px sem mx-auto encostava tudo na sidebar e deixava o resto
-            de um monitor de 1920 como espaço morto à direita. As telas que
-            precisam de coluna estreita (item, detalhe do colaborador) já põem
-            o próprio max-w; o dashboard e o painel usam a largura toda. */}
+      <div className="min-h-dvh flex flex-col">
+        <BarraTopo perfil={perfil} />
+        {resumo && (
+          <BannerBase
+            semRegistro={Number(resumo.sem_registro)}
+            total={Number(resumo.total)}
+            mostrarLink={perfil.papel !== "supervisor"}
+          />
+        )}
+        {/* A faixa escura continua a barra do topo; o cabeçalho de cada tela
+            assenta nela e os cartões sobem por cima da borda. O teto de
+            1680px é o mesmo da barra, para logo e título caírem na mesma
+            coluna. */}
+        <div className="faixa-app flex-1 flex flex-col min-w-0">
           <main className="conteudo-pagina flex-1 w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-6">{children}</main>
         </div>
       </div>

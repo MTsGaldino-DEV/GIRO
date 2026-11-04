@@ -8,6 +8,7 @@ import { Vazio } from "@/components/aviso";
 import { LinhaBase } from "./linha";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { Info } from "@/components/info";
 import type { LinhaStatus, ResumoStatus, StatusConformidade } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Conferência da base" };
@@ -69,11 +70,9 @@ export default async function PaginaBase({
         trilha={[{ rotulo: "Cadastros" }, { rotulo: "Conferência da base" }]}
         titulo="Conferência da base"
         descricao={
-          <span className="block max-w-[70ch]">
-            Informe a data do último ASO de cada colaborador. Cada data
-            registrada aqui vira um evento retroativo e recoloca a pessoa no
-            semáforo — sai de &ldquo;sem registro&rdquo; e passa a ter
-            vencimento calculado.
+          <span className="inline-flex items-center gap-2">
+            Informe a data do último ASO de cada colaborador.
+            <Info>Cada data registrada vira um evento retroativo e recoloca a pessoa no semáforo: sai de “sem registro” e passa a ter vencimento calculado.</Info>
           </span>
         }
       />

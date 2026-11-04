@@ -20,15 +20,18 @@ import type { Perfil } from "./tipos";
 export const obterPerfil = cache(async function obterPerfil(): Promise<Perfil | null> {
   const supabase = await criarClienteServidor();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+  // Assinatura do token conferida localmente (chave ES256 em cache), sem ida
+  // ao servidor de autenticação — era a segunda das duas por clique, depois da
+  // do middleware. O que barra acesso revogado continua sendo a consulta
+  // abaixo: perfil desativado sai na hora, não quando o token vencer.
+  const { data: sessao } = await supabase.auth.getClaims();
+  const usuarioId = sessao?.claims.sub;
+  if (!usuarioId) return null;
 
   const { data } = await supabase
     .from("perfis")
     .select("id, email, nome, papel, supervisor_id, ativo")
-    .eq("id", user.id)
+    .eq("id", usuarioId)
     .eq("ativo", true)
     .maybeSingle();
 
@@ -65,7 +68,7 @@ export async function exigirQsms(): Promise<Perfil> {
  */
 export async function exigirSupervisor(): Promise<Perfil> {
   const perfil = await exigirPerfil();
-  if (perfil.papel === "qsms") redirect("/qsms");
+  if (perfil.papel === "qsms") redirect(rotaInicial(perfil));
   return perfil;
 }
 
@@ -76,6 +79,8 @@ export async function exigirAdmin(): Promise<Perfil> {
   return perfil;
 }
 
-export function rotaInicial(perfil: Perfil): string {
-  return perfil.papel === "supervisor" ? "/supervisor" : "/qsms";
+export function rotaInicial(perfil: Pick<Perfil, "papel">): string {
+  // QSMS e admin entram no Dashboard (redesign de 03/11/2026): primeiro o que
+  // pede ação, depois a fila inteira no Painel.
+  return perfil.papel === "supervisor" ? "/supervisor" : "/qsms/dashboard";
 }

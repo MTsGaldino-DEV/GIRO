@@ -4,6 +4,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { formatarData } from "@/lib/dominio";
 import { Vazio } from "@/components/aviso";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { Info } from "@/components/info";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 
 export const metadata: Metadata = { title: "Colaboradores desligados" };
@@ -38,10 +39,9 @@ export default async function PaginaDesligados() {
         trilha={[{ rotulo: "Administração" }, { rotulo: "Desligados" }]}
         titulo="Colaboradores desligados"
         descricao={
-          <span className="block max-w-[70ch]">
-            Fora do semáforo e sem pendência de ASO. O histórico, os exames e os
-            documentos continuam na base — abra o perfil e use
-            &ldquo;Reativar&rdquo; na aba Cadastro para trazer de volta.
+          <span className="inline-flex items-center gap-2">
+            Fora do semáforo e sem pendência de ASO.
+            <Info>Histórico, exames e documentos continuam na base. Para trazer alguém de volta, abra o perfil e use “Reativar” na aba Cadastro.</Info>
           </span>
         }
       />

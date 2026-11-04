@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { obterPerfil, rotaInicial } from "@/lib/perfil";
-import { MarcaVertical } from "@/components/marca-vertical";
+import { CascaLogin } from "@/components/casca-login";
+import { Info } from "@/components/info";
 import { FormularioLogin } from "./formulario";
 
 export const metadata: Metadata = { title: "Entrar" };
@@ -17,24 +18,17 @@ export default async function PaginaLogin({
   const { proximo, erro, sucesso } = await searchParams;
 
   return (
-    <main className="min-h-dvh grid place-items-center p-6">
-      <div className="w-full max-w-[400px]">
-        <MarcaVertical />
-
-        <div className="card">
-          <h1 className="text-[1.375rem] mb-1">Entrar</h1>
-          <p className="text-ink-muted text-label mb-5">
-            Informe seu e-mail e sua senha para abrir o painel.
-          </p>
-
-          <FormularioLogin proximo={proximo} erroInicial={erro} sucessoInicial={sucesso} />
-        </div>
-
-        <p className="text-ink-faint text-caption mt-4 leading-relaxed">
+    <CascaLogin>
+      <p className="login-chamada">Acesso · GIRO</p>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-[1.75rem]">Entrar</h1>
+        <Info lado="cima">
           O acesso é liberado pelo QSMS. Se você ainda não tem senha, confirme
           com a equipe de QSMS se o seu e-mail está cadastrado.
-        </p>
+        </Info>
       </div>
-    </main>
+
+      <FormularioLogin proximo={proximo} erroInicial={erro} sucessoInicial={sucesso} />
+    </CascaLogin>
   );
 }

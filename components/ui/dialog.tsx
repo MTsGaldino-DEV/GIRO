@@ -12,11 +12,12 @@ import { cn } from "@/lib/utils";
  * gatilho, `inert` no resto da página e trava de rolagem do body sem o pulo de
  * layout que `overflow: hidden` causa sozinho.
  *
- * Duas variantes de posição, decididas por `lado`:
+ * Três variantes de posição, decididas por `lado`:
  *   - "centro": modal clássico, para confirmações e formulários curtos.
- *   - "direita": painel lateral (drawer), para conteúdo denso e navegável —
- *     é o formato do Perfil do Colaborador, onde a lista atrás precisa
- *     continuar visível para não perder o contexto de onde se estava.
+ *   - "janela": modal amplo no meio da tela, para conteúdo denso e navegável —
+ *     é o formato do Perfil do Colaborador (pedido de Matheus, 03/11/2026).
+ *   - "direita": painel lateral (drawer). Sem uso hoje; mantido para conteúdo
+ *     em que a lista atrás precise continuar visível.
  */
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -53,7 +54,7 @@ function DialogContent({
   lado = "centro",
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
-  lado?: "centro" | "direita";
+  lado?: "centro" | "janela" | "direita";
 }) {
   return (
     <DialogPortal>

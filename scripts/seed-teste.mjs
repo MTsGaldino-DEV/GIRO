@@ -62,6 +62,21 @@ const COLABORADORES = [
 ];
 
 async function limpar() {
+  // A base real entrou por scripts/importar-ativos.mjs (matrículas abaixo de
+  // 90000). Apagá-la por engano custa a trilha de auditoria inteira; só
+  // segue com --apagar-base-real dito explicitamente.
+  const { count: reais } = await supabase
+    .from("colaboradores")
+    .select("id", { count: "exact", head: true })
+    .lt("matricula", 90000);
+  if (reais && !process.argv.includes("--apagar-base-real")) {
+    console.error(
+      `A base tem ${reais} colaboradores reais. O seed apagaria todos.\n` +
+        "Rode contra um banco de teste, ou passe --apagar-base-real se for isso mesmo."
+    );
+    process.exit(1);
+  }
+
   console.log("Apagando colaboradores e supervisores existentes…");
 
   // Perfis de supervisor apontam para `supervisores` com on delete set null, e

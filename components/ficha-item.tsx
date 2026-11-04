@@ -27,7 +27,8 @@ export function FichaItem({ item }: { item: ItemAberto }) {
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      {/* Nome e selo assentam na faixa escura do topo; o cartão sobe por cima. */}
+      <div className="cabecalho-pagina flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1>{item.nome}</h1>
           <p className="text-ink-muted text-label mt-0.5 tabular">

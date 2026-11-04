@@ -2,14 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { exigirQsms } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { CartaoContagem } from "@/components/selo-status";
+import { assinarFotos } from "@/lib/colaborador";
+import { SeloStatus } from "@/components/selo-status";
 import { GraficoConclusoes, type PontoMes } from "@/components/grafico-conclusoes";
+import { RoscaStatus } from "@/components/rosca-status";
+import { AvatarColaborador } from "@/components/avatar-colaborador";
+import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { Vazio } from "@/components/aviso";
-import { ORDEM_STATUS, ETAPA_ROTULO, DONO_ROTULO } from "@/lib/dominio";
+import { Info } from "@/components/info";
+import { ETAPA_ROTULO, DONO_ROTULO } from "@/lib/dominio";
 import { AtualizacaoAutomatica } from "./atualizacao";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { NumeroAnimado } from "@/components/numero-animado";
-import type { ResumoStatus, Etapa, Dono } from "@/lib/tipos";
+import type { ResumoStatus, Etapa, Dono, ItemAberto } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
@@ -51,8 +56,25 @@ function BarraProporcao({ valor, total, indice = 0 }: { valor: number; total: nu
   );
 }
 
+const FUSO = "America/Sao_Paulo";
+
+function saudacao(agora: Date): string {
+  const hora = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hourCycle: "h23", timeZone: FUSO }).format(agora));
+  if (hora < 12) return "Bom dia";
+  if (hora < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+/**
+ * Dashboard "ação primeiro" (redesign do QSMS, 03/11/2026).
+ *
+ * A ordem da tela é a ordem das perguntas de quem abre o sistema de manhã:
+ * o que está pegando fogo (três números), quem está parado há mais tempo (com
+ * o botão para agir), onde está o gargalo (supervisão ou QSMS) e só depois o
+ * retrato geral — status, curva, demanda à frente e ranking.
+ */
 export default async function Dashboard() {
-  await exigirQsms();
+  const perfil = await exigirQsms();
   const supabase = await criarClienteServidor();
 
   const [
@@ -61,12 +83,14 @@ export default async function Dashboard() {
     { data: supervisoresBrutos },
     { data: curvaBruta },
     { data: vencimentosBrutos },
+    { data: paradosBrutos },
   ] = await Promise.all([
     supabase.rpc("fn_resumo_status"),
     supabase.rpc("fn_resumo_por_etapa"),
     supabase.rpc("fn_resumo_por_supervisor"),
     supabase.rpc("fn_conclusoes_por_mes", { p_meses: 12 }),
     supabase.rpc("fn_vencimentos_a_frente"),
+    supabase.from("vw_itens_abertos").select("*").order("dias_parados", { ascending: false }).limit(5),
   ]);
 
   const resumo = (resumoBruto?.[0] ?? null) as ResumoStatus | null;
@@ -78,122 +102,209 @@ export default async function Dashboard() {
     ate_60: number;
     ate_90: number;
   };
+  const parados = (paradosBrutos ?? []) as ItemAberto[];
+  const fotos = await assinarFotos(parados.map((p) => p.foto_url));
 
   const totalAbertos = etapas.reduce((soma, e) => soma + Number(e.quantidade), 0);
-  const totalEstourados = etapas.reduce((soma, e) => soma + Number(e.estourados), 0);
+
+  // "Onde está a bola", dividido pelo dono da etapa: é o que responde se o
+  // gargalo é a supervisão que não libera ou o QSMS que não agenda.
+  const lados = (["supervisor", "qsms"] as const).map((dono) => {
+    const linhas = etapas.filter((e) => e.dono === dono);
+    return {
+      dono,
+      linhas,
+      quantidade: linhas.reduce((soma, e) => soma + Number(e.quantidade), 0),
+      estourados: linhas.reduce((soma, e) => soma + Number(e.estourados), 0),
+    };
+  });
+
+  const agora = new Date();
+  const primeiroNome = (perfil.nome ?? perfil.email).trim().split(/\s+/)[0];
+  const hoje = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: FUSO }).format(agora);
+
+  const urgencias = resumo
+    ? [
+        {
+          rotulo: "Vencidos",
+          valor: Number(resumo.vencido),
+          href: "/qsms?status=vencido",
+          selo: <SeloStatus status="vencido" dias={null} />,
+        },
+        {
+          rotulo: "Sem registro",
+          valor: Number(resumo.sem_registro),
+          href: "/qsms?status=sem_registro",
+          selo: <SeloStatus status="sem_registro" dias={null} />,
+        },
+        {
+          rotulo: "Fora do prazo",
+          valor: Number(resumo.sla_estourado),
+          href: "/qsms?parados=1",
+          selo: <span className="text-caption text-ink-muted">SLA da etapa estourado</span>,
+        },
+      ]
+    : [];
 
   return (
     <div>
       <CabecalhoPagina
-        trilha={[{ rotulo: "Operação" }, { rotulo: "Dashboard" }]}
-        titulo="Dashboard"
-        descricao={
-          <>
-            A operação inteira numa tela. Para trabalhar a fila, use o{" "}
-            <Link href="/qsms">painel</Link>.
-          </>
-        }
+        titulo={`${saudacao(agora)}, ${primeiroNome}`}
+        descricao={<span className="first-letter:uppercase inline-block">{hoje}</span>}
       >
         <AtualizacaoAutomatica />
       </CabecalhoPagina>
 
-      {resumo && (
+      {urgencias.length > 0 && (
         <>
-          <h2 className="sr-only">Contagem por status</h2>
-          <div className="grid gap-3 mb-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            {ORDEM_STATUS.map((s) => (
-              <Link key={s} href={`/qsms?status=${s}`} className="no-underline">
-                <CartaoContagem status={s} quantidade={Number(resumo[s as keyof ResumoStatus] ?? 0)} />
+          <h2 className="sr-only">O que pede ação</h2>
+          <div className="grid gap-4 mb-5 sm:grid-cols-3">
+            {urgencias.map((u) => (
+              <Link key={u.rotulo} href={u.href} className="card card--interativo urgencia no-underline">
+                <span className="urgencia__rotulo">{u.rotulo}</span>
+                <span className="urgencia__numero tabular">
+                  <NumeroAnimado valor={u.valor} />
+                </span>
+                {u.selo}
               </Link>
             ))}
           </div>
         </>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_340px] items-start mb-5">
-        <div className="card">
-          <h2 className="text-[1.0625rem] mb-1">Onde está a bola</h2>
-          <p className="text-ink-muted text-label mb-4">
-            {totalAbertos} {totalAbertos === 1 ? "item aberto" : "itens abertos"}
-            {totalEstourados > 0 && `, ${totalEstourados} com SLA estourado`}. É
-            aqui que se vê se o gargalo é a supervisão que não libera ou o QSMS
-            que não agenda.
-          </p>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] items-start mb-5">
+        <section className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[1.0625rem]">Parados há mais tempo</h2>
+            <Info>Os cinco itens que estão há mais dias na mesma etapa, de qualquer status.</Info>
+            <Link href="/qsms?ordem=parados&dir=desc" className="ml-auto text-label">
+              Ver todos
+            </Link>
+          </div>
 
-          {etapas.length === 0 ? (
+          {parados.length === 0 ? (
             <Vazio>Nenhum item em aberto.</Vazio>
           ) : (
-            <ul className="list-none p-0 m-0 grid gap-3">
-              {etapas.map((linha, indice) => (
-                <li key={`${linha.etapa}-${linha.dono}`}>
-                  <Link
-                    href={`/qsms?etapa=${linha.etapa}`}
-                    className="no-underline text-ink block"
-                  >
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-label">
-                        {ETAPA_ROTULO[linha.etapa]}
-                        <span className="text-ink-faint"> · {DONO_ROTULO[linha.dono]}</span>
-                      </span>
-                      <span className="text-label tabular whitespace-nowrap">
-                        {linha.quantidade}
-                        {Number(linha.estourados) > 0 && (
-                          <span className="dias-parados" data-estourado="true">
-                            {" "}
-                            {linha.estourados} fora do prazo
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                    <BarraProporcao valor={Number(linha.quantidade)} total={totalAbertos} indice={indice} />
+            <ul className="list-none m-0 p-0 grid">
+              {parados.map((item) => (
+                <li key={item.item_id} className="parado">
+                  <AvatarColaborador nome={item.nome} fotoUrl={fotos.get(item.foto_url ?? "")} tamanho={40} />
+                  <div className="min-w-0 flex-1">
+                    <BotaoNomeColaborador
+                      colaboradorId={item.colaborador_id}
+                      nome={item.nome}
+                      className="cartao-item__nome"
+                    />
+                    <span className="block text-caption text-ink-faint truncate">
+                      {ETAPA_ROTULO[item.etapa]} · com {DONO_ROTULO[item.dono]}
+                    </span>
+                  </div>
+                  <span className="dias-parados parado__dias" data-estourado={item.sla_estourado}>
+                    {item.dias_parados}d
+                  </span>
+                  <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
+                    Agir
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </section>
 
-        <div className="card">
-          <h2 className="text-[1.0625rem] mb-1">Vencimentos à frente</h2>
-          <p className="text-ink-muted text-label mb-4">
-            Para dimensionar a demanda da clínica.
-          </p>
-          <dl className="grid gap-3 m-0">
-            {[
-              { rotulo: "Próximos 30 dias", valor: vencimentos.ate_30 },
-              { rotulo: "Próximos 60 dias", valor: vencimentos.ate_60 },
-              { rotulo: "Próximos 90 dias", valor: vencimentos.ate_90 },
-            ].map((faixa) => (
-              <div key={faixa.rotulo} className="flex items-baseline justify-between gap-3">
-                <dt className="text-label text-ink-muted">{faixa.rotulo}</dt>
-                <dd className="m-0 text-[1.25rem] font-medium tabular">
-                  <NumeroAnimado valor={Number(faixa.valor)} />
-                </dd>
-              </div>
-            ))}
-          </dl>
+        <section className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[1.0625rem]">Onde está a bola</h2>
+            <Info>
+              Itens abertos pelo dono da etapa atual: mostra se o gargalo é a
+              supervisão que não libera ou o QSMS que não agenda.
+            </Info>
+          </div>
+
+          {totalAbertos === 0 ? (
+            <Vazio>Nenhum item em aberto.</Vazio>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {lados.map((lado) => (
+                <div key={lado.dono} className="bola">
+                  <span className="urgencia__rotulo">{DONO_ROTULO[lado.dono]}</span>
+                  <span className="text-[1.75rem] font-medium leading-tight tabular">
+                    <NumeroAnimado valor={lado.quantidade} />
+                  </span>
+                  <span className="text-caption text-ink-faint">
+                    {lado.estourados > 0 ? `${lado.estourados} fora do prazo` : "Nada fora do prazo"}
+                  </span>
+                  <BarraProporcao valor={lado.quantidade} total={totalAbertos} />
+
+                  <ul className="list-none m-0 p-0 mt-3 grid gap-1.5">
+                    {lado.linhas.map((linha) => (
+                      <li key={linha.etapa}>
+                        <Link
+                          href={`/qsms?etapa=${linha.etapa}`}
+                          className="flex items-baseline justify-between gap-2 text-label text-ink no-underline hover:text-brand"
+                        >
+                          <span className="truncate">{ETAPA_ROTULO[linha.etapa]}</span>
+                          <span className="tabular text-ink-muted">{linha.quantidade}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] items-start mb-5">
+        <section className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <h2 className="text-[1.0625rem]">Conclusões por mês</h2>
+            <Info>ASOs concluídos nos últimos 12 meses. É o indicador que diz se a operação está melhorando.</Info>
+          </div>
+          <GraficoConclusoes dados={curva} />
+        </section>
+
+        <div className="grid gap-5">
+          {resumo && (
+            <section className="card">
+              <h2 className="text-[1.0625rem] mb-4">Status da base</h2>
+              <RoscaStatus resumo={resumo} />
+            </section>
+          )}
+
+          <section className="card">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-[1.0625rem]">Vencimentos à frente</h2>
+              <Info>Para dimensionar a demanda da clínica.</Info>
+            </div>
+            <dl className="grid grid-cols-3 gap-3 m-0">
+              {[
+                { rotulo: "30 dias", valor: vencimentos.ate_30 },
+                { rotulo: "60 dias", valor: vencimentos.ate_60 },
+                { rotulo: "90 dias", valor: vencimentos.ate_90 },
+              ].map((faixa) => (
+                <div key={faixa.rotulo} className="flex flex-col">
+                  <dd className="m-0 order-1 text-[1.5rem] font-medium tabular">
+                    <NumeroAnimado valor={Number(faixa.valor)} />
+                  </dd>
+                  <dt className="order-2 text-caption text-ink-faint">{faixa.rotulo}</dt>
+                </div>
+              ))}
+            </dl>
+          </section>
         </div>
       </div>
 
-      <div className="card mb-5">
-        <h2 className="text-[1.0625rem] mb-1">Conclusões por mês</h2>
-        <p className="text-ink-muted text-label mb-4">
-          ASOs concluídos nos últimos 12 meses. É o indicador que diz se a
-          operação está melhorando.
-        </p>
-        <GraficoConclusoes dados={curva} />
-      </div>
-
-      <div className="card p-0">
-        <div className="p-5 pb-0">
-          <h2 className="text-[1.0625rem] mb-1">Por supervisor</h2>
-          <p className="text-ink-muted text-label mb-0">
-            Ordenado por quem tem mais gente irregular. A linha &ldquo;Sem
-            supervisor&rdquo; são os colaboradores por quem ninguém é cobrado.
-          </p>
+      <section className="card">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[1.0625rem]">Por supervisor</h2>
+          <Info>
+            Ordenado por quem tem mais gente irregular. A linha “Sem supervisor”
+            são os colaboradores por quem ninguém é cobrado.
+          </Info>
         </div>
 
-        <div className="overflow-x-auto p-5 pt-3">
+        <div className="overflow-x-auto mt-3">
           {supervisores.length === 0 ? (
             <Vazio>Nenhum supervisor com equipe.</Vazio>
           ) : (
@@ -237,7 +348,7 @@ export default async function Dashboard() {
             </table>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

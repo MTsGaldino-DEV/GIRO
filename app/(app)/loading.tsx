@@ -25,7 +25,7 @@ export default function Carregando() {
     <div aria-busy="true" aria-live="polite">
       <span className="sr-only">Carregando…</span>
 
-      <div className="mb-5">
+      <div className="cabecalho-pagina mb-5">
         <Barra className="h-8 w-52" />
         <Barra className="h-4 w-80 mt-2" />
       </div>

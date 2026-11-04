@@ -17,7 +17,6 @@ import {
 import { BUCKET_FOTOS } from "@/lib/storage";
 import {
   ETAPA_ROTULO,
-  DONO_ROTULO,
   STATUS_ROTULO,
   ORDEM_STATUS,
   formatarData,
@@ -26,6 +25,7 @@ import {
 import { SeloStatus, CartaoContagem } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
+import { Info } from "@/components/info";
 import { usePerfilColaborador } from "@/components/perfil/contexto";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { IconeReticencias } from "@/components/icones";
@@ -39,7 +39,11 @@ import {
 import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } from "@/lib/tipos";
 
 /**
- * A tabela do painel, com filtro, ordenação e paginação no navegador.
+ * A grade de cartões do painel, com filtro, ordenação e paginação no navegador.
+ *
+ * Era tabela até 03/11/2026. Virou grade de cartões no redesign do QSMS
+ * (pedido de Matheus, referência "Employees"): cada pessoa com foto, selo e
+ * onde o ciclo está, sem rolar oito colunas para o lado.
  *
  * Motivo, medido: cada troca de página ou filtro era uma navegação completa —
  * o servidor refazia sessão, layout e página inteira para trocar 25 linhas.
@@ -53,7 +57,7 @@ import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } 
  * A primeira página vem pronta do servidor (`inicial`), então o HTML nunca
  * chega vazio e quem entra por link compartilhado vê conteúdo de imediato.
  */
-export function TabelaItens({
+export function GradeItens({
   inicial,
   filtrosIniciais,
   fotosIniciais,
@@ -123,31 +127,22 @@ export function TabelaItens({
   const paginaAtual = Math.max(1, Number(filtros.pagina) || 1);
   const ultimaPagina = Math.max(1, Math.ceil(pagina.total / POR_PAGINA));
   const ordem = ehChaveOrdenacao(filtros.ordem) ? filtros.ordem : null;
-  const direcao = filtros.dir === "desc" ? "desc" : "asc";
 
-  function ordenarPor(chave: ChaveOrdenacao) {
-    const ativa = ordem === chave;
-    const proxima = ativa
-      ? direcao === "asc" ? "desc" : "asc"
-      : COLUNAS_ORDENAVEIS[chave].ascPadrao ? "asc" : "desc";
-    setFiltros((f) => ({ ...f, ordem: chave, dir: proxima, pagina: undefined }));
+  // Sem cabeçalho de coluna para clicar, a ordenação virou um seletor. Cada
+  // critério vai na direção que responde a pergunta dele (nome A→Z, quem vence
+  // primeiro, quem está parado há mais tempo); inverter não pagava o controle.
+  function ordenarPor(chave: ChaveOrdenacao | "") {
+    if (!chave) {
+      setFiltros((f) => ({ ...f, ordem: undefined, dir: undefined, pagina: undefined }));
+      return;
+    }
+    const dir = COLUNAS_ORDENAVEIS[chave].ascPadrao ? "asc" : "desc";
+    setFiltros((f) => ({ ...f, ordem: chave, dir, pagina: undefined }));
   }
 
   function irPara(p: number) {
     setFiltros((f) => ({ ...f, pagina: p > 1 ? String(p) : undefined }));
   }
-
-  const Cabecalho = ({ chave, rotulo }: { chave: ChaveOrdenacao; rotulo: string }) => {
-    const ativa = ordem === chave;
-    return (
-      <th scope="col" aria-sort={ativa ? (direcao === "asc" ? "ascending" : "descending") : "none"}>
-        <button type="button" onClick={() => ordenarPor(chave)} className="cabecalho-ordenavel">
-          {rotulo}
-          {ativa && <span data-seta aria-hidden>{direcao === "asc" ? "↑" : "↓"}</span>}
-        </button>
-      </th>
-    );
-  };
 
   return (
     <>
@@ -184,6 +179,8 @@ export function TabelaItens({
 
       <Filtros
         filtros={filtros}
+        ordem={ordem}
+        aoOrdenar={ordenarPor}
         supervisores={supervisores}
         polos={polos}
         aoMudar={(campo, valor) =>
@@ -198,27 +195,15 @@ export function TabelaItens({
         </p>
       )}
 
-      <div className="overflow-x-auto" aria-busy={carregando} data-carregando={carregando}>
-        <table className="tabela">
-          <caption className="sr-only">Itens de pendência em aberto</caption>
-          <thead>
-            <tr>
-              <Cabecalho chave="nome" rotulo="Colaborador" />
-              <th scope="col">Supervisor</th>
-              <Cabecalho chave="vencimento" rotulo="Vencimento" />
-              <Cabecalho chave="status" rotulo="Status" />
-              <th scope="col">Etapa</th>
-              <th scope="col">Com quem</th>
-              <Cabecalho chave="parados" rotulo="Dias parados" />
-              <th scope="col"><span className="sr-only">Ações</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {pagina.itens.map((item) => (
-              <Linha key={item.item_id} item={item} fotoUrl={fotos[item.foto_url ?? ""]} />
-            ))}
-          </tbody>
-        </table>
+      <div aria-busy={carregando} data-carregando={carregando}>
+        <h2 className="sr-only">Itens de pendência em aberto</h2>
+        <ul className="grade-itens">
+          {pagina.itens.map((item, indice) => (
+            <li key={item.item_id} style={{ "--i": indice } as React.CSSProperties}>
+              <CartaoItem item={item} fotoUrl={fotos[item.foto_url ?? ""]} />
+            </li>
+          ))}
+        </ul>
 
         {pagina.itens.length === 0 && !carregando && (
           <Vazio>
@@ -291,55 +276,84 @@ function janelaDePaginas(atual: number, ultima: number): number[] {
   return paginas;
 }
 
-function Linha({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
-  const janela = avisoJanelaUtil(item);
+/**
+ * Dias até o vencimento, no canto do cartão.
+ *
+ * É o número que se lê primeiro ao varrer a grade (pedido de Matheus), então
+ * vai grande e sem cor: o semáforo continua só no selo, e o rótulo embaixo diz
+ * de que lado do prazo a pessoa está.
+ */
+function DiasParaVencer({ item }: { item: ItemAberto }) {
+  const dias = item.dias_restantes;
+  const [numero, rotulo] =
+    dias === null
+      ? ["—", "sem data"]
+      : dias < 0
+        ? [String(Math.abs(dias)), Math.abs(dias) === 1 ? "dia vencido" : "dias vencido"]
+        : dias === 0
+          ? ["0", "vence hoje"]
+          : [String(dias), dias === 1 ? "dia" : "dias"];
+
   return (
-    <tr>
-      <td>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <AvatarColaborador nome={item.nome} fotoUrl={fotoUrl} />
-          <div className="min-w-0">
-            {/* O nome abre o perfil por cima da lista; o botão "Abrir" leva
-                ao ciclo. A tela cheia continua alcançável pelo menu "⋮". */}
-            <BotaoNomeColaborador colaboradorId={item.colaborador_id} nome={item.nome} />
-            <span className="block text-caption text-ink-faint tabular">
-              {item.matricula}
-              {item.cargo ? ` · ${item.cargo}` : ""}
-            </span>
-            {janela && (
-              <span className="block text-caption text-ink-muted mt-1 max-w-[42ch]">{janela}</span>
-            )}
-          </div>
-        </div>
-      </td>
-      <td className="text-label">
-        {item.supervisor_nome ?? <span className="text-ink-faint">Sem supervisor</span>}
-      </td>
-      <td className="tabular">{formatarData(item.data_vencimento)}</td>
-      <td>
-        <SeloStatus status={item.status as StatusConformidade} dias={item.dias_restantes} titulo />
-      </td>
-      <td className="text-label">{ETAPA_ROTULO[item.etapa]}</td>
-      <td className="text-label">{DONO_ROTULO[item.dono]}</td>
-      <td>
-        <span className="dias-parados" data-estourado={item.sla_estourado}>
-          {item.dias_parados}d
-        </span>
-      </td>
-      <td>
-        <div className="flex items-center justify-end gap-1.5">
-          <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
-            Abrir
-          </Link>
-          <MenuLinha item={item} />
-        </div>
-      </td>
-    </tr>
+    <span
+      className="cartao-item__dias"
+      title={item.data_vencimento ? `Vencimento: ${formatarData(item.data_vencimento)}` : "Sem data de referência"}
+    >
+      <span className="cartao-item__dias-numero tabular">{numero}</span>
+      <span className="cartao-item__dias-rotulo">{rotulo}</span>
+    </span>
   );
 }
 
 /**
- * Menu "⋮" da linha — o que sobra depois que "Abrir" (a ação de todo dia,
+ * Cartão de um item no formato da referência "Employees": foto no centro, nome,
+ * cargo e selo, e embaixo só o que se precisa ver de relance — supervisor e
+ * etapa. O resto (com quem está, há quanto tempo parado, histórico) fica no
+ * perfil e na tela do item.
+ */
+function CartaoItem({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
+  const janela = avisoJanelaUtil(item);
+  return (
+    <article className="card card--interativo cartao-item">
+      <div className="cartao-item__canto cartao-item__canto--esquerda">
+        <DiasParaVencer item={item} />
+        {janela && <Info>{janela}</Info>}
+      </div>
+      <div className="cartao-item__canto cartao-item__canto--direita">
+        <MenuLinha item={item} />
+      </div>
+
+      <AvatarColaborador nome={item.nome} fotoUrl={fotoUrl} tamanho={76} />
+
+      {/* O nome abre o perfil por cima da lista; o botão "Abrir" leva ao ciclo. */}
+      <BotaoNomeColaborador
+        colaboradorId={item.colaborador_id}
+        nome={item.nome}
+        className="cartao-item__nome"
+      />
+      <span className="cartao-item__cargo">{item.cargo ?? "Sem cargo"}</span>
+      <SeloStatus status={item.status as StatusConformidade} dias={null} titulo />
+
+      <dl className="cartao-item__dados">
+        <div>
+          <dt>Supervisor</dt>
+          <dd>{item.supervisor_nome ?? "Sem supervisor"}</dd>
+        </div>
+        <div>
+          <dt>Etapa</dt>
+          <dd>{ETAPA_ROTULO[item.etapa]}</dd>
+        </div>
+      </dl>
+
+      <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm w-full cartao-item__abrir">
+        Abrir
+      </Link>
+    </article>
+  );
+}
+
+/**
+ * Menu "⋮" do cartão — o que sobra depois que "Abrir" (a ação de todo dia,
  * trabalhar o ciclo) ficou como botão visível.
  *
  * Só duas entradas de propósito. O painel já tem aba de Histórico e o menu
@@ -393,12 +407,16 @@ function MenuLinha({ item }: { item: ItemAberto }) {
  */
 function Filtros({
   filtros,
+  ordem,
+  aoOrdenar,
   supervisores,
   polos,
   aoMudar,
   aoLimpar,
 }: {
   filtros: FiltrosPainel;
+  ordem: ChaveOrdenacao | null;
+  aoOrdenar: (chave: ChaveOrdenacao | "") => void;
   supervisores: Supervisor[];
   polos: string[];
   aoMudar: (campo: keyof FiltrosPainel, valor: string) => void;
@@ -472,6 +490,21 @@ function Filtros({
           </select>
         </div>
       )}
+
+      <div>
+        <label className="label" htmlFor="f-ordem">Ordenar por</label>
+        <select
+          id="f-ordem"
+          className="field"
+          value={ordem ?? ""}
+          onChange={(e) => aoOrdenar(e.target.value as ChaveOrdenacao | "")}
+        >
+          <option value="">Prioridade</option>
+          <option value="vencimento">Vence primeiro</option>
+          <option value="parados">Parado há mais tempo</option>
+          <option value="nome">Nome</option>
+        </select>
+      </div>
 
       <label className="flex items-center gap-2 text-label h-[42px]">
         <input
