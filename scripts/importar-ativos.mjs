@@ -7,6 +7,8 @@
 // está na lista entra (ou é atualizado) como ativo; quem é real, está ativo na
 // base e saiu da lista é desligado — não excluído, para não perder histórico.
 // Supervisor, polo e situação não vêm na lista e não são tocados.
+// Linha marcada "inativo" na coluna ativo/inativo fica na planilha, mas conta como
+// fora da lista: quem foi desligado no GIRO não é reativado pela importação.
 //
 // Nascimento e local vêm, quando existirem, de data/Colaboradores_211.xlsx
 // (exportação anterior, mesma matrícula e CPF). Só preenchem campo vazio: o que
@@ -87,6 +89,7 @@ async function carregarLista() {
     const matricula = Number(campo(l, "matricula_engelmig", "matricula"));
     const nome = texto(campo(l, "nome", "colaborador"));
     if (!matricula && !nome) return; // linha em branco no fim da planilha
+    if (texto(campo(l, "ativo_inativo"))?.toLowerCase() === "inativo") return;
     const cpf = somenteDigitos(campo(l, "cpf"));
 
     if (!Number.isInteger(matricula) || matricula <= 0) erros.push(`linha ${i + 2}: matrícula inválida`);

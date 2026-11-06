@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
 import { SeloStatus } from "@/components/selo-status";
-import { IconeFechar } from "@/components/icones";
+import { IconeFechar, IconeLapis } from "@/components/icones";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { carregarResumo, type ResumoColaborador } from "@/lib/consulta-colaborador";
 import { SITUACAO_ROTULO, formatarData } from "@/lib/dominio";
@@ -95,9 +95,24 @@ export function PainelPerfilColaborador() {
                 tamanho={52}
               />
               <div className="min-w-0">
-                <DialogTitle className="truncate">
-                  {resumo?.colaborador.nome ?? (carregando ? "Carregando…" : "Perfil")}
-                </DialogTitle>
+                <div className="flex items-center gap-1 min-w-0">
+                  <DialogTitle className="truncate">
+                    {resumo?.colaborador.nome ?? (carregando ? "Carregando…" : "Perfil")}
+                  </DialogTitle>
+                  {/* Atalho para a correção: a aba Cadastro já tem um lápis por
+                      campo, e é lá que a permissão de cada um é decidida. */}
+                  {resumo && (
+                    <button
+                      type="button"
+                      className="btn btn--fantasma btn--icone shrink-0"
+                      onClick={() => trocarAba("cadastro")}
+                      aria-label={`Editar dados de ${resumo.colaborador.nome}`}
+                      title="Editar dados"
+                    >
+                      <IconeLapis />
+                    </button>
+                  )}
+                </div>
                 {resumo && (
                   <DialogDescription className="truncate">
                     <span className="tabular">{resumo.colaborador.matricula}</span>
@@ -173,7 +188,11 @@ export function PainelPerfilColaborador() {
             <>
               {aba === "visao-geral" && <AbaVisaoGeral resumo={resumo} />}
               {aba === "aso" && (
-                <AbaAso colaboradorId={resumo.colaborador.id} item={resumo.item} />
+                <AbaAso
+                  colaboradorId={resumo.colaborador.id}
+                  item={resumo.item}
+                  aoAtualizar={atualizar}
+                />
               )}
               {aba === "documentos" && <AbaDocumentos colaboradorId={resumo.colaborador.id} />}
               {aba === "cadastro" && <AbaCadastro resumo={resumo} aoAtualizar={atualizar} />}

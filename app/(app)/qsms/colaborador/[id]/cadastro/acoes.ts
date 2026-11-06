@@ -196,6 +196,10 @@ const ESQUEMAS: Record<CampoColaborador, z.ZodType> = {
     "afastamento",
     "outro",
   ]),
+  // Caixa de seleção: marcada envia "true", desmarcada não envia nada.
+  exige_avp: z
+    .string()
+    .transform((v) => v === "true"),
   supervisor_id: z
     .string()
     .uuid("Supervisor inválido.")
@@ -235,7 +239,7 @@ export async function salvarCampo(_anterior: Acao | null, formData: FormData): P
   if (!analise.success) {
     return { ok: false, erro: analise.error.issues[0]?.message ?? "Valor inválido." };
   }
-  const valor = analise.data as string | number | null;
+  const valor = analise.data as string | number | boolean | null;
   const origem = String(formData.get("origem") ?? "Cadastro do colaborador");
 
   const supabase = await criarClienteServidor();
@@ -269,10 +273,47 @@ export async function salvarCampo(_anterior: Acao | null, formData: FormData): P
   const { de, para } = await textoDaMudanca(supabase, campo, antes, valor);
   await registrarCampos(supabase, id.data, [{ campo: definicao.auditoria, de, para }], origem);
 
+  if (campo === "exige_avp" && de !== para) await ajustarFilaAvp(supabase, id.data, valor === true);
+
   revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
   revalidatePath("/qsms");
   revalidatePath("/qsms/base");
   return { ok: true, mensagem: `${definicao.rotulo} atualizado.` };
+}
+
+/**
+ * A fila da AVP acompanha a caixa "Avaliação psicológica".
+ *
+ * Marcar faz a pessoa entrar no cross join de `vw_status_colaborador`; se o
+ * vencimento já estiver na janela de 90 dias (ou não houver registro), o item
+ * abre agora, sem esperar o cron da madrugada. Desmarcar tira a pessoa da view,
+ * mas não fecha o item que já existia — ele ficaria na fila cobrando um exame
+ * que ninguém mais exige. Por isso é cancelado, com motivo, pela mesma RPC do
+ * cancelamento administrativo.
+ */
+async function ajustarFilaAvp(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  colaboradorId: string,
+  exige: boolean
+): Promise<void> {
+  if (exige) {
+    await supabase.rpc("fn_gerar_itens_pendentes");
+    return;
+  }
+
+  const { data: abertos } = await supabase
+    .from("itens_pendencia")
+    .select("id, tipos_requisito!inner(opcional)")
+    .eq("colaborador_id", colaboradorId)
+    .eq("tipos_requisito.opcional", true)
+    .not("etapa", "in", "(concluido,cancelado)");
+
+  for (const { id } of abertos ?? []) {
+    await supabase.rpc("fn_cancelar_item", {
+      p_item_id: id,
+      p_motivo: "colaborador deixou de exigir avaliação psicológica.",
+    });
+  }
 }
 
 /**
@@ -286,8 +327,13 @@ async function textoDaMudanca(
   supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
   campo: CampoColaborador,
   antes: Record<string, unknown> | null,
-  valor: string | number | null
+  valor: string | number | boolean | null
 ): Promise<{ de: string | null; para: string | null }> {
+  if (campo === "exige_avp") {
+    const simNao = (v: unknown) => (v === true ? "sim" : "não");
+    return { de: simNao(antes?.exige_avp), para: simNao(valor) };
+  }
+
   if (campo === "supervisor_id") {
     const anterior = (antes?.supervisores as { nome: string } | null | undefined)?.nome ?? null;
     return { de: anterior, para: valor ? await nomeDoSupervisor(supabase, String(valor)) : null };

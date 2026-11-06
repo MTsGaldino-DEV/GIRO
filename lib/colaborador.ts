@@ -21,6 +21,7 @@ export interface ColaboradorCompleto {
   supervisor_id: string | null;
   foto_url: string | null;
   ativo: boolean;
+  exige_avp: boolean;
 }
 
 /**
@@ -36,7 +37,7 @@ export async function carregarColaborador(id: string): Promise<ColaboradorComple
   const { data } = await supabase
     .from("colaboradores")
     .select(
-      "id, matricula, nome, cpf, cargo, uen, local, polo, data_admissao, data_nascimento, situacao, supervisor_id, foto_url, ativo"
+      "id, matricula, nome, cpf, cargo, uen, local, polo, data_admissao, data_nascimento, situacao, supervisor_id, foto_url, ativo, exige_avp"
     )
     .eq("id", id)
     .maybeSingle();

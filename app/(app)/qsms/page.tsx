@@ -33,10 +33,11 @@ export default async function PainelQsms({
   // por último, no fim da fila, esperando itens e fotos que não têm nada a ver
   // com eles — 38 ms de espera pura, medidos. O resumo vem de `cache()`, então
   // aqui reaproveita o que o layout já pediu em vez de repetir a RPC.
-  const [resumo, { data: supervisoresBrutos }, polos] = await Promise.all([
+  const [resumo, { data: supervisoresBrutos }, polos, { data: tipos }] = await Promise.all([
     obterResumoStatus(),
     supabase.from("supervisores").select("id, nome, email, ativo").order("nome"),
     obterPolos(),
+    supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
   ]);
 
   const supervisores = (supervisoresBrutos ?? []) as Supervisor[];
@@ -70,6 +71,7 @@ export default async function PainelQsms({
         fotosIniciais={fotosIniciais}
         supervisores={supervisores}
         polos={polos}
+        requisitos={(tipos ?? []).map((t) => t.nome as string)}
         resumo={resumo}
       />
 

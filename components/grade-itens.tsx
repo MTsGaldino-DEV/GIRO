@@ -28,7 +28,7 @@ import { AvatarColaborador } from "@/components/avatar-colaborador";
 import { Info } from "@/components/info";
 import { usePerfilColaborador } from "@/components/perfil/contexto";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
-import { IconeReticencias } from "@/components/icones";
+import { IconeBusca, IconeReticencias } from "@/components/icones";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,11 +39,10 @@ import {
 import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } from "@/lib/tipos";
 
 /**
- * A grade de cartões do painel, com filtro, ordenação e paginação no navegador.
+ * A lista do painel, com filtro, ordenação e paginação no navegador.
  *
- * Era tabela até 03/11/2026. Virou grade de cartões no redesign do QSMS
- * (pedido de Matheus, referência "Employees"): cada pessoa com foto, selo e
- * onde o ciclo está, sem rolar oito colunas para o lado.
+ * Foi grade de cartões entre 03 e 04/11/2026 e voltou a ser tabela a pedido de
+ * Matheus (ver `LinhaItem`).
  *
  * Motivo, medido: cada troca de página ou filtro era uma navegação completa —
  * o servidor refazia sessão, layout e página inteira para trocar 25 linhas.
@@ -63,6 +62,7 @@ export function GradeItens({
   fotosIniciais,
   supervisores,
   polos,
+  requisitos,
   resumo,
 }: {
   inicial: PaginaItens;
@@ -70,6 +70,7 @@ export function GradeItens({
   fotosIniciais: Record<string, string>;
   supervisores: Supervisor[];
   polos: string[];
+  requisitos: string[];
   resumo: ResumoStatus | null;
 }) {
   const [filtros, setFiltros] = useState<FiltrosPainel>(filtrosIniciais);
@@ -127,22 +128,38 @@ export function GradeItens({
   const paginaAtual = Math.max(1, Number(filtros.pagina) || 1);
   const ultimaPagina = Math.max(1, Math.ceil(pagina.total / POR_PAGINA));
   const ordem = ehChaveOrdenacao(filtros.ordem) ? filtros.ordem : null;
+  const direcao = filtros.dir === "desc" ? "desc" : "asc";
 
-  // Sem cabeçalho de coluna para clicar, a ordenação virou um seletor. Cada
-  // critério vai na direção que responde a pergunta dele (nome A→Z, quem vence
-  // primeiro, quem está parado há mais tempo); inverter não pagava o controle.
-  function ordenarPor(chave: ChaveOrdenacao | "") {
-    if (!chave) {
-      setFiltros((f) => ({ ...f, ordem: undefined, dir: undefined, pagina: undefined }));
-      return;
-    }
-    const dir = COLUNAS_ORDENAVEIS[chave].ascPadrao ? "asc" : "desc";
-    setFiltros((f) => ({ ...f, ordem: chave, dir, pagina: undefined }));
+  // Primeiro clique: a direção que responde a pergunta da coluna (nome A→Z,
+  // quem vence primeiro, pior status, parado há mais tempo). Segundo: inverte.
+  // Terceiro: volta à ordem de prioridade padrão.
+  function ordenarPor(chave: ChaveOrdenacao) {
+    const padrao = COLUNAS_ORDENAVEIS[chave].ascPadrao ? "asc" : "desc";
+    setFiltros((f) => {
+      if (f.ordem !== chave) return { ...f, ordem: chave, dir: padrao, pagina: undefined };
+      if (f.dir === padrao) return { ...f, dir: padrao === "asc" ? "desc" : "asc", pagina: undefined };
+      return { ...f, ordem: undefined, dir: undefined, pagina: undefined };
+    });
   }
+
+  const cabecalho = (chave: ChaveOrdenacao, rotulo: string) => (
+    <CabecalhoOrdenavel
+      rotulo={rotulo}
+      ativo={ordem === chave}
+      direcao={direcao}
+      aoClicar={() => ordenarPor(chave)}
+    />
+  );
 
   function irPara(p: number) {
     setFiltros((f) => ({ ...f, pagina: p > 1 ? String(p) : undefined }));
   }
+
+  // Estável entre renders: a busca dos Filtros espera 300 ms e reinicia a
+  // espera quando esta função muda.
+  const mudarFiltro = useCallback((campo: keyof FiltrosPainel, valor: string) => {
+    setFiltros((f) => ({ ...f, [campo]: valor || undefined, pagina: undefined }));
+  }, []);
 
   return (
     <>
@@ -179,13 +196,10 @@ export function GradeItens({
 
       <Filtros
         filtros={filtros}
-        ordem={ordem}
-        aoOrdenar={ordenarPor}
         supervisores={supervisores}
         polos={polos}
-        aoMudar={(campo, valor) =>
-          setFiltros((f) => ({ ...f, [campo]: valor || undefined, pagina: undefined }))
-        }
+        requisitos={requisitos}
+        aoMudar={mudarFiltro}
         aoLimpar={() => setFiltros({})}
       />
 
@@ -197,13 +211,30 @@ export function GradeItens({
 
       <div aria-busy={carregando} data-carregando={carregando}>
         <h2 className="sr-only">Itens de pendência em aberto</h2>
-        <ul className="grade-itens">
-          {pagina.itens.map((item, indice) => (
-            <li key={item.item_id} style={{ "--i": indice } as React.CSSProperties}>
-              <CartaoItem item={item} fotoUrl={fotos[item.foto_url ?? ""]} />
-            </li>
-          ))}
-        </ul>
+        {pagina.itens.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="tabela">
+              <caption className="sr-only">Itens de pendência em aberto</caption>
+              <thead>
+                <tr>
+                  {cabecalho("nome", "Colaborador")}
+                  <th scope="col">Requisito</th>
+                  <th scope="col">Supervisor</th>
+                  {cabecalho("vencimento", "Vencimento")}
+                  {cabecalho("status", "Status")}
+                  <th scope="col">Etapa</th>
+                  {cabecalho("parados", "Parado há")}
+                  <th scope="col"><span className="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagina.itens.map((item) => (
+                  <LinhaItem key={item.item_id} item={item} fotoUrl={fotos[item.foto_url ?? ""]} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {pagina.itens.length === 0 && !carregando && (
           <Vazio>
@@ -277,83 +308,60 @@ function janelaDePaginas(atual: number, ultima: number): number[] {
 }
 
 /**
- * Dias até o vencimento, no canto do cartão.
+ * Uma linha da lista.
  *
- * É o número que se lê primeiro ao varrer a grade (pedido de Matheus), então
- * vai grande e sem cor: o semáforo continua só no selo, e o rótulo embaixo diz
- * de que lado do prazo a pessoa está.
+ * Voltou a ser tabela em 04/11/2026, a pedido de Matheus: a grade de cartões
+ * (03/11) mostrava seis pessoas por tela, e o trabalho do QSMS é varrer a fila.
+ * Dos cartões ficaram o que funcionou — foto, nome que abre o perfil, aviso de
+ * janela útil e o menu "⋮". A coluna Requisito é nova: a fila agora mistura
+ * ASO e AVP, e o mesmo nome pode aparecer duas vezes.
  */
-function DiasParaVencer({ item }: { item: ItemAberto }) {
-  const dias = item.dias_restantes;
-  const [numero, rotulo] =
-    dias === null
-      ? ["—", "sem data"]
-      : dias < 0
-        ? [String(Math.abs(dias)), Math.abs(dias) === 1 ? "dia vencido" : "dias vencido"]
-        : dias === 0
-          ? ["0", "vence hoje"]
-          : [String(dias), dias === 1 ? "dia" : "dias"];
-
-  return (
-    <span
-      className="cartao-item__dias"
-      title={item.data_vencimento ? `Vencimento: ${formatarData(item.data_vencimento)}` : "Sem data de referência"}
-    >
-      <span className="cartao-item__dias-numero tabular">{numero}</span>
-      <span className="cartao-item__dias-rotulo">{rotulo}</span>
-    </span>
-  );
-}
-
-/**
- * Cartão de um item no formato da referência "Employees": foto no centro, nome,
- * cargo e selo, e embaixo só o que se precisa ver de relance — supervisor e
- * etapa. O resto (com quem está, há quanto tempo parado, histórico) fica no
- * perfil e na tela do item.
- */
-function CartaoItem({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
+function LinhaItem({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
   const janela = avisoJanelaUtil(item);
   return (
-    <article className="card card--interativo cartao-item">
-      <div className="cartao-item__canto cartao-item__canto--esquerda">
-        <DiasParaVencer item={item} />
-        {janela && <Info>{janela}</Info>}
-      </div>
-      <div className="cartao-item__canto cartao-item__canto--direita">
-        <MenuLinha item={item} />
-      </div>
-
-      <AvatarColaborador nome={item.nome} fotoUrl={fotoUrl} tamanho={76} />
-
-      {/* O nome abre o perfil por cima da lista; o botão "Abrir" leva ao ciclo. */}
-      <BotaoNomeColaborador
-        colaboradorId={item.colaborador_id}
-        nome={item.nome}
-        className="cartao-item__nome"
-      />
-      <span className="cartao-item__cargo">{item.cargo ?? "Sem cargo"}</span>
-      <SeloStatus status={item.status as StatusConformidade} dias={null} titulo />
-
-      <dl className="cartao-item__dados">
-        <div>
-          <dt>Supervisor</dt>
-          <dd>{item.supervisor_nome ?? "Sem supervisor"}</dd>
+    <tr>
+      <td>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <AvatarColaborador nome={item.nome} fotoUrl={fotoUrl} />
+          <div className="min-w-0">
+            {/* O nome abre o perfil por cima da lista; o botão "Abrir" leva ao ciclo. */}
+            <BotaoNomeColaborador colaboradorId={item.colaborador_id} nome={item.nome} />
+            <span className="block text-caption text-ink-faint tabular">
+              {item.matricula}
+              {item.cargo ? ` · ${item.cargo}` : ""}
+            </span>
+          </div>
+          {janela && <Info>{janela}</Info>}
         </div>
-        <div>
-          <dt>Etapa</dt>
-          <dd>{ETAPA_ROTULO[item.etapa]}</dd>
+      </td>
+      <td className="text-label">{item.requisito}</td>
+      <td className="text-label">
+        {item.supervisor_nome ?? <span className="text-ink-faint">Sem supervisor</span>}
+      </td>
+      <td className="tabular">{formatarData(item.data_vencimento)}</td>
+      <td>
+        <SeloStatus status={item.status as StatusConformidade} dias={item.dias_restantes} titulo />
+      </td>
+      <td className="text-label">{ETAPA_ROTULO[item.etapa]}</td>
+      <td>
+        <span className="dias-parados" data-estourado={item.sla_estourado}>
+          {item.dias_parados} {item.dias_parados === 1 ? "dia" : "dias"}
+        </span>
+      </td>
+      <td>
+        <div className="flex items-center justify-end gap-1.5">
+          <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
+            Abrir
+          </Link>
+          <MenuLinha item={item} />
         </div>
-      </dl>
-
-      <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm w-full cartao-item__abrir">
-        Abrir
-      </Link>
-    </article>
+      </td>
+    </tr>
   );
 }
 
 /**
- * Menu "⋮" do cartão — o que sobra depois que "Abrir" (a ação de todo dia,
+ * Menu "⋮" da linha — o que sobra depois que "Abrir" (a ação de todo dia,
  * trabalhar o ciclo) ficou como botão visível.
  *
  * Só duas entradas de propósito. O painel já tem aba de Histórico e o menu
@@ -398,129 +406,198 @@ function MenuLinha({ item }: { item: ItemAberto }) {
   );
 }
 
+
 /**
- * Filtros que aplicam ao mudar, sem botão de confirmar.
+ * Cabeçalho de coluna que ordena.
  *
- * Antes era um `<form method="get">`: cada filtro recarregava a página inteira.
- * Agora cada mudança dispara uma consulta, e o resultado chega antes de a
- * pessoa alcançar onde ficava o botão — então o botão deixou de ter função.
+ * `aria-sort` fica no `<th>`, que é onde o leitor de tela procura; a seta é só
+ * para quem vê. Coluna inativa mostra uma seta dupla apagada, para dizer que
+ * dá para clicar sem precisar passar o mouse em cada uma.
+ */
+function CabecalhoOrdenavel({
+  rotulo,
+  ativo,
+  direcao,
+  aoClicar,
+}: {
+  rotulo: string;
+  ativo: boolean;
+  direcao: "asc" | "desc";
+  aoClicar: () => void;
+}) {
+  return (
+    <th scope="col" aria-sort={ativo ? (direcao === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" className="cabecalho-ordenavel" onClick={aoClicar}>
+        {rotulo}
+        {ativo ? (
+          <span data-seta aria-hidden>{direcao === "asc" ? "↑" : "↓"}</span>
+        ) : (
+          <span aria-hidden className="opacity-40">↕</span>
+        )}
+      </button>
+    </th>
+  );
+}
+
+const EXPLICACAO_SLA =
+  "Cada etapa do ciclo tem um prazo (ex.: 7 dias para o supervisor informar a data, 3 dias para confirmar com a clínica, 5 dias para chegar o documento). Marque para ver só os itens parados na etapa além desse prazo.";
+
+/**
+ * Busca e filtros, aplicados ao mudar.
+ *
+ * A busca espera 300 ms depois da última tecla: sem isso, digitar "MARCOS"
+ * dispararia seis consultas e a lista piscaria a cada letra. Os seletores
+ * aplicam na hora — é um clique, não uma sequência.
  */
 function Filtros({
   filtros,
-  ordem,
-  aoOrdenar,
   supervisores,
   polos,
+  requisitos,
   aoMudar,
   aoLimpar,
 }: {
   filtros: FiltrosPainel;
-  ordem: ChaveOrdenacao | null;
-  aoOrdenar: (chave: ChaveOrdenacao | "") => void;
   supervisores: Supervisor[];
   polos: string[];
+  requisitos: string[];
   aoMudar: (campo: keyof FiltrosPainel, valor: string) => void;
   aoLimpar: () => void;
 }) {
-  const temFiltro = Object.values(filtros).some(Boolean);
+  const [texto, setTexto] = useState(filtros.busca ?? "");
+  const temFiltro = Object.entries(filtros).some(([k, v]) => v && k !== "ordem" && k !== "dir" && k !== "pagina");
+
+  // "Limpar" zera os filtros por fora; o campo precisa acompanhar.
+  useEffect(() => {
+    setTexto(filtros.busca ?? "");
+  }, [filtros.busca]);
+
+  useEffect(() => {
+    if (texto === (filtros.busca ?? "")) return;
+    const espera = setTimeout(() => aoMudar("busca", texto.trim()), 300);
+    return () => clearTimeout(espera);
+  }, [texto, filtros.busca, aoMudar]);
 
   return (
-    <div className="card mb-4 flex flex-wrap items-end gap-3">
-      <div>
-        <label className="label" htmlFor="f-status">Status</label>
-        <select
-          id="f-status"
-          className="field"
-          value={filtros.status ?? ""}
-          onChange={(e) => aoMudar("status", e.target.value)}
-        >
-          <option value="">Todos</option>
-          {ORDEM_STATUS.map((s) => (
-            <option key={s} value={s}>{STATUS_ROTULO[s]}</option>
-          ))}
-        </select>
-      </div>
+    <div className="card mb-4 grid gap-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="grow basis-[280px]">
+          <label className="label" htmlFor="f-busca">Buscar colaborador</label>
+          <div className="relative">
+            <IconeBusca className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+            <input
+              id="f-busca"
+              type="search"
+              className="field w-full"
+              // Inline: o `padding` de `.field` vence a utilitária `pl-10`.
+              style={{ paddingLeft: "2.5rem" }}
+              placeholder="Nome ou matrícula"
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+        </div>
 
-      <div>
-        <label className="label" htmlFor="f-etapa">Etapa</label>
-        <select
-          id="f-etapa"
-          className="field"
-          value={filtros.etapa ?? ""}
-          onChange={(e) => aoMudar("etapa", e.target.value)}
-        >
-          <option value="">Todas</option>
-          {(Object.keys(ETAPA_ROTULO) as Etapa[])
-            .filter((e) => e !== "concluido")
-            .map((e) => (
-              <option key={e} value={e}>{ETAPA_ROTULO[e]}</option>
-            ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="label" htmlFor="f-supervisor">Supervisor</label>
-        <select
-          id="f-supervisor"
-          className="field"
-          value={filtros.supervisor ?? ""}
-          onChange={(e) => aoMudar("supervisor", e.target.value)}
-        >
-          <option value="">Todos</option>
-          <option value={SEM_SUPERVISOR}>Sem supervisor</option>
-          {supervisores.map((s) => (
-            <option key={s.id} value={s.id}>{s.nome}</option>
-          ))}
-        </select>
-      </div>
-
-      {polos.length > 1 && (
         <div>
-          <label className="label" htmlFor="f-polo">Polo</label>
+          <label className="label" htmlFor="f-requisito">Requisito</label>
           <select
-            id="f-polo"
+            id="f-requisito"
             className="field"
-            value={filtros.polo ?? ""}
-            onChange={(e) => aoMudar("polo", e.target.value)}
+            value={filtros.requisito ?? ""}
+            onChange={(e) => aoMudar("requisito", e.target.value)}
           >
             <option value="">Todos</option>
-            {polos.map((p) => (
-              <option key={p} value={p}>{p}</option>
+            {requisitos.map((r) => (
+              <option key={r} value={r}>{r}</option>
             ))}
           </select>
         </div>
-      )}
 
-      <div>
-        <label className="label" htmlFor="f-ordem">Ordenar por</label>
-        <select
-          id="f-ordem"
-          className="field"
-          value={ordem ?? ""}
-          onChange={(e) => aoOrdenar(e.target.value as ChaveOrdenacao | "")}
-        >
-          <option value="">Prioridade</option>
-          <option value="vencimento">Vence primeiro</option>
-          <option value="parados">Parado há mais tempo</option>
-          <option value="nome">Nome</option>
-        </select>
+        <div>
+          <label className="label" htmlFor="f-status">Status</label>
+          <select
+            id="f-status"
+            className="field"
+            value={filtros.status ?? ""}
+            onChange={(e) => aoMudar("status", e.target.value)}
+          >
+            <option value="">Todos</option>
+            {ORDEM_STATUS.map((s) => (
+              <option key={s} value={s}>{STATUS_ROTULO[s]}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="f-etapa">Etapa</label>
+          <select
+            id="f-etapa"
+            className="field"
+            value={filtros.etapa ?? ""}
+            onChange={(e) => aoMudar("etapa", e.target.value)}
+          >
+            <option value="">Todas</option>
+            {(Object.keys(ETAPA_ROTULO) as Etapa[])
+              .filter((e) => e !== "concluido")
+              .map((e) => (
+                <option key={e} value={e}>{ETAPA_ROTULO[e]}</option>
+              ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="label" htmlFor="f-supervisor">Supervisor</label>
+          <select
+            id="f-supervisor"
+            className="field"
+            value={filtros.supervisor ?? ""}
+            onChange={(e) => aoMudar("supervisor", e.target.value)}
+          >
+            <option value="">Todos</option>
+            <option value={SEM_SUPERVISOR}>Sem supervisor</option>
+            {supervisores.map((s) => (
+              <option key={s.id} value={s.id}>{s.nome}</option>
+            ))}
+          </select>
+        </div>
+
+        {polos.length > 1 && (
+          <div>
+            <label className="label" htmlFor="f-polo">Polo</label>
+            <select
+              id="f-polo"
+              className="field"
+              value={filtros.polo ?? ""}
+              onChange={(e) => aoMudar("polo", e.target.value)}
+            >
+              <option value="">Todos</option>
+              {polos.map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      <label className="flex items-center gap-2 text-label h-[42px]">
-        <input
-          type="checkbox"
-          className="size-4"
-          checked={filtros.parados === "1"}
-          onChange={(e) => aoMudar("parados", e.target.checked ? "1" : "")}
-        />
-        Só SLA estourado
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-label">
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={filtros.parados === "1"}
+            onChange={(e) => aoMudar("parados", e.target.checked ? "1" : "")}
+          />
+          Só parados além do prazo da etapa
+          <Info>{EXPLICACAO_SLA}</Info>
+        </label>
 
-      {temFiltro && (
-        <button type="button" className="btn btn--secondary" onClick={aoLimpar}>
-          Limpar
-        </button>
-      )}
+        {temFiltro && (
+          <button type="button" className="btn btn--secondary btn--sm" onClick={aoLimpar}>
+            Limpar filtros
+          </button>
+        )}
+      </div>
     </div>
   );
 }

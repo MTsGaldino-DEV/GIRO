@@ -7,6 +7,7 @@ import { urlAssinada } from "@/lib/storage";
 import { Aviso, Vazio } from "@/components/aviso";
 import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO } from "@/lib/dominio";
 import { AcoesItem } from "@/components/acoes-item";
+import { DataExameEditavel } from "@/components/perfil/data-exame-editavel";
 import { FormularioRetroativo } from "./formulario-retroativo";
 import type { Clinica } from "@/lib/tipos";
 
@@ -28,7 +29,8 @@ interface EventoLinha {
 }
 
 export default async function AbaAso({ params }: { params: Promise<{ id: string }> }) {
-  await exigirQsms();
+  const perfil = await exigirQsms();
+  const ehAdmin = perfil.papel === "admin";
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
@@ -115,13 +117,27 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
                 {eventos.map((evento) => (
                   <tr key={evento.id}>
                     <td className="tabular">
-                      {formatarData(evento.data_documento)}
+                      <DataExameEditavel
+                        eventoId={evento.id}
+                        campo="data_documento"
+                        valor={evento.data_documento}
+                        editavel={ehAdmin}
+                        origem="Cadastro do colaborador"
+                      />
                       {evento.estimado && (
                         <span className="block text-caption text-ink-faint">data estimada</span>
                       )}
                     </td>
                     <td className="text-label">{evento.requisito}</td>
-                    <td className="tabular">{formatarData(evento.data_realizado)}</td>
+                    <td className="tabular">
+                      <DataExameEditavel
+                        eventoId={evento.id}
+                        campo="data_realizado"
+                        valor={evento.data_realizado}
+                        editavel={ehAdmin}
+                        origem="Cadastro do colaborador"
+                      />
+                    </td>
                     <td className="tabular">{formatarData(evento.vencia_em)}</td>
                     <td className="text-label">
                       {RESULTADO_ROTULO[evento.resultado] ?? evento.resultado}

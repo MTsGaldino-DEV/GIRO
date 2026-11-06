@@ -15,13 +15,16 @@ export function ehChaveOrdenacao(v: string | undefined): v is ChaveOrdenacao {
   return !!v && v in COLUNAS_ORDENAVEIS;
 }
 
-// 24 e não 25: divide por 2, 3 e 4, as colunas da grade de cartões do painel.
-export const POR_PAGINA = 24;
+// Era 24 para dividir as colunas da grade de cartões; na lista, 25.
+export const POR_PAGINA = 25;
 
 /** Valor de supervisor que representa "nenhum vínculo", já que null não vai na URL. */
 export const SEM_SUPERVISOR = "sem-supervisor";
 
 export interface FiltrosPainel {
+  /** Nome (parte dele) ou matrícula. */
+  busca?: string;
+  requisito?: string;
   status?: string;
   etapa?: string;
   supervisor?: string;
@@ -57,6 +60,16 @@ export function montarConsultaItens(supabase: SupabaseClient, filtros: FiltrosPa
     consulta = consulta.order("peso_status").order("dias_parados", { ascending: false });
   }
 
+  // Só dígitos procura também pela matrícula exata; o resto vira "contém" no
+  // nome. Vírgula, parênteses e curingas saem antes: dentro de `.or()` eles
+  // são sintaxe do PostgREST, e um nome com vírgula quebraria a consulta.
+  const busca = (filtros.busca ?? "").replace(/[,()%*\\]/g, " ").trim();
+  if (busca) {
+    consulta = /^\d+$/.test(busca)
+      ? consulta.or(`matricula.eq.${busca},nome.ilike.%${busca}%`)
+      : consulta.ilike("nome", `%${busca}%`);
+  }
+  if (filtros.requisito) consulta = consulta.eq("requisito", filtros.requisito);
   if (filtros.status) consulta = consulta.eq("status", filtros.status);
   if (filtros.etapa) consulta = consulta.eq("etapa", filtros.etapa);
   if (filtros.polo) consulta = consulta.eq("polo", filtros.polo);

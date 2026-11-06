@@ -31,7 +31,7 @@ export interface ResumoColaborador {
 }
 
 const CAMPOS_COLABORADOR =
-  "id, matricula, nome, cpf, cargo, uen, local, polo, data_admissao, data_nascimento, situacao, supervisor_id, foto_url, ativo";
+  "id, matricula, nome, cpf, cargo, uen, local, polo, data_admissao, data_nascimento, situacao, supervisor_id, foto_url, ativo, exige_avp";
 
 /**
  * Tudo que o cabeçalho precisa, numa rodada de consultas paralelas.

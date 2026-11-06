@@ -9,7 +9,7 @@
  * o zod não entre no pacote do navegador junto.
  */
 
-export type TipoCampo = "texto" | "numero" | "data" | "select";
+export type TipoCampo = "texto" | "numero" | "data" | "select" | "booleano";
 
 export type CampoColaborador =
   | "nome"
@@ -22,7 +22,8 @@ export type CampoColaborador =
   | "polo"
   | "local"
   | "situacao"
-  | "supervisor_id";
+  | "supervisor_id"
+  | "exige_avp";
 
 export interface DefinicaoCampo {
   rotulo: string;
@@ -68,6 +69,13 @@ export const CAMPOS_COLABORADOR: Record<CampoColaborador, DefinicaoCampo> = {
     papel: "qsms",
     ajuda: "Sem supervisor, o colaborador não entra em nenhum e-mail semanal.",
   },
+  exige_avp: {
+    rotulo: "Avaliação psicológica",
+    auditoria: "exige AVP",
+    tipo: "booleano",
+    papel: "qsms",
+    ajuda: "Marcado, entra no controle da AVP (a cada 24 meses). Desmarcar cancela a pendência aberta.",
+  },
 };
 
 /** Ordem de leitura de cada bloco da aba Cadastro. */
@@ -86,4 +94,5 @@ export const CAMPOS_LOTACAO: CampoColaborador[] = [
   "local",
   "situacao",
   "supervisor_id",
+  "exige_avp",
 ];

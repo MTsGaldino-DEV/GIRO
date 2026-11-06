@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { Aviso, Vazio } from "@/components/aviso";
@@ -8,6 +8,8 @@ import { AcoesItem } from "@/components/acoes-item";
 import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO } from "@/lib/dominio";
 import { carregarExames, type EventoColaborador } from "@/lib/consulta-colaborador";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
+import { usePerfilColaborador } from "./contexto";
+import { DataExameEditavel } from "./data-exame-editavel";
 
 /**
  * Aba ASO do painel.
@@ -21,11 +23,28 @@ import type { Clinica, ItemAberto } from "@/lib/tipos";
  * de Server Component, porque o painel não tem rota própria para renderizar do
  * servidor.
  */
-export function AbaAso({ colaboradorId, item }: { colaboradorId: string; item: ItemAberto | null }) {
+export function AbaAso({
+  colaboradorId,
+  item,
+  aoAtualizar,
+}: {
+  colaboradorId: string;
+  item: ItemAberto | null;
+  /** Recarrega o cabeçalho do painel: corrigir uma data move o vencimento. */
+  aoAtualizar?: () => void;
+}) {
+  const { papel } = usePerfilColaborador();
   const [eventos, setEventos] = useState<EventoColaborador[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [versao, setVersao] = useState(0);
+
+  const ehAdmin = papel === "admin";
+  const aoCorrigir = useCallback(() => {
+    setVersao((v) => v + 1);
+    aoAtualizar?.();
+  }, [aoAtualizar]);
 
   useEffect(() => {
     let ativo = true;
@@ -46,7 +65,7 @@ export function AbaAso({ colaboradorId, item }: { colaboradorId: string; item: I
     return () => {
       ativo = false;
     };
-  }, [colaboradorId]);
+  }, [colaboradorId, versao]);
 
   return (
     <div className="grid gap-4">
@@ -67,7 +86,12 @@ export function AbaAso({ colaboradorId, item }: { colaboradorId: string; item: I
       )}
 
       <div className="card">
-        <h3 className="mb-3">Exames realizados</h3>
+        <h3 className="mb-1">Exames realizados</h3>
+        <p className="text-ink-muted text-label mb-3">
+          {ehAdmin
+            ? "Data errada? Use o lápis. O vencimento é recalculado e a correção fica no histórico."
+            : "Correção de datas: só o admin."}
+        </p>
 
         {carregando ? (
           <div className="esqueleto h-24" aria-busy="true" />
@@ -75,11 +99,12 @@ export function AbaAso({ colaboradorId, item }: { colaboradorId: string; item: I
           <Vazio>Nenhum exame registrado.</Vazio>
         ) : (
           <div className="overflow-x-auto">
-            <table className="tabela" style={{ minWidth: 640 }}>
+            <table className="tabela" style={{ minWidth: 760 }}>
               <caption className="sr-only">Histórico de exames</caption>
               <thead>
                 <tr>
                   <th scope="col">Documento</th>
+                  <th scope="col">Requisito</th>
                   <th scope="col">Realizado</th>
                   <th scope="col">Venceu/vence</th>
                   <th scope="col">Resultado</th>
@@ -91,12 +116,27 @@ export function AbaAso({ colaboradorId, item }: { colaboradorId: string; item: I
                 {eventos.map((evento) => (
                   <tr key={evento.id}>
                     <td className="tabular">
-                      {formatarData(evento.data_documento)}
+                      <DataExameEditavel
+                        eventoId={evento.id}
+                        campo="data_documento"
+                        valor={evento.data_documento}
+                        editavel={ehAdmin}
+                        aoSalvar={aoCorrigir}
+                      />
                       {evento.estimado && (
                         <span className="block text-caption text-ink-faint">data estimada</span>
                       )}
                     </td>
-                    <td className="tabular">{formatarData(evento.data_realizado)}</td>
+                    <td className="text-label">{evento.requisito}</td>
+                    <td className="tabular">
+                      <DataExameEditavel
+                        eventoId={evento.id}
+                        campo="data_realizado"
+                        valor={evento.data_realizado}
+                        editavel={ehAdmin}
+                        aoSalvar={aoCorrigir}
+                      />
+                    </td>
                     <td className="tabular">{formatarData(evento.vencia_em)}</td>
                     <td className="text-label">
                       {RESULTADO_ROTULO[evento.resultado] ?? evento.resultado}

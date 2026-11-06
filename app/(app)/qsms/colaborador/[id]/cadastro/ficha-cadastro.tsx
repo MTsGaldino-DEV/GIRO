@@ -62,7 +62,7 @@ export function FichaCadastro({
         key={nome}
         colaboradorId={colaborador.id}
         campo={nome}
-        valor={(colaborador as unknown as Record<string, string | number | null>)[nome] ?? null}
+        valor={(colaborador as unknown as Record<string, string | number | boolean | null>)[nome] ?? null}
         opcoes={opcoes[nome]}
         editavel={CAMPOS_COLABORADOR[nome].papel === "admin" ? ehAdmin : true}
         origem={origem}

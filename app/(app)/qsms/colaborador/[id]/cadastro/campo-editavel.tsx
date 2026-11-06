@@ -29,6 +29,71 @@ function BotaoConfirmar({ rotulo }: { rotulo: string }) {
 }
 
 /**
+ * Campo sim/não: a caixa é a própria edição, sem lápis.
+ *
+ * Clicar já grava. A caixa marcada envia "true"; desmarcada não envia nada, e a
+ * ação lê a ausência como "não". O estado local acompanha o clique na hora e
+ * volta atrás se a gravação falhar.
+ */
+function CaixaEditavel({
+  colaboradorId,
+  campo,
+  marcado,
+  editavel,
+  origem,
+  acao,
+  estado,
+}: {
+  colaboradorId: string;
+  campo: CampoColaborador;
+  marcado: boolean;
+  editavel: boolean;
+  origem: string;
+  acao: (formData: FormData) => void;
+  estado: Acao | null;
+}) {
+  const definicao = CAMPOS_COLABORADOR[campo];
+  const formulario = useRef<HTMLFormElement>(null);
+  const [local, setLocal] = useState(marcado);
+
+  useEffect(() => setLocal(marcado), [marcado]);
+  useEffect(() => {
+    if (estado && !estado.ok) setLocal(marcado);
+  }, [estado, marcado]);
+
+  return (
+    <div>
+      <div className="text-caption text-ink-faint uppercase tracking-[0.04em]">
+        {definicao.rotulo}
+      </div>
+      <form ref={formulario} action={acao} className="flex items-center min-h-[34px]">
+        <input type="hidden" name="colaborador_id" value={colaboradorId} />
+        <input type="hidden" name="campo" value={campo} />
+        <input type="hidden" name="origem" value={origem} />
+        <label className="inline-flex items-center gap-2 text-label cursor-pointer">
+          <input
+            type="checkbox"
+            name="valor"
+            value="true"
+            checked={local}
+            disabled={!editavel}
+            onChange={(e) => {
+              setLocal(e.target.checked);
+              formulario.current?.requestSubmit();
+            }}
+          />
+          {local ? "Precisa" : "Não precisa"}
+        </label>
+      </form>
+      {definicao.ajuda && editavel && (
+        <p className="text-caption text-ink-faint mt-1 mb-0 max-w-[46ch]">{definicao.ajuda}</p>
+      )}
+      {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+    </div>
+  );
+}
+
+/**
  * Um campo do cadastro, com lápis.
  *
  * Em repouso é só rótulo e valor. O lápis abre uma entrada no lugar do valor;
@@ -51,7 +116,7 @@ export function CampoEditavel({
 }: {
   colaboradorId: string;
   campo: CampoColaborador;
-  valor: string | number | null;
+  valor: string | number | boolean | null;
   /** Obrigatório quando o campo é do tipo select. */
   opcoes?: Opcao[];
   editavel: boolean;
@@ -75,6 +140,20 @@ export function CampoEditavel({
       aoSalvar?.();
     }
   }, [estado, aoSalvar]);
+
+  if (definicao.tipo === "booleano") {
+    return (
+      <CaixaEditavel
+        colaboradorId={colaboradorId}
+        campo={campo}
+        marcado={valor === true}
+        editavel={editavel}
+        origem={origem}
+        acao={acao}
+        estado={estado}
+      />
+    );
+  }
 
   const bruto = valor === null || valor === undefined ? "" : String(valor);
   const exibicao =

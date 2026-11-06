@@ -140,6 +140,16 @@ export function IconeFechar({ className }: Props) {
   );
 }
 
+/** Lupa — campo de busca do painel. */
+export function IconeBusca({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M20 20l-4.2-4.2" />
+    </svg>
+  );
+}
+
 /** Lápis — abre a edição de um campo do cadastro. */
 export function IconeLapis({ className }: Props) {
   return (
