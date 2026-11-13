@@ -128,19 +128,19 @@ export default async function Dashboard() {
         {
           rotulo: "Vencidos",
           valor: Number(resumo.vencido),
-          href: "/qsms?status=vencido",
+          href: "/radar?status=vencido",
           selo: <SeloStatus status="vencido" dias={null} />,
         },
         {
           rotulo: "Sem registro",
           valor: Number(resumo.sem_registro),
-          href: "/qsms?status=sem_registro",
+          href: "/radar?status=sem_registro",
           selo: <SeloStatus status="sem_registro" dias={null} />,
         },
         {
           rotulo: "Fora do prazo",
           valor: Number(resumo.sla_estourado),
-          href: "/qsms?parados=1",
+          href: "/radar?parados=1",
           selo: <span className="text-caption text-ink-muted">SLA da etapa estourado</span>,
         },
       ]
@@ -177,7 +177,7 @@ export default async function Dashboard() {
           <div className="flex items-center gap-2 mb-4">
             <h2 className="text-[1.0625rem]">Parados há mais tempo</h2>
             <Info>Os cinco itens que estão há mais dias na mesma etapa, de qualquer status.</Info>
-            <Link href="/qsms?ordem=parados&dir=desc" className="ml-auto text-label">
+            <Link href="/radar?ordem=parados&dir=desc" className="ml-auto text-label">
               Ver todos
             </Link>
           </div>
@@ -239,7 +239,7 @@ export default async function Dashboard() {
                     {lado.linhas.map((linha) => (
                       <li key={linha.etapa}>
                         <Link
-                          href={`/qsms?etapa=${linha.etapa}`}
+                          href={`/radar?etapa=${linha.etapa}`}
                           className="flex items-baseline justify-between gap-2 text-label text-ink no-underline hover:text-brand"
                         >
                           <span className="truncate">{ETAPA_ROTULO[linha.etapa]}</span>
@@ -326,7 +326,7 @@ export default async function Dashboard() {
                   <tr key={s.supervisor_id ?? "sem-supervisor"}>
                     <td>
                       <Link
-                        href={`/qsms?supervisor=${s.supervisor_id ?? "sem-supervisor"}`}
+                        href={`/radar?supervisor=${s.supervisor_id ?? "sem-supervisor"}`}
                         className="font-medium no-underline"
                       >
                         {s.supervisor_nome}

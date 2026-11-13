@@ -38,7 +38,7 @@ export default async function ItemSupervisor({ params }: { params: Promise<{ id:
         className="cabecalho-pagina"
         degraus={[
           { rotulo: "Operação" },
-          { rotulo: "Minha equipe", href: "/supervisor" },
+          { rotulo: "Radar", href: "/radar" },
           { rotulo: item.nome },
         ]}
       />

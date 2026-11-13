@@ -62,7 +62,7 @@ export async function exigirAdmin(): Promise<Perfil> {
 }
 
 export function rotaInicial(perfil: Pick<Perfil, "papel">): string {
-  // QSMS e admin entram no Dashboard (redesign de 03/11/2026): primeiro o que
-  // pede ação, depois a fila inteira no Painel.
-  return perfil.papel === "supervisor" ? "/supervisor" : "/qsms/dashboard";
+  // Supervisor cai direto no Radar (a fila dele); QSMS e admin entram no
+  // Dashboard: primeiro o que pede ação, depois a fila inteira no Radar.
+  return perfil.papel === "supervisor" ? "/radar" : "/dashboard";
 }

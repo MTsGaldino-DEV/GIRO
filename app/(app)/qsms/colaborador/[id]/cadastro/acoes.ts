@@ -139,7 +139,7 @@ export async function salvarFoto(_anterior: Acao | null, formData: FormData): Pr
   }
 
   revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
   return { ok: true, mensagem: "Foto atualizada." };
 }
 
@@ -275,7 +275,7 @@ export async function salvarCampo(_anterior: Acao | null, formData: FormData): P
   if (campo === "exige_avp" && de !== para) await ajustarFilaAvp(supabase, id.data, valor === true);
 
   revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
   revalidatePath("/qsms/base");
   return { ok: true, mensagem: `${definicao.rotulo} atualizado.` };
 }
@@ -388,7 +388,7 @@ export async function alternarAtivo(_anterior: Acao | null, formData: FormData):
   );
 
   revalidatePath(`/qsms/colaborador/${id}`, "layout");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
   revalidatePath("/qsms/base");
   return { ok: true, mensagem: ativo ? "Colaborador reativado." : "Colaborador desligado." };
 }

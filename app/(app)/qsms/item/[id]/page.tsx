@@ -45,7 +45,7 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
           <Trilha
             degraus={[
               { rotulo: "Operação" },
-              { rotulo: "Painel", href: "/qsms" },
+              { rotulo: "Radar", href: "/radar" },
               { rotulo: colaborador?.nome ?? "Item encerrado" },
             ]}
           />
@@ -77,7 +77,7 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
         className="cabecalho-pagina"
         degraus={[
           { rotulo: "Operação" },
-          { rotulo: "Painel", href: "/qsms" },
+          { rotulo: "Radar", href: "/radar" },
           { rotulo: item.nome },
         ]}
       />

@@ -14,8 +14,7 @@ export type ResultadoGeracao =
   | { ok: false; erro: string };
 
 function revalidarPaineis(itemId?: string) {
-  revalidatePath("/qsms");
-  revalidatePath("/supervisor");
+  revalidatePath("/radar");
   if (itemId) {
     revalidatePath(`/qsms/item/${itemId}`);
     revalidatePath(`/supervisor/item/${itemId}`);

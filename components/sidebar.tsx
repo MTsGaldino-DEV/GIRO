@@ -24,8 +24,8 @@ interface ItemNav {
   href: string;
   rotulo: string;
   Icone: (props: { className?: string }) => React.ReactElement;
-  /** Rotas antigas que ainda aparecem sob este item até a Task 7 redirecioná-las. */
-  tambem?: string[];
+  /** Telas que não têm item próprio no menu e acendem este (ficha do item, perfil). */
+  filhas?: string[];
 }
 
 type EntradaNav =
@@ -36,19 +36,18 @@ const ITEM_DASHBOARD: ItemNav = {
   href: "/dashboard",
   rotulo: "Dashboard",
   Icone: IconeDashboard,
-  tambem: ["/qsms/dashboard"],
 };
 const ITEM_RADAR: ItemNav = {
   href: "/radar",
   rotulo: "Radar",
   Icone: IconeRadar,
-  tambem: ["/qsms", "/qsms/item", "/supervisor", "/supervisor/item"],
+  filhas: ["/qsms/item", "/supervisor/item"],
 };
 const ITEM_COLABORADORES: ItemNav = {
   href: "/colaboradores",
   rotulo: "Colaboradores",
   Icone: IconeColaboradores,
-  tambem: ["/qsms/colaborador"],
+  filhas: ["/qsms/colaborador"],
 };
 const ITEM_BASE: ItemNav = { href: "/qsms/base", rotulo: "Base", Icone: IconeBase };
 const ITEM_SUPERVISORES: ItemNav = { href: "/qsms/supervisores", rotulo: "Supervisores", Icone: IconeSupervisores };
@@ -93,18 +92,13 @@ function entradasDoPapel(papel: Perfil["papel"]): EntradaNav[] {
   return entradas;
 }
 
-/** Casa por segmento: "/qsms" não pode acender para "/qsms/supervisores". */
+/** Casa por segmento: "/qsms/colaborador" não acende para "/qsms/colaboradores-x". */
 function casa(rota: string, pathname: string): boolean {
   return pathname === rota || pathname.startsWith(`${rota}/`);
 }
 
 function estaAtivo(item: ItemNav, pathname: string): boolean {
-  return [item.href, ...(item.tambem ?? [])].some((rota) => {
-    // As rotas antigas "/qsms" e "/supervisor" são prefixo de outras telas que
-    // têm item próprio; para elas só vale a rota exata.
-    if (rota === "/qsms" || rota === "/supervisor") return pathname === rota;
-    return casa(rota, pathname);
-  });
+  return [item.href, ...(item.filhas ?? [])].some((rota) => casa(rota, pathname));
 }
 
 function rotuloDoPapel(papel: Perfil["papel"]): string {

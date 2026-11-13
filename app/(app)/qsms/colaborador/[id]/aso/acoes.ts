@@ -105,7 +105,7 @@ export async function corrigirDataExame(_anterior: Acao | null, formData: FormDa
   }
 
   revalidatePath(`/qsms/colaborador/${evento.colaborador_id}`, "layout");
-  revalidatePath("/qsms");
-  revalidatePath("/qsms/dashboard");
+  revalidatePath("/radar");
+  revalidatePath("/dashboard");
   return { ok: true, mensagem: "Data corrigida." };
 }

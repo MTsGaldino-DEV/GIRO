@@ -54,8 +54,7 @@ export async function registrarAusencia(
   if (error) return { ok: false, erro: error.message };
 
   revalidatePath("/qsms/ausencias");
-  revalidatePath("/qsms");
-  revalidatePath("/supervisor");
+  revalidatePath("/radar");
   return { ok: true, mensagem: "Ausência registrada." };
 }
 
@@ -74,7 +73,6 @@ export async function removerAusencia(
   if (error) return { ok: false, erro: error.message };
 
   revalidatePath("/qsms/ausencias");
-  revalidatePath("/qsms");
-  revalidatePath("/supervisor");
+  revalidatePath("/radar");
   return { ok: true, mensagem: "Ausência removida." };
 }

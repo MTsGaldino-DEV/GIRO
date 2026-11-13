@@ -8,7 +8,7 @@ import { BotaoGerarItens } from "./gerar-itens";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { ResumoStatus, Supervisor } from "@/lib/tipos";
 
-export const metadata: Metadata = { title: "Painel do QSMS" };
+export const metadata: Metadata = { title: "Radar" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
  * página continua renderizando a primeira página no servidor para que o HTML
  * nunca chegue vazio e um link filtrado, colado no chat, abra já com conteúdo.
  */
-export default async function PainelQsms({
+export default async function Radar({
   searchParams,
 }: {
   searchParams: Promise<FiltrosPainel>;
@@ -53,8 +53,8 @@ export default async function PainelQsms({
   return (
     <div>
       <CabecalhoPagina
-        trilha={[{ rotulo: "Operação" }, { rotulo: "Painel" }]}
-        titulo="Painel do QSMS"
+        trilha={[{ rotulo: "Operação" }, { rotulo: "Radar" }]}
+        titulo="Radar"
         descricao={
           <>
             {total} {total === 1 ? "item em aberto" : "itens em aberto"}

@@ -9,9 +9,8 @@ import { hojeIso } from "@/lib/dominio";
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
 function revalidar(itemId: string) {
-  revalidatePath("/supervisor");
+  revalidatePath("/radar");
   revalidatePath(`/supervisor/item/${itemId}`);
-  revalidatePath("/qsms");
   revalidatePath(`/qsms/item/${itemId}`);
 }
 

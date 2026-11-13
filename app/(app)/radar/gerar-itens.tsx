@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { gerarItens, type ResultadoGeracao } from "./acoes";
+import { gerarItens, type ResultadoGeracao } from "@/app/(app)/qsms/acoes";
 
 function Botao() {
   const { pending } = useFormStatus();

@@ -72,7 +72,7 @@ export default async function LayoutColaborador({
       <Trilha
         degraus={[
           { rotulo: "Operação" },
-          { rotulo: "Painel", href: "/qsms" },
+          { rotulo: "Radar", href: "/radar" },
           { rotulo: colaborador.nome },
         ]}
       />

@@ -118,7 +118,7 @@ export function GradeItens({
     // continuar compartilhável, mas disparar navegação do Next aqui traria de
     // volta exatamente o round-trip que este componente existe para evitar.
     const busca = filtrosParaBusca(filtros);
-    window.history.replaceState(null, "", busca ? `/qsms?${busca}` : "/qsms");
+    window.history.replaceState(null, "", busca ? `/radar?${busca}` : "/radar");
 
     startTransition(() => {
       void buscar(filtros);

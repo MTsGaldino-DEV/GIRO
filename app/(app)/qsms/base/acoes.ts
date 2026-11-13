@@ -55,7 +55,7 @@ export async function registrarAsoRetroativo(
   if (error) return { ok: false, erro: error.message };
 
   revalidatePath("/qsms/base");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
 
   return { ok: true, mensagem: "Registrado." };
 }

@@ -45,7 +45,7 @@ export async function cadastrarSupervisor(
   }
 
   revalidatePath("/qsms/supervisores");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
 
   return {
     ok: true,
@@ -84,7 +84,7 @@ export async function vincularColaborador(
   if (error) return { ok: false, erro: error.message };
 
   revalidatePath("/qsms/supervisores");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
   return { ok: true, mensagem: "Vinculado." };
 }
 
@@ -121,6 +121,6 @@ export async function vincularEmMassa(
   if (error) return { ok: false, erro: error.message };
 
   revalidatePath("/qsms/supervisores");
-  revalidatePath("/qsms");
+  revalidatePath("/radar");
   return { ok: true, mensagem: `${ids.length} colaborador(es) vinculado(s).` };
 }
