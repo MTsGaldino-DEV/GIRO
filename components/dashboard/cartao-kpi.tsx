@@ -17,6 +17,7 @@ export function CartaoKpi({
   variante,
   ativo = false,
   titulo,
+  textoNulo = "indisponível",
 }: {
   href: string;
   valor: number | null;
@@ -27,6 +28,8 @@ export function CartaoKpi({
   variante?: string;
   ativo?: boolean;
   titulo?: string;
+  /** O que o leitor de tela ouve no lugar do "—". Padrão: a consulta falhou. */
+  textoNulo?: string;
 }) {
   return (
     <Link
@@ -39,7 +42,7 @@ export function CartaoKpi({
         {valor === null ? (
           <>
             <span aria-hidden>—</span>
-            <span className="sr-only">indisponível</span>
+            <span className="sr-only">{textoNulo}</span>
           </>
         ) : (
           <>

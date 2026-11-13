@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Info } from "@/components/info";
 import { Vazio } from "@/components/aviso";
 import { hrefDashboard, RESPONSAVEL_QSMS, type EscopoDashboard, type LinhaResponsavel } from "@/lib/regras-dashboard";
+import { Indisponivel } from "./indisponivel";
 
 /**
  * Com quem está a bola: barra Supervisão × QSMS (pelo `dono` da etapa) e uma
@@ -13,15 +14,17 @@ export function PorResponsavel({
   escopo,
   ativo,
 }: {
-  donos: { supervisor: number; qsms: number };
-  linhas: LinhaResponsavel[];
+  /** null quando a contagem por etapa falhou. */
+  donos: { supervisor: number; qsms: number } | null;
+  /** null quando os itens não carregaram: a tabela mostra o aviso. */
+  linhas: LinhaResponsavel[] | null;
   escopo: EscopoDashboard;
   ativo: string | null;
 }) {
-  const total = donos.supervisor + donos.qsms;
+  const total = donos ? donos.supervisor + donos.qsms : 0;
   const lados = [
-    { dono: "supervisor" as const, rotulo: "Supervisão", valor: donos.supervisor },
-    { dono: "qsms" as const, rotulo: "QSMS", valor: donos.qsms },
+    { dono: "supervisor" as const, rotulo: "Supervisão", valor: donos?.supervisor ?? 0 },
+    { dono: "qsms" as const, rotulo: "QSMS", valor: donos?.qsms ?? 0 },
   ];
 
   return (
@@ -33,7 +36,9 @@ export function PorResponsavel({
         <Info>Com quem está cada item aberto agora: o supervisor da equipe ou o QSMS.</Info>
       </div>
 
-      {total === 0 ? (
+      {!donos ? (
+        <Indisponivel />
+      ) : total === 0 ? (
         <Vazio>Nenhum item em aberto.</Vazio>
       ) : (
         <>
@@ -54,6 +59,9 @@ export function PorResponsavel({
             })}
           </div>
 
+          {!linhas ? (
+            <Indisponivel />
+          ) : (
           <div className="overflow-x-auto">
             <table className="tabela-dash">
               <caption className="sr-only">Itens abertos por responsável</caption>
@@ -83,6 +91,7 @@ export function PorResponsavel({
               </tbody>
             </table>
           </div>
+          )}
         </>
       )}
     </section>

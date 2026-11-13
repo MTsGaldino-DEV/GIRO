@@ -4,6 +4,7 @@ import { Vazio } from "@/components/aviso";
 import { ETAPA_ROTULO } from "@/lib/dominio";
 import { hrefDashboard, type EscopoDashboard, type LinhaEtapa } from "@/lib/regras-dashboard";
 import type { Etapa } from "@/lib/tipos";
+import { Indisponivel } from "./indisponivel";
 
 /**
  * Itens abertos por etapa, com a média de dias parados em cada uma. Barras em
@@ -15,30 +16,34 @@ export function PorEtapa({
   escopo,
   ativo,
 }: {
-  etapas: LinhaEtapa[];
-  medias: Partial<Record<Etapa, number>>;
+  /** null quando a consulta falhou. */
+  etapas: LinhaEtapa[] | null;
+  /** null quando os itens não carregaram: a coluna de média fica vazia. */
+  medias: Partial<Record<Etapa, number>> | null;
   escopo: EscopoDashboard;
   ativo: string | null;
 }) {
-  const maximo = Math.max(1, ...etapas.map((e) => e.quantidade));
-  const total = etapas.reduce((s, e) => s + e.quantidade, 0);
+  const maximo = Math.max(1, ...(etapas ?? []).map((e) => e.quantidade));
+  const total = (etapas ?? []).reduce((s, e) => s + e.quantidade, 0);
 
   return (
     <section className="card" aria-labelledby="titulo-etapa">
       <div className="flex items-center gap-2 mb-3">
         <h2 id="titulo-etapa" className="text-[1.0625rem]">
-          {`${total} ${total === 1 ? "item aberto" : "itens abertos"}, por etapa`}
+          {etapas ? `${total} ${total === 1 ? "item aberto" : "itens abertos"}, por etapa` : "Itens abertos, por etapa"}
         </h2>
         <Info>À direita, quantos dias os itens estão parados na etapa atual, em média.</Info>
       </div>
 
-      {etapas.length === 0 ? (
+      {!etapas ? (
+        <Indisponivel />
+      ) : etapas.length === 0 ? (
         <Vazio>Nenhum item em aberto.</Vazio>
       ) : (
         <div className="grid gap-0.5">
           {etapas.map((e, i) => {
             const chave = `etapa-${e.etapa}`;
-            const media = medias[e.etapa];
+            const media = medias?.[e.etapa];
             return (
               <Link
                 key={e.etapa}

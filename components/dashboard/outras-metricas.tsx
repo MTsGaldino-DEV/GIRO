@@ -2,6 +2,7 @@ import { Info } from "@/components/info";
 import { GraficoConclusoes, type PontoMes } from "@/components/grafico-conclusoes";
 import { hrefDashboard, type EscopoDashboard } from "@/lib/regras-dashboard";
 import { CartaoKpi } from "./cartao-kpi";
+import { Indisponivel } from "./indisponivel";
 
 /**
  * % em dia, dias parados em média e a curva de conclusões. "Tempo médio por
@@ -10,15 +11,23 @@ import { CartaoKpi } from "./cartao-kpi";
  */
 export function OutrasMetricas({
   emDia,
+  semPessoas,
   mediaDias,
+  semItensAbertos,
   curva,
   escopo,
   ativo,
 }: {
   /** Porcentagem de pessoas em dia; null sem base. */
   emDia: number | null;
+  /** Carregou e o escopo não tem ninguém: o "—" é ausência real, não falha. */
+  semPessoas: boolean;
+  /** null quando os itens não carregaram, ou quando não há item aberto. */
   mediaDias: number | null;
-  curva: PontoMes[];
+  /** Carregou e não há item aberto: o "—" é ausência real, não falha. */
+  semItensAbertos: boolean;
+  /** null quando a consulta falhou: nada de barras zeradas no lugar. */
+  curva: PontoMes[] | null;
   escopo: EscopoDashboard;
   ativo: string | null;
 }) {
@@ -34,6 +43,8 @@ export function OutrasMetricas({
           valor={emDia}
           sufixo="%"
           rotulo="Pessoas em dia hoje"
+          nota={semPessoas ? "Ninguém neste escopo" : undefined}
+          textoNulo={semPessoas ? "ninguém neste escopo" : undefined}
           ativo={ativo === "ok"}
         />
         <CartaoKpi
@@ -41,6 +52,8 @@ export function OutrasMetricas({
           valor={mediaDias}
           sufixo={mediaDias === 1 ? " dia" : " dias"}
           rotulo="Parados em média na etapa atual"
+          nota={semItensAbertos ? "Sem itens abertos" : undefined}
+          textoNulo={semItensAbertos ? "sem itens abertos" : undefined}
           ativo={ativo === "abertos"}
         />
       </div>
@@ -49,7 +62,7 @@ export function OutrasMetricas({
         <h3 className="text-label font-medium">Concluídos por mês</h3>
         <Info>ASO e AVP com resultado apto, pela data do documento, nos últimos seis meses.</Info>
       </div>
-      <GraficoConclusoes dados={curva} largura={420} />
+      {curva ? <GraficoConclusoes dados={curva} largura={420} /> : <Indisponivel />}
     </section>
   );
 }

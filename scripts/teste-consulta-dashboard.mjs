@@ -20,6 +20,8 @@ import {
   primeiroDiaDoMes,
   conclusoesPorMes,
   montarDetalhe,
+  textoDoParametro,
+  detalheIndisponivel,
 } from "../lib/regras-dashboard.ts";
 import { buscarTodas } from "../lib/consulta-dashboard.ts";
 
@@ -254,6 +256,54 @@ caso("detalhe concluídos: eventos com data", () => {
   assert.equal(r.tipo, "eventos");
   assert.equal(r.linhas[0].data, "2026-11-05");
   assert.equal(r.linhas[0].supervisor, "Sem supervisor");
+});
+
+// --- parâmetros da URL (Next entrega lista quando o parâmetro se repete) ----
+caso("parâmetro: só texto simples vale", () => {
+  assert.equal(textoDoParametro("vencido"), "vencido");
+  assert.equal(textoDoParametro(["vencido", "ok"]), undefined);
+  assert.equal(textoDoParametro(undefined), undefined);
+  assert.equal(textoDoParametro(""), "");
+});
+caso("detalhe: lista, vazio e desconhecido não quebram e não abrem lista", () => {
+  assert.equal(lerDetalhe(["vencido", "ok"]), null);
+  assert.equal(lerDetalhe(["etapa-previsto"]), null);
+  assert.equal(lerDetalhe([]), null);
+  assert.equal(lerDetalhe(""), null);
+  assert.equal(lerDetalhe("resp-qsms-x"), null);
+});
+caso("escopo: lista, vazio e desconhecido caem na UEN", () => {
+  assert.equal(resolverEscopoDashboard(supervisor, ["minha"]), "todas");
+  assert.equal(resolverEscopoDashboard(supervisor, ["minha", "todas"]), "todas");
+  assert.equal(resolverEscopoDashboard(supervisor, ""), "todas");
+  assert.equal(resolverEscopoDashboard(supervisor, "MINHA"), "todas");
+});
+
+// --- falhas de consulta -----------------------------------------------------
+const semFalha = { status: false, itens: false, radar: false, concluidos: false };
+caso("detalhe indisponível: cada lista depende da sua consulta", () => {
+  assert.equal(detalheIndisponivel({ tipo: "status", status: "vencido" }, semFalha), false);
+  assert.equal(detalheIndisponivel({ tipo: "status", status: "vencido" }, { ...semFalha, status: true }), true);
+  // O cartão do semáforo vem da RPC; se as linhas falharam, a lista não pode dizer "ninguém".
+  assert.equal(detalheIndisponivel({ tipo: "status", status: "ok" }, { ...semFalha, itens: true }), false);
+  assert.equal(detalheIndisponivel({ tipo: "concluidos" }, { ...semFalha, concluidos: true }), true);
+  assert.equal(detalheIndisponivel({ tipo: "concluidos" }, { ...semFalha, itens: true }), false);
+  assert.equal(detalheIndisponivel({ tipo: "radar" }, { ...semFalha, radar: true }), true);
+  assert.equal(detalheIndisponivel({ tipo: "radar" }, { ...semFalha, itens: true }), true);
+  for (const chave of [{ tipo: "agendados" }, { tipo: "parados" }, { tipo: "abertos" }, { tipo: "etapa", etapa: "previsto" }, { tipo: "dono", dono: "qsms" }, { tipo: "responsavel", id: "qsms" }]) {
+    assert.equal(detalheIndisponivel(chave, { ...semFalha, itens: true }), true, chave.tipo);
+    assert.equal(detalheIndisponivel(chave, { ...semFalha, status: true, concluidos: true, radar: true }), chave.tipo === "radar", chave.tipo);
+  }
+});
+
+// --- recorte de equipe: só conta quem está nas linhas recebidas -------------
+caso("resumo por pessoa: quem não está nas linhas (inativo, outra equipe) não conta", () => {
+  // A view já tira inativos; o recorte filtra por supervisor_id. A função conta
+  // exatamente as pessoas distintas que recebeu, nem uma a mais.
+  const equipe = linhas.filter((l) => ["A", "B"].includes(l.colaborador_id));
+  assert.deepEqual(resumirPorPessoa(equipe), { total: 2, sem_registro: 0, vencido: 1, critico: 1, atencao: 0, programar: 0, ok: 0 });
+  const ids = new Set(equipe.map((l) => l.colaborador_id));
+  assert.equal(resumirPorPessoa(equipe).total, ids.size);
 });
 
 // --- buscarTodas -----------------------------------------------------------

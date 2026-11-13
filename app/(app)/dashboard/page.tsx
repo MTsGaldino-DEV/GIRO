@@ -8,6 +8,7 @@ import {
   agruparEtapas,
   conclusoesPorMes,
   contarPorEtapa,
+  detalheIndisponivel,
   detalheParaTexto,
   lerDetalhe,
   maisProximosDeVencer,
@@ -22,6 +23,7 @@ import {
   resumirPorPessoa,
   totalPorDono,
   type ContagemStatus,
+  type ParametroUrl,
 } from "@/lib/regras-dashboard";
 import { hojeIso } from "@/lib/dominio";
 import { Aviso } from "@/components/aviso";
@@ -79,7 +81,8 @@ function lerResumo(bruto: unknown): ContagemStatus | null {
 export default async function Dashboard({
   searchParams,
 }: {
-  searchParams: Promise<{ equipe?: string; detalhe?: string }>;
+  // O Next entrega lista quando o parâmetro se repete; as regras só aceitam texto.
+  searchParams: Promise<{ equipe?: ParametroUrl; detalhe?: ParametroUrl }>;
 }) {
   const perfil = await exigirOperador();
   const pedidos = await searchParams;
@@ -105,29 +108,40 @@ export default async function Dashboard({
         .order("item_id")
         .range(de, ate)
     ),
-    // Na UEN a curva vem da RPC; aqui basta o mês corrente. No recorte, os seis meses.
+    // Na UEN a curva vem só da RPC; aqui basta o mês corrente. No recorte, os seis meses.
     buscarConcluidos(supabase, uen ? inicioMes : primeiroDiaDoMes(hoje, 1 - MESES), primeiroDiaDoMes(hoje, 1), equipe),
   ]);
 
-  const erros = [resumoRpc?.error, etapasRpc?.error, curvaRpc?.error, status.erro, itens.erro, radar.erro, concluidos.erro].filter(Boolean);
+  const falhas = { status: !!status.erro, itens: !!itens.erro, radar: !!radar.erro, concluidos: !!concluidos.erro };
+  const algumaFalha =
+    !!(resumoRpc?.error || etapasRpc?.error || curvaRpc?.error) || geset === null || Object.values(falhas).some(Boolean);
 
-  const contagem = (uen ? lerResumo(resumoRpc?.data) : null) ?? (status.erro ? null : resumirPorPessoa(status.linhas));
-  const etapas = uen && etapasRpc?.data ? agruparEtapas(etapasRpc.data) : contarPorEtapa(itens.linhas);
-  const curva: PontoMes[] =
-    uen && curvaRpc?.data
+  // Regra dos blocos: consulta que falhou vira "—" ou "Não foi possível
+  // carregar" (null), nunca 0 ou lista vazia que pareça dado real.
+  const contagem = (uen ? lerResumo(resumoRpc?.data) : null) ?? (falhas.status ? null : resumirPorPessoa(status.linhas));
+  const etapas =
+    uen && etapasRpc?.data ? agruparEtapas(etapasRpc.data) : falhas.itens ? null : contarPorEtapa(itens.linhas);
+  // Na UEN só a RPC tem os seis meses (buscarConcluidos trouxe só o mês corrente).
+  const curva: PontoMes[] | null = uen
+    ? curvaRpc?.data
       ? (curvaRpc.data as { mes: string; quantidade: number | string }[]).map((p) => ({ mes: p.mes, quantidade: Number(p.quantidade) }))
+      : null
+    : falhas.concluidos
+      ? null
       : conclusoesPorMes(concluidos.linhas.map((c) => c.data_documento), hoje, MESES);
   const concluidosMes = concluidos.linhas.filter((c) => c.data_documento >= inicioMes);
-  const idsRadar = radar.erro ? null : new Set(radar.linhas.map((r) => r.item_id));
-  const responsaveis = porResponsavel(itens.linhas);
+  const idsRadar = falhas.radar ? null : new Set(radar.linhas.map((r) => r.item_id));
+  const responsaveis = falhas.itens ? null : porResponsavel(itens.linhas);
 
   const etapaPorRequisito = new Map(itens.linhas.map((i) => [`${i.colaborador_id}|${i.tipo_requisito_id}`, i.etapa]));
-  const proximos = maisProximosDeVencer(status.linhas, 20).map((l) => ({
-    ...l,
-    etapa: etapaPorRequisito.get(`${l.colaborador_id}|${l.tipo_requisito_id}`) ?? null,
-  }));
+  const proximos = falhas.status
+    ? null
+    : maisProximosDeVencer(status.linhas, 20).map((l) => ({
+        ...l,
+        etapa: etapaPorRequisito.get(`${l.colaborador_id}|${l.tipo_requisito_id}`) ?? null,
+      }));
 
-  const semItens = !!itens.erro;
+  const semItens = falhas.itens;
   const detalhe = chave
     ? montarDetalhe(chave, { linhasStatus: status.linhas, itens: itens.linhas, idsRadar, concluidos: concluidosMes })
     : null;
@@ -158,10 +172,10 @@ export default async function Dashboard({
         </div>
       )}
 
-      {erros.length > 0 && (
+      {algumaFalha && (
         <div className="mb-4">
           <Aviso tom="forte" titulo="Parte dos números não carregou">
-            Onde aparece “—”, o valor não pôde ser lido. Atualize a página em instantes.
+            Onde aparece “—” ou “Não foi possível carregar”, o dado não veio. Atualize a página em instantes.
           </Aviso>
         </div>
       )}
@@ -181,15 +195,17 @@ export default async function Dashboard({
       />
 
       <div className="grid grid-cols-1 gap-5 mb-5 lg:grid-cols-2 items-start">
-        <PorEtapa etapas={etapas} medias={mediaDiasPorEtapa(itens.linhas)} escopo={escopo} ativo={ativo} />
-        <PorResponsavel donos={totalPorDono(etapas)} linhas={responsaveis} escopo={escopo} ativo={ativo} />
+        <PorEtapa etapas={etapas} medias={semItens ? null : mediaDiasPorEtapa(itens.linhas)} escopo={escopo} ativo={ativo} />
+        <PorResponsavel donos={etapas ? totalPorDono(etapas) : null} linhas={responsaveis} escopo={escopo} ativo={ativo} />
       </div>
 
       <div className="grid grid-cols-1 gap-5 mb-5 lg:grid-cols-2 items-start">
         <MaisProximos linhas={proximos} />
         <OutrasMetricas
           emDia={contagem ? percentual(contagem.ok, contagem.total) : null}
-          mediaDias={mediaDiasParados(itens.linhas)}
+          semPessoas={contagem?.total === 0}
+          mediaDias={semItens ? null : mediaDiasParados(itens.linhas)}
+          semItensAbertos={!semItens && itens.linhas.length === 0}
           curva={curva}
           escopo={escopo}
           ativo={ativo}
@@ -197,8 +213,9 @@ export default async function Dashboard({
       </div>
 
       <DetalheDashboard
-        titulo={chave ? tituloDetalhe(chave, responsaveis) : null}
+        titulo={chave ? tituloDetalhe(chave, responsaveis ?? []) : null}
         detalhe={detalhe}
+        indisponivel={chave ? detalheIndisponivel(chave, falhas) : false}
         escopo={escopo}
       />
     </div>

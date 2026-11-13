@@ -20,14 +20,22 @@ export type EscopoDashboard = "todas" | "minha";
 
 type PerfilEscopo = Pick<Perfil, "supervisor_id">;
 
+/** Valor cru de `searchParams`: o Next entrega lista quando o parâmetro se repete. */
+export type ParametroUrl = string | string[] | undefined;
+
+/** Só texto simples vale; lista (`?detalhe=a&detalhe=b`) ou ausência viram `undefined`. */
+export function textoDoParametro(valor: ParametroUrl): string | undefined {
+  return typeof valor === "string" ? valor : undefined;
+}
+
 /** O segmento "UEN / Minha equipe" só existe para quem tem equipe vinculada. */
 export function podeEscolherEquipe(perfil: PerfilEscopo): boolean {
   return !!perfil.supervisor_id;
 }
 
 /** Padrão é a UEN para todos os papéis; "minha" só vale com vínculo. */
-export function resolverEscopoDashboard(perfil: PerfilEscopo, pedido: string | undefined): EscopoDashboard {
-  return pedido === "minha" && podeEscolherEquipe(perfil) ? "minha" : "todas";
+export function resolverEscopoDashboard(perfil: PerfilEscopo, pedido: ParametroUrl): EscopoDashboard {
+  return textoDoParametro(pedido) === "minha" && podeEscolherEquipe(perfil) ? "minha" : "todas";
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +78,8 @@ export const RESPONSAVEL_QSMS = "qsms";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Valor da URL → chave. Qualquer coisa fora do previsto vira `null` (sem lista). */
-export function lerDetalhe(valor: string | undefined): ChaveDetalhe | null {
+export function lerDetalhe(parametro: ParametroUrl): ChaveDetalhe | null {
+  const valor = textoDoParametro(parametro);
   if (!valor) return null;
   if ((STATUS_DETALHE as readonly string[]).includes(valor)) {
     return { tipo: "status", status: valor as StatusConformidade };
@@ -439,4 +448,30 @@ export function montarDetalhe(chave: ChaveDetalhe, dados: DadosDetalhe): Detalhe
     .sort((a, b) => b.dias_parados - a.dias_parados || a.nome.localeCompare(b.nome, "pt-BR"))
     .map(linhaDeItem);
   return { tipo: "itens", linhas };
+}
+
+/** Quais consultas falharam neste carregamento. */
+export interface FalhasDashboard {
+  status: boolean;
+  itens: boolean;
+  radar: boolean;
+  concluidos: boolean;
+}
+
+/**
+ * A lista do detalhe depende de uma consulta. Se ela falhou, a lista mostra o
+ * aviso, nunca "ninguém neste número": o cartão (às vezes de uma RPC que deu
+ * certo) e a lista não podem divergir em silêncio.
+ */
+export function detalheIndisponivel(chave: ChaveDetalhe, falhas: FalhasDashboard): boolean {
+  switch (chave.tipo) {
+    case "status":
+      return falhas.status;
+    case "concluidos":
+      return falhas.concluidos;
+    case "radar":
+      return falhas.radar || falhas.itens;
+    default:
+      return falhas.itens;
+  }
 }

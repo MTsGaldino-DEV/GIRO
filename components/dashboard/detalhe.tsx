@@ -12,6 +12,7 @@ import {
 } from "@/lib/regras-dashboard";
 import { ROTULO_SEMAFORO } from "./cartoes-semaforo";
 import { RolarAteDetalhe } from "./rolar-ate-detalhe";
+import { Indisponivel } from "./indisponivel";
 
 const SIMPLES: Record<string, string> = {
   radar: "No radar",
@@ -50,10 +51,13 @@ function contar(detalhe: Detalhe): string {
 export function DetalheDashboard({
   titulo,
   detalhe,
+  indisponivel = false,
   escopo,
 }: {
   titulo: string | null;
   detalhe: Detalhe | null;
+  /** A consulta de que a lista depende falhou: aviso, nunca "ninguém neste número". */
+  indisponivel?: boolean;
   escopo: EscopoDashboard;
 }) {
   if (!titulo || !detalhe) {
@@ -71,15 +75,17 @@ export function DetalheDashboard({
       <RolarAteDetalhe chave={titulo} />
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <h2 id="titulo-detalhe" className="text-[1.0625rem]">
-          {`${titulo} · `}
-          <span data-contagem={linhas.length}>{contar(detalhe)}</span>
+          {indisponivel ? titulo : `${titulo} · `}
+          {!indisponivel && <span data-contagem={linhas.length}>{contar(detalhe)}</span>}
         </h2>
         <Link href={hrefDashboard(escopo)} scroll={false} className="btn btn--secondary">
           Fechar
         </Link>
       </div>
 
-      {linhas.length === 0 ? (
+      {indisponivel ? (
+        <Indisponivel />
+      ) : linhas.length === 0 ? (
         <Vazio>Ninguém neste número.</Vazio>
       ) : (
         <div className="rolagem-dash" tabIndex={0} aria-label="Lista rolável">
