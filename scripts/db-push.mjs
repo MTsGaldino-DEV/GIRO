@@ -1,41 +1,41 @@
-// Aplica supabase/migrations/*.sql em ordem, cada arquivo numa transação.
+// Aplica migrations de supabase/migrations/, em ordem, cada arquivo numa
+// transação.
 //
 // Não substitui a CLI do Supabase — existe para não depender de Docker nem de
-// login interativo numa máquina Windows. Os arquivos são idempotentes
-// (create or replace / if not exists / drop policy if exists), então reaplicar
-// é seguro.
+// login interativo numa máquina Windows.
 //
-//   npm run db:push
-//   npm run db:push -- --only 0003
+// As migrations NÃO são todas reaplicáveis: reaplicar todas no banco de
+// produção recria funções antigas e para na 0003 sem consertar (detalhes em
+// scripts/lib/db-push-args.mjs). Por isso o filtro é obrigatório:
+//
+//   npm run db:push -- --only 0021
+//   npm run db:push -- --only 0020,0021
+//   npm run db:push -- --todas --sim-eu-sei   # só em banco vazio
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { carregarEnv } from "./lib/env.mjs";
+import { selecionarMigrations, AVISO_TODAS } from "./lib/db-push-args.mjs";
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const dir = path.join(raiz, "supabase", "migrations");
+
+// Argumentos antes de tudo: uma chamada recusada não lê .env nem conecta.
+const selecao = selecionarMigrations(process.argv.slice(2), fs.readdirSync(dir));
+if (!selecao.ok) {
+  console.error(selecao.erro);
+  process.exit(1);
+}
+const arquivos = selecao.arquivos;
+if (selecao.todas) console.warn(`${AVISO_TODAS}\n`);
+
 carregarEnv(raiz);
 
 const url = process.env.SUPABASE_DB_URL;
 if (!url) {
   console.error("Defina SUPABASE_DB_URL no .env (Supabase > Settings > Database).");
-  process.exit(1);
-}
-
-const filtro = process.argv.includes("--only")
-  ? process.argv[process.argv.indexOf("--only") + 1]
-  : null;
-
-const dir = path.join(raiz, "supabase", "migrations");
-const arquivos = fs
-  .readdirSync(dir)
-  .filter((f) => f.endsWith(".sql"))
-  .filter((f) => !filtro || f.includes(filtro))
-  .sort();
-
-if (arquivos.length === 0) {
-  console.error(filtro ? `Nenhuma migration casa com "${filtro}".` : "Nenhuma migration encontrada.");
   process.exit(1);
 }
 

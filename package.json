@@ -17,6 +17,7 @@
     "teste:geset-ui": "node --experimental-strip-types scripts/teste-consulta-geset.mjs",
     "teste:dashboard": "node --experimental-strip-types scripts/teste-consulta-dashboard.mjs",
     "teste:colaboradores": "node --experimental-strip-types scripts/teste-consulta-colaboradores.mjs",
+    "teste:db-push-args": "node scripts/teste-db-push-args.mjs",
     "teste:permissoes": "node scripts/teste-permissoes.mjs",
     "teste:semaforo": "node scripts/teste-semaforo.mjs",
     "teste:geset": "node scripts/teste-geset.mjs",

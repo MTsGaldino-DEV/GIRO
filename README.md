@@ -33,11 +33,16 @@ senha" por e-mail.
 ```bash
 npm install
 cp .env.example .env           # preencher com as chaves do Supabase
-npm run db:push                # aplica supabase/migrations/*.sql em ordem
+npm run db:push -- --todas --sim-eu-sei   # SÓ em banco vazio: aplica todas, em ordem
 node scripts/criar-perfil.mjs admin voce@engelmig.com.br "Seu Nome" SuaSenha123
 npm run seed:teste             # base fictícia de 15 colaboradores + 3 contas
 npm run dev
 ```
+
+> As migrations **não** são reaplicáveis em bloco. No banco em uso (hoje, o de
+> produção), aplique uma de cada vez com `npm run db:push -- --only NNNN`.
+> Reaplicar todas recria versões antigas de funções e para na 0003 sem
+> consertar o estrago.
 
 A base **não tem dado real de pessoa**. O seed de teste popula 15 colaboradores
 fictícios com CPFs de dígitos repetidos (inválidos pelo checksum, nunca colidem
@@ -64,8 +69,8 @@ semáforo e todos os estágios do fluxo.
 | `npm run dev` | servidor local |
 | `npm run build` | build de produção |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm run db:push` | aplica todas as migrations (idempotente) |
-| `npm run db:push -- --only 0003` | aplica uma migration só |
+| `npm run db:push -- --only 0021` | aplica uma migration só (número exato de 4 dígitos; várias: `--only 0020,0021`). É o único jeito de aplicar migration no banco de produção |
+| `npm run db:push -- --todas --sim-eu-sei` | reaplica todas, em ordem — **destrutivo** num banco em uso: as antigas recriam funções e regras superadas e a 0003 falha antes das que consertariam. Só para banco vazio. Sem filtro, `db:push` recusa e não conecta |
 | `npm run seed:teste` | popula a base fictícia e as 3 contas de teste |
 | `node scripts/verificar.mjs` | conferência rápida da base |
 | `node scripts/teste-fluxo.mjs` | ciclo de vida completo contra o banco real |
