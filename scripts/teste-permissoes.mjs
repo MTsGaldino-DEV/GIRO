@@ -246,6 +246,123 @@ async function etapa(itemId) {
   return rows[0]?.etapa ?? "(invisível)";
 }
 
+/**
+ * 0020: a segunda chamada de fn_registrar_resultado espera a trava da linha.
+ *
+ * Não dá para montar o cenário com dados de teste: eles vivem numa transação
+ * não confirmada, invisível para uma segunda conexão. Em vez de confirmar dados
+ * no banco de produção, o teste usa um item JÁ encerrado (concluído ou
+ * cancelado), somente leitura e sem nenhuma escrita:
+ *   - a conexão A trava a linha com `select ... for update` (sem alterá-la);
+ *   - a conexão B chama fn_registrar_resultado como um operador existente.
+ * Com a trava, B espera e estoura o lock_timeout (55P03). Sem a trava, B chega
+ * logo à checagem de etapa e falha com check_violation (23514) na hora. Depois
+ * que A solta a linha, B falha por etapa (23514), sem ficar esperando. Em
+ * nenhum caso a chamada escreve: o item não está em enviado_clinica.
+ * Nada é confirmado; os dois lados terminam em rollback. Timeouts em todas as
+ * pontas: lock_timeout/statement_timeout nas sessões e um limite duro de 40 s.
+ */
+async function travaDeLinha() {
+  console.log("\nTrava de linha com duas conexões (0020)");
+  const { rows: itens } = await client.query(
+    `select id from itens_pendencia where etapa in ('concluido','cancelado') limit 1`
+  );
+  const { rows: perfis } = await client.query(
+    `select id from perfis where ativo and papel in ('admin','qsms','supervisor') limit 1`
+  );
+  if (itens.length === 0 || perfis.length === 0) {
+    console.log("  (sem item encerrado ou sem operador ativo na base; pulado)");
+    return;
+  }
+  const itemId = itens[0].id;
+  const uid = perfis[0].id;
+
+  const novo = () => new pg.Client({
+    connectionString: process.env.SUPABASE_DB_URL,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000,
+    statement_timeout: 10000,
+  });
+  const a = novo();
+  const b = novo();
+  a.on("error", () => {});
+  b.on("error", () => {});
+  let limite;
+  const duro = new Promise((_, rej) => {
+    limite = setTimeout(() => rej(new Error("limite de 40 s estourado na trava de linha")), 40000);
+  });
+
+  const chamar = async () => {
+    const t0 = Date.now();
+    try {
+      await b.query(
+        `select fn_registrar_resultado($1, 'fez_apto', public.hoje() - 2, public.hoje() - 3,
+                                        'apto', null, 'teste-permissoes-999102/aso.pdf', null)`,
+        [itemId]
+      );
+      return { codigo: null, ms: Date.now() - t0 };
+    } catch (e) {
+      return { codigo: e.code, ms: Date.now() - t0 };
+    }
+  };
+
+  const corpo = async () => {
+    await Promise.all([a.connect(), b.connect()]);
+
+    await a.query("begin");
+    await a.query("select id from itens_pendencia where id = $1 for update", [itemId]);
+
+    await b.query("begin");
+    await b.query("set local lock_timeout = '1500ms'");
+    await b.query("set local statement_timeout = '10s'");
+    await b.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: uid, role: "authenticated" }),
+    ]);
+    await b.query("set local role authenticated");
+
+    const bloqueada = await chamar();
+    if (bloqueada.codigo === "55P03" && bloqueada.ms >= 1000) {
+      ok("com a linha travada por outra transação, fn_registrar_resultado espera a trava");
+    } else {
+      erro("com a linha travada por outra transação, fn_registrar_resultado espera a trava",
+        `código ${bloqueada.codigo}, ${bloqueada.ms} ms (esperado 55P03 depois de ~1,5 s)`);
+    }
+
+    // Solta a linha e refaz a chamada numa transação nova de B.
+    await a.query("rollback");
+    await b.query("rollback");
+    await b.query("begin");
+    await b.query("set local lock_timeout = '1500ms'");
+    await b.query("set local statement_timeout = '10s'");
+    await b.query(`select set_config('request.jwt.claims', $1, true)`, [
+      JSON.stringify({ sub: uid, role: "authenticated" }),
+    ]);
+    await b.query("set local role authenticated");
+    const livre = await chamar();
+    if (livre.codigo === "23514" && livre.ms < 1000) {
+      ok("liberada a trava, a chamada falha pela etapa (check_violation), sem espera");
+    } else {
+      erro("liberada a trava, a chamada falha pela etapa (check_violation), sem espera",
+        `código ${livre.codigo}, ${livre.ms} ms`);
+    }
+  };
+
+  try {
+    await Promise.race([corpo(), duro]);
+  } catch (e) {
+    erro("trava de linha com duas conexões", e.message);
+  } finally {
+    clearTimeout(limite);
+    for (const x of [a, b]) {
+      await Promise.race([
+        x.query("rollback").catch(() => {}),
+        new Promise((r) => setTimeout(r, 3000)),
+      ]);
+      x.end().catch(() => {});
+    }
+  }
+}
+
 async function main() {
   await client.connect();
   console.log("Teste de permissões do operador (0016)\n");
@@ -568,10 +685,10 @@ async function main() {
           [c.itemB, desfecho, resultado, documentoUrl]
         );
         await client.query("release savepoint chamada");
-        return { id: rows[0].id, falha: null };
+        return { id: rows[0].id, falha: null, codigo: null };
       } catch (e) {
         await client.query("rollback to savepoint chamada");
-        return { id: null, falha: e.message };
+        return { id: null, falha: e.message, codigo: e.code };
       }
     };
 
@@ -655,6 +772,26 @@ async function main() {
         } else {
           erro("fez_apto com documento e data conclui o item e abre o próximo ciclo previsto",
             r.falha ?? JSON.stringify(x));
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    // 0020: a segunda chamada no mesmo item não pode gravar segundo evento.
+    // Aqui em sequência (a primeira já concluiu); a espera real pela trava, com
+    // duas conexões, é conferida em travaDeLinha().
+    await sessao(
+      c.uidA,
+      async () => {
+        const primeira = await registrar();
+        const segunda = await registrar();
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (!primeira.falha && recusada(segunda) && segunda.codigo === "23514" && e === "concluido" && n === 1) {
+          ok("segunda chamada de fez_apto no mesmo item falha (check_violation) e há um só evento");
+        } else {
+          erro("segunda chamada de fez_apto no mesmo item falha (check_violation) e há um só evento",
+            JSON.stringify({ primeira: primeira.falha, segunda: segunda.falha, codigo: segunda.codigo, etapa: e, eventos: n }));
         }
       },
       paraEnviadoClinica
@@ -811,6 +948,8 @@ async function main() {
     await client.query("rollback");
     await limpar();
   }
+
+  await travaDeLinha();
 
   const depois = await residuo();
   if (Object.values(depois).every((n) => n === 0)) ok("nenhum dado de teste ficou no banco");
