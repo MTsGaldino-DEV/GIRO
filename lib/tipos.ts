@@ -149,3 +149,21 @@ export interface LinhaHistorico {
   observacao: string | null;
   criado_em: string;
 }
+
+/** Linha de `vw_pendencias_geset`: ASO/AVP apto ainda não lançado no GESET (0019). */
+export interface PendenciaGeset {
+  evento_id: string;
+  colaborador_id: string;
+  matricula: number;
+  nome: string;
+  cargo: string | null;
+  requisito: string;
+  /** YYYY-MM-DD */
+  data_documento: string;
+  /** YYYY-MM-DD */
+  data_vencimento: string;
+  dias_restantes: number | null;
+  /** Caminho no bucket de fotos, não URL. Assinado por quem exibe. */
+  foto_url: string | null;
+  supervisor_nome: string | null;
+}
