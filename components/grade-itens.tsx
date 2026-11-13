@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import {
   buscarPaginaItens,
@@ -18,6 +18,7 @@ import {
 import { BUCKET_FOTOS } from "@/lib/storage";
 import {
   ETAPA_ROTULO,
+  DONO_ROTULO,
   STATUS_ROTULO,
   ORDEM_STATUS,
   formatarData,
@@ -27,16 +28,10 @@ import { SeloStatus, CartaoContagem } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
 import { Info } from "@/components/info";
-import { usePerfilColaborador } from "@/components/perfil/contexto";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
-import { IconeBusca, IconeReticencias } from "@/components/icones";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { IconeBusca } from "@/components/icones";
+import { AcoesLinha } from "@/components/radar/botao-acao-linha";
+import type { AoConcluir } from "@/components/formularios-item";
 import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } from "@/lib/tipos";
 
 /** O que `GradeItens` precisa saber de quem está olhando, já resolvido no servidor. */
@@ -181,6 +176,29 @@ export function GradeItens({
     setFiltros((f) => ({ ...f, [campo]: valor || undefined, pagina: undefined }));
   }, []);
 
+  // Depois de uma ação da linha: a mensagem do servidor fica acima da lista,
+  // a página atual é consultada de novo (o item mudou de etapa ou saiu) e o
+  // `router.refresh()` atualiza o que vem do servidor — contagens do topo e a
+  // faixa da base. Os filtros vão por ref para o callback ser estável: ele
+  // desce até os formulários, que avisam a conclusão num efeito.
+  const router = useRouter();
+  const [avisoAcao, setAvisoAcao] = useState<string | null>(null);
+  const filtrosAtuais = useRef(filtros);
+  useEffect(() => {
+    filtrosAtuais.current = filtros;
+  }, [filtros]);
+
+  const aoConcluirAcao: AoConcluir = useCallback(
+    (mensagem) => {
+      setAvisoAcao(mensagem);
+      router.refresh();
+      startTransition(() => {
+        void buscar(filtrosAtuais.current);
+      });
+    },
+    [buscar, router]
+  );
+
   return (
     <>
       {resumo && (
@@ -224,6 +242,22 @@ export function GradeItens({
         aoLimpar={() => setFiltros({ equipe: filtros.equipe })}
       />
 
+      {avisoAcao && (
+        <div
+          role="status"
+          className="card mb-4 flex items-center justify-between gap-3 text-label"
+        >
+          <span>{avisoAcao}</span>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm shrink-0"
+            onClick={() => setAvisoAcao(null)}
+          >
+            Fechar
+          </button>
+        </div>
+      )}
+
       {pagina.erro && (
         <p role="alert" className="text-label mb-4">
           Não foi possível carregar os itens: {pagina.erro}
@@ -244,12 +278,17 @@ export function GradeItens({
                   {cabecalho("vencimento", "Vencimento")}
                   {cabecalho("status", "Status")}
                   <th scope="col">Etapa</th>
-                  <th scope="col"><span className="sr-only">Ações</span></th>
+                  <th scope="col" className="text-right">Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {pagina.itens.map((item) => (
-                  <LinhaItem key={item.item_id} item={item} fotoUrl={fotos[item.foto_url ?? ""]} />
+                  <LinhaItem
+                    key={item.item_id}
+                    item={item}
+                    fotoUrl={fotos[item.foto_url ?? ""]}
+                    aoConcluirAcao={aoConcluirAcao}
+                  />
                 ))}
               </tbody>
             </table>
@@ -339,8 +378,20 @@ function janelaDePaginas(atual: number, ultima: number): number[] {
  * Dos cartões ficaram o que funcionou — foto, nome que abre o perfil, aviso de
  * janela útil e o menu "⋮". A coluna Requisito é nova: a fila agora mistura
  * ASO e AVP, e o mesmo nome pode aparecer duas vezes.
+ *
+ * Desde 13/11 a última coluna traz o botão do próximo passo da etapa e o menu
+ * com o resto (components/radar/botao-acao-linha.tsx). O responsável pela
+ * etapa vai sob o nome dela, em grafite: é informação, não semáforo.
  */
-function LinhaItem({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
+function LinhaItem({
+  item,
+  fotoUrl,
+  aoConcluirAcao,
+}: {
+  item: ItemAberto;
+  fotoUrl?: string;
+  aoConcluirAcao: AoConcluir;
+}) {
   const janela = avisoJanelaUtil(item);
   return (
     <tr>
@@ -366,62 +417,21 @@ function LinhaItem({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
       <td>
         <SeloStatus status={item.status as StatusConformidade} dias={item.dias_restantes} titulo />
       </td>
-      <td className="text-label">{ETAPA_ROTULO[item.etapa]}</td>
+      <td className="text-label">
+        {ETAPA_ROTULO[item.etapa]}
+        {item.dono !== "ninguem" && (
+          <span className="block mt-0.5">
+            <span className="etiqueta etiqueta--neutra" title="Quem faz o próximo passo">
+              <span className="sr-only">Responsável: </span>
+              {DONO_ROTULO[item.dono]}
+            </span>
+          </span>
+        )}
+      </td>
       <td>
-        <div className="flex items-center justify-end gap-1.5">
-          <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
-            Abrir
-          </Link>
-          <MenuLinha item={item} />
-        </div>
+        <AcoesLinha item={item} aoConcluir={aoConcluirAcao} />
       </td>
     </tr>
-  );
-}
-
-/**
- * Menu "⋮" da linha — o que sobra depois que "Abrir" (a ação de todo dia,
- * trabalhar o ciclo) ficou como botão visível.
- *
- * Só duas entradas de propósito. O painel já tem aba de Histórico e o menu
- * levava direto a ela, mas um atalho que só pula um clique dentro de uma tela
- * que vai abrir de qualquer jeito não paga o item a mais para ler. E "abrir em
- * tela cheia" oferecia uma segunda maneira de ver a mesma pessoa, com aparência
- * diferente — quem clicava por engano perdia a posição na fila, que é
- * justamente o que o painel existe para evitar.
- */
-function MenuLinha({ item }: { item: ItemAberto }) {
-  const { abrir: abrirPerfil } = usePerfilColaborador();
-  // Some sozinho depois de 1,5s — não depende do menu continuar aberto, então
-  // o clique fecha o menu normalmente, como qualquer outro item.
-  const [copiado, setCopiado] = useState(false);
-
-  function copiarLink() {
-    navigator.clipboard.writeText(`${window.location.origin}/qsms/item/${item.item_id}`);
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 1500);
-  }
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="btn btn--secondary btn--icone"
-          aria-label={`Mais ações — ${item.nome}`}
-          title={copiado ? "Link copiado!" : undefined}
-        >
-          <IconeReticencias />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onSelect={() => abrirPerfil(item.colaborador_id)}>
-          Ver colaborador
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={copiarLink}>Copiar link do item</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { informarDataLiberacao, type Acao } from "../../acoes";
 import { MensagemErro } from "@/components/aviso";
+import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 import { hojeIso } from "@/lib/dominio";
 import type { ItemAberto } from "@/lib/tipos";
 
@@ -16,8 +17,9 @@ function Botao() {
   );
 }
 
-export function FormularioLiberacao({ item }: { item: ItemAberto }) {
+export function FormularioLiberacao({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(informarDataLiberacao, null);
+  useAvisarConclusao(estado, aoConcluir);
 
   if (estado?.ok) {
     return (
@@ -28,8 +30,11 @@ export function FormularioLiberacao({ item }: { item: ItemAberto }) {
   }
 
   // Limite superior é o vencimento: propor data depois disso é agendar para
-  // depois do ASO já ter vencido.
-  const limite = item.data_vencimento ?? undefined;
+  // depois do ASO já ter vencido. Já vencido, não há limite que sirva — com
+  // `max` no passado e `min` hoje, nenhuma data passaria e o supervisor
+  // justamente do caso mais urgente ficaria sem como responder.
+  const hoje = hojeIso();
+  const limite = item.data_vencimento && item.data_vencimento >= hoje ? item.data_vencimento : undefined;
 
   return (
     <form action={acao} className="grid gap-4">
@@ -43,7 +48,7 @@ export function FormularioLiberacao({ item }: { item: ItemAberto }) {
           type="date"
           className="field"
           required
-          min={hojeIso()}
+          min={hoje}
           max={limite}
         />
       </div>

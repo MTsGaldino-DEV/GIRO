@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { registrarComparecimento, type Acao } from "../../acoes";
 import { MensagemErro } from "@/components/aviso";
+import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 
 function Botao({ rotulo }: { rotulo: string }) {
   const { pending } = useFormStatus();
@@ -19,10 +20,24 @@ function Botao({ rotulo }: { rotulo: string }) {
  *
  * Dois botões neutros, não um verde e um vermelho: essas cores pertencem ao
  * semáforo de conformidade. Aqui a distinção é feita pelo texto e pela ordem.
+ *
+ * `apenasFalta`: o "Registrar falta" do menu da linha do Radar. Abre direto na
+ * confirmação da falta e não oferece "Compareceu", que levaria o item para
+ * `aguardando_documento` — etapa que saiu do fluxo normal em 13/11. Quem foi ao
+ * exame segue por "Enviar à clínica" e "Registrar resultado".
  */
-export function FormularioComparecimento({ itemId }: { itemId: string }) {
+export function FormularioComparecimento({
+  itemId,
+  aoConcluir,
+  apenasFalta = false,
+}: {
+  itemId: string;
+  aoConcluir?: AoConcluir;
+  apenasFalta?: boolean;
+}) {
   const [estado, acao] = useActionState<Acao | null, FormData>(registrarComparecimento, null);
-  const [escolha, setEscolha] = useState<"sim" | "nao" | null>(null);
+  const [escolha, setEscolha] = useState<"sim" | "nao" | null>(apenasFalta ? "nao" : null);
+  useAvisarConclusao(estado, aoConcluir);
 
   if (estado?.ok) {
     return (
@@ -53,7 +68,9 @@ export function FormularioComparecimento({ itemId }: { itemId: string }) {
       <p className="text-label m-0">
         {escolha === "sim"
           ? "Confirmando que o colaborador fez o exame. O QSMS passa a cobrar o documento da clínica."
-          : "Registrando falta. O item volta para você informar uma nova data de liberação."}
+          : apenasFalta
+            ? "O item volta à supervisão para informar uma nova data de liberação."
+            : "Registrando falta. O item volta para você informar uma nova data de liberação."}
       </p>
 
       <div>
@@ -68,11 +85,13 @@ export function FormularioComparecimento({ itemId }: { itemId: string }) {
         />
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className={`grid gap-2 ${apenasFalta ? "" : "sm:grid-cols-2"}`}>
         <Botao rotulo={escolha === "sim" ? "Confirmar presença" : "Confirmar falta"} />
-        <button type="button" className="btn btn--secondary" onClick={() => setEscolha(null)}>
-          Voltar
-        </button>
+        {!apenasFalta && (
+          <button type="button" className="btn btn--secondary" onClick={() => setEscolha(null)}>
+            Voltar
+          </button>
+        )}
       </div>
 
       {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}

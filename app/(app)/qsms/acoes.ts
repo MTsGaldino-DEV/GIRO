@@ -5,7 +5,7 @@ import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { exigirOperador } from "@/lib/perfil";
 import { hojeIso } from "@/lib/dominio";
-import { enviarDocumentoAso } from "@/lib/storage";
+import { BUCKET_ASOS, enviarDocumentoAso } from "@/lib/storage";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
@@ -408,19 +408,43 @@ export async function enviarAClinica(_anterior: Acao | null, formData: FormData)
 }
 
 // ---------------------------------------------------------------------------
-// Desfecho (plano, seção 6.3).
+// Registrar resultado (spec 2026-11-13-telas-e-fluxo, seção 8; migration 0018).
 //
-// Quatro dos cinco não fecham o ciclo. Ir à clínica não é conformidade.
+// Um passo só: o desfecho e, quando é "fez e apto", o ASO. Fez e apto conclui
+// o item na hora e abre o próximo ciclo; os outros quatro não fecham o ciclo
+// (ir à clínica não é conformidade) e não levam documento — fn_registrar_resultado
+// os delega a fn_registrar_desfecho e ignoraria qualquer arquivo, então nada de
+// documento é enviado para eles.
+//
+// Substitui a antiga `registrarDesfecho`, cujo "fez e apto" ainda levava o item
+// para `aguardando_documento`, etapa que saiu do fluxo normal.
 // ---------------------------------------------------------------------------
 
-const esquemaDesfecho = z.object({
+const dataIso = (mensagem: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, mensagem);
+
+const esquemaResultado = z.object({
   item_id: z.string().uuid(),
-  desfecho: z.enum(["fez_apto", "fez_inapto", "faltou", "incompleto", "retorno_necessario"]),
+  desfecho: z.enum(["fez_apto", "fez_inapto", "faltou", "incompleto", "retorno_necessario"], {
+    message: "Escolha o que aconteceu na clínica.",
+  }),
   observacao: z.string().trim().optional(),
 });
 
+/** Só para "fez e apto". */
+const esquemaAso = z.object({
+  resultado: z.enum(["apto", "apto_com_restricao"], { message: "Escolha o resultado do ASO." }),
+  data_documento: dataIso("Informe a data do documento.").refine(
+    (d) => d <= hojeIso(),
+    "A data do documento não pode estar no futuro."
+  ),
+  data_realizado: dataIso("Data de realização inválida.")
+    .refine((d) => d <= hojeIso(), "A data de realização não pode estar no futuro.")
+    .optional(),
+  medico: z.string().trim().optional(),
+});
+
 const MENSAGEM_DESFECHO: Record<string, string> = {
-  fez_apto: "Desfecho registrado. Agora é obter o documento e lançar no GESET.",
+  fez_apto: "Resultado registrado. O ASO foi anexado e o próximo ciclo foi aberto.",
   fez_inapto:
     "Desfecho registrado. O processo está travado em tratativa de inapto e o colaborador permanece bloqueado.",
   faltou: "Desfecho registrado. O ciclo voltou ao supervisor para propor nova data.",
@@ -428,29 +452,95 @@ const MENSAGEM_DESFECHO: Record<string, string> = {
   retorno_necessario: "Desfecho registrado. O ciclo voltou ao supervisor para marcar o retorno.",
 };
 
-export async function registrarDesfecho(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+export async function registrarResultado(_anterior: Acao | null, formData: FormData): Promise<Acao> {
   await exigirOperador();
 
-  const analise = esquemaDesfecho.safeParse({
+  const base = esquemaResultado.safeParse({
     item_id: formData.get("item_id"),
     desfecho: formData.get("desfecho"),
     observacao: formData.get("observacao") || undefined,
   });
-  if (!analise.success) {
-    return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
+  if (!base.success) {
+    return { ok: false, erro: base.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+  const { item_id, desfecho, observacao } = base.data;
+  const fezApto = desfecho === "fez_apto";
+
+  // Os campos do ASO só são lidos em "fez e apto"; nos outros desfechos o que
+  // vier no formulário é descartado aqui, antes de chegar ao banco.
+  let aso: z.infer<typeof esquemaAso> | null = null;
+  let arquivo: File | null = null;
+  if (fezApto) {
+    const analise = esquemaAso.safeParse({
+      resultado: formData.get("resultado"),
+      data_documento: formData.get("data_documento"),
+      data_realizado: formData.get("data_realizado") || undefined,
+      medico: formData.get("medico") || undefined,
+    });
+    if (!analise.success) {
+      return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
+    }
+    aso = analise.data;
+
+    const enviado = formData.get("documento");
+    if (!(enviado instanceof File) || enviado.size === 0) {
+      return { ok: false, erro: "Anexe o ASO (PDF, JPG ou PNG) para registrar “fez e apto”." };
+    }
+    arquivo = enviado;
   }
 
   const supabase = await criarClienteServidor();
-  const { error } = await supabase.rpc("fn_registrar_desfecho", {
-    p_item_id: analise.data.item_id,
-    p_desfecho: analise.data.desfecho,
-    p_observacao: analise.data.observacao ?? null,
+
+  // Conferência da etapa antes de qualquer gravação. fn_registrar_resultado lê
+  // o item sem trava de linha: dois envios simultâneos de "fez e apto" podiam
+  // os dois passar e gravar dois eventos. O botão já fica desabilitado durante
+  // o envio; isto barra o segundo clique que chegue depois do primeiro concluir
+  // (o item já não está em `enviado_clinica`) antes de subir outro arquivo.
+  const { data: item } = await supabase
+    .from("itens_pendencia")
+    .select("colaborador_id, etapa")
+    .eq("id", item_id)
+    .maybeSingle();
+
+  if (!item) return { ok: false, erro: "Item não encontrado." };
+  if (item.etapa !== "enviado_clinica") {
+    return {
+      ok: false,
+      erro: "Este item já não está aguardando o resultado da clínica. Atualize a lista.",
+    };
+  }
+
+  // Upload antes de registrar, pela mesma razão de `concluirItem`: se o
+  // arquivo falhar, o item não muda de etapa.
+  let caminhoDocumento: string | null = null;
+  if (arquivo) {
+    const envio = await enviarDocumentoAso(supabase, item.colaborador_id, arquivo);
+    if (!envio.ok) return { ok: false, erro: envio.erro };
+    caminhoDocumento = envio.caminho;
+  }
+
+  const { error } = await supabase.rpc("fn_registrar_resultado", {
+    p_item_id: item_id,
+    p_desfecho: desfecho,
+    p_data_documento: aso?.data_documento ?? null,
+    p_data_realizado: aso?.data_realizado ?? null,
+    p_resultado: aso?.resultado ?? null,
+    p_medico: aso?.medico ?? null,
+    p_documento_url: caminhoDocumento,
+    p_observacoes: observacao ?? null,
   });
 
-  if (error) return { ok: false, erro: mensagemDeErro(error.message) };
+  if (error) {
+    // O banco recusou e desfez tudo; o arquivo enviado ficaria órfão no bucket.
+    if (caminhoDocumento) {
+      await supabase.storage.from(BUCKET_ASOS).remove([caminhoDocumento]);
+    }
+    return { ok: false, erro: mensagemDeErro(error.message) };
+  }
 
-  revalidarPaineis(analise.data.item_id);
-  return { ok: true, mensagem: MENSAGEM_DESFECHO[analise.data.desfecho] };
+  revalidarPaineis(item_id);
+  revalidatePath("/dashboard");
+  return { ok: true, mensagem: MENSAGEM_DESFECHO[desfecho] };
 }
 
 // ---------------------------------------------------------------------------

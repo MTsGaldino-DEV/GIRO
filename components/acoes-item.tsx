@@ -8,10 +8,11 @@ import {
   FormularioDataSupervisor,
   FormularioInformarDados,
   FormularioEnviarClinica,
-  FormularioDesfecho,
   FormularioEncerrarInapto,
   FormularioCancelar,
 } from "@/components/formularios-item";
+import { FormularioResultado } from "@/components/radar/formulario-resultado";
+import { acoesDaEtapa } from "@/lib/acoes-etapa";
 import { DESFECHO_ROTULO, formatarData, formatarDataHora } from "@/lib/dominio";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
 
@@ -142,11 +143,13 @@ export function AcoesItem({
       )}
 
       {item.etapa === "enviado_clinica" && (
+        // O mesmo formulário da janela do Radar: a ficha e a lista não podem
+        // registrar o resultado de dois jeitos diferentes.
         <Cartao
-          titulo="Registrar o desfecho"
-          descricao="Só um dos cinco desfechos encerra o ciclo. Ir à clínica não é conformidade."
+          titulo={acoesDaEtapa(item.etapa).principal?.rotulo ?? "Registrar resultado"}
+          descricao="Só “fez e apto” encerra o ciclo, e já com o ASO anexado."
         >
-          <FormularioDesfecho item={item} />
+          <FormularioResultado item={item} />
         </Cartao>
       )}
 

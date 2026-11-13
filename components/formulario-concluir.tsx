@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { concluirItem, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro, Aviso } from "@/components/aviso";
+import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 import { hojeIso } from "@/lib/dominio";
 import type { ItemAberto } from "@/lib/tipos";
 
@@ -16,8 +17,9 @@ function Botao() {
   );
 }
 
-export function FormularioConcluir({ item }: { item: ItemAberto }) {
+export function FormularioConcluir({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(concluirItem, null);
+  useAvisarConclusao(estado, aoConcluir);
   const [resultado, setResultado] = useState("apto");
 
   if (estado?.ok) {

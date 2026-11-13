@@ -73,7 +73,7 @@ export const DESFECHO_ROTULO: Record<Desfecho, string> = {
 };
 
 export const DESFECHO_CONSEQUENCIA: Record<Desfecho, string> = {
-  fez_apto: "Segue para o documento. É o único desfecho que fecha o ciclo.",
+  fez_apto: "Conclui o item na hora, com o ASO anexado. É o único desfecho que fecha o ciclo.",
   fez_inapto: "Trava o processo. O colaborador permanece bloqueado até resolução explícita.",
   faltou: "Reabre com o supervisor para propor nova data.",
   incompleto: "Reabre com o supervisor para propor nova data.",

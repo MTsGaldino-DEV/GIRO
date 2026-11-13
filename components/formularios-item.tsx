@@ -1,20 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import {
   solicitarData,
   registrarDataSupervisor,
   informarDados,
   enviarAClinica,
-  registrarDesfecho,
   encerrarInapto,
   cancelarItem,
   type Acao,
 } from "@/app/(app)/qsms/acoes";
-import { MensagemErro, Aviso } from "@/components/aviso";
-import { DESFECHO_ROTULO, DESFECHO_CONSEQUENCIA, hojeIso } from "@/lib/dominio";
-import type { Desfecho, ItemAberto } from "@/lib/tipos";
+import { MensagemErro } from "@/components/aviso";
+import { hojeIso } from "@/lib/dominio";
+import type { ItemAberto } from "@/lib/tipos";
 
 /**
  * Formulários das etapas introduzidas na Fase 1.
@@ -22,9 +21,30 @@ import type { Desfecho, ItemAberto } from "@/lib/tipos";
  * Um arquivo só porque são todos a mesma coisa — um POST curto que move o
  * processo um passo — e sete arquivos de vinte linhas custam mais para achar
  * do que para ler.
+ *
+ * Os mesmos formulários servem à ficha do item e às janelas do Radar
+ * (components/radar/botao-acao-linha.tsx). Na janela, `aoConcluir` recebe a
+ * mensagem de sucesso para fechá-la e recarregar a lista; `embutido` tira o
+ * `<details>` de quem só faz sentido recolhido na ficha.
  */
 
-function Botao({ rotulo, ocupado, variante = "primary" }: {
+export type AoConcluir = (mensagem: string) => void;
+
+/**
+ * Avisa quem abriu o formulário quando a ação deu certo. Uma vez por
+ * resposta: se `aoConcluir` mudar de identidade depois, o mesmo sucesso não
+ * é anunciado (nem a lista recarregada) de novo.
+ */
+export function useAvisarConclusao(estado: Acao | null, aoConcluir?: AoConcluir) {
+  const avisado = useRef<Acao | null>(null);
+  useEffect(() => {
+    if (!estado?.ok || avisado.current === estado) return;
+    avisado.current = estado;
+    aoConcluir?.(estado.mensagem);
+  }, [estado, aoConcluir]);
+}
+
+export function Botao({ rotulo, ocupado, variante = "primary" }: {
   rotulo: string;
   ocupado: string;
   variante?: "primary" | "secondary";
@@ -38,7 +58,7 @@ function Botao({ rotulo, ocupado, variante = "primary" }: {
 }
 
 /** Sucesso vira texto: o item já mudou de etapa e o formulário não serve mais. */
-function Concluido({ mensagem }: { mensagem: string }) {
+export function Concluido({ mensagem }: { mensagem: string }) {
   return (
     <p role="status" className="text-label m-0">
       {mensagem}
@@ -50,8 +70,9 @@ function Concluido({ mensagem }: { mensagem: string }) {
 // Passo 2 · solicitar a data ao supervisor
 // ---------------------------------------------------------------------------
 
-export function FormularioSolicitarData({ item }: { item: ItemAberto }) {
+export function FormularioSolicitarData({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(solicitarData, null);
+  useAvisarConclusao(estado, aoConcluir);
   if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
 
   return (
@@ -91,8 +112,9 @@ export function FormularioSolicitarData({ item }: { item: ItemAberto }) {
 // Passo 3 · registrar a data proposta pelo supervisor
 // ---------------------------------------------------------------------------
 
-export function FormularioDataSupervisor({ item }: { item: ItemAberto }) {
+export function FormularioDataSupervisor({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(registrarDataSupervisor, null);
+  useAvisarConclusao(estado, aoConcluir);
   if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
 
   return (
@@ -150,8 +172,9 @@ export function FormularioDataSupervisor({ item }: { item: ItemAberto }) {
 // Passo 5 · informar clínica, horário e orientações ao supervisor
 // ---------------------------------------------------------------------------
 
-export function FormularioInformarDados({ item }: { item: ItemAberto }) {
+export function FormularioInformarDados({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(informarDados, null);
+  useAvisarConclusao(estado, aoConcluir);
   if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
 
   return (
@@ -185,8 +208,9 @@ export function FormularioInformarDados({ item }: { item: ItemAberto }) {
 // Passo 6 · colaborador enviado à clínica
 // ---------------------------------------------------------------------------
 
-export function FormularioEnviarClinica({ item }: { item: ItemAberto }) {
+export function FormularioEnviarClinica({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(enviarAClinica, null);
+  useAvisarConclusao(estado, aoConcluir);
   if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
 
   return (
@@ -209,108 +233,55 @@ export function FormularioEnviarClinica({ item }: { item: ItemAberto }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Passo 7 · desfecho
-//
-// Os cinco desfechos aparecem como rádio, com a consequência escrita ao lado.
-// Uma lista suspensa esconderia justamente o que precisa ser lido antes de
-// escolher: quatro dos cinco NÃO encerram o ciclo.
-// ---------------------------------------------------------------------------
-
-const DESFECHOS: Desfecho[] = [
-  "fez_apto",
-  "fez_inapto",
-  "faltou",
-  "incompleto",
-  "retorno_necessario",
-];
-
-export function FormularioDesfecho({ item }: { item: ItemAberto }) {
-  const [estado, acao] = useActionState<Acao | null, FormData>(registrarDesfecho, null);
-  const [escolhido, setEscolhido] = useState<Desfecho>("fez_apto");
-
-  if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
-
-  return (
-    <form action={acao} className="grid gap-4">
-      <input type="hidden" name="item_id" value={item.item_id} />
-
-      <fieldset className="border-0 p-0 m-0 grid gap-2">
-        <legend className="label mb-1">O que aconteceu na clínica</legend>
-        {DESFECHOS.map((d) => (
-          <label key={d} className="flex items-start gap-2.5 text-label">
-            <input
-              type="radio"
-              name="desfecho"
-              value={d}
-              className="size-4 mt-0.5 shrink-0"
-              checked={escolhido === d}
-              onChange={() => setEscolhido(d)}
-            />
-            <span>
-              <span className="font-medium">{DESFECHO_ROTULO[d]}</span>
-              <span className="block text-caption text-ink-faint">
-                {DESFECHO_CONSEQUENCIA[d]}
-              </span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-
-      {escolhido === "fez_inapto" && (
-        <Aviso tom="forte" titulo="Inapto trava o processo">
-          O item entra em tratativa e não sai por fluxo normal. Não atualiza a
-          validade, não abre ciclo novo, e o colaborador continua bloqueado no
-          painel até alguém resolver o caso explicitamente.
-        </Aviso>
-      )}
-
-      <div>
-        <label className="label" htmlFor="observacao-desfecho">Observação</label>
-        <input
-          id="observacao-desfecho"
-          name="observacao"
-          className="field"
-          placeholder="Opcional — fica no histórico"
-        />
-      </div>
-
-      <div className="flex items-center gap-3 flex-wrap">
-        <Botao rotulo="Registrar desfecho" ocupado="Registrando…" />
-        {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
-      </div>
-    </form>
-  );
-}
+// Passo 7 · o desfecho e o ASO num passo só: components/radar/formulario-resultado.tsx.
 
 // ---------------------------------------------------------------------------
 // 6.4 · encerrar a tratativa de inapto
 // ---------------------------------------------------------------------------
 
-export function FormularioEncerrarInapto({ item }: { item: ItemAberto }) {
+export function FormularioEncerrarInapto({
+  item,
+  aoConcluir,
+  embutido = false,
+}: {
+  item: ItemAberto;
+  aoConcluir?: AoConcluir;
+  embutido?: boolean;
+}) {
   const [estado, acao] = useActionState<Acao | null, FormData>(encerrarInapto, null);
+  useAvisarConclusao(estado, aoConcluir);
   if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
+
+  const formulario = (
+    <form action={acao} className={`grid gap-3 ${embutido ? "" : "mt-4"}`}>
+      <input type="hidden" name="item_id" value={item.item_id} />
+      <p className="text-label text-ink-muted m-0 max-w-[62ch]">
+        O procedimento formal de resolução ainda não foi definido com o QSMS.
+        Encerrar aqui só fecha este item e registra o motivo — não torna o
+        colaborador apto nem o dispensa. Se houve novo exame, gere um item
+        novo; se foi dispensa, inative o colaborador no cadastro.
+      </p>
+      <div>
+        <label className="label" htmlFor="resolucao">Como o caso foi resolvido</label>
+        <textarea id="resolucao" name="resolucao" className="field" rows={2} required minLength={5} />
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <Botao
+          rotulo="Encerrar tratativa"
+          ocupado="Encerrando…"
+          variante={embutido ? "primary" : "secondary"}
+        />
+        {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+      </div>
+    </form>
+  );
+
+  if (embutido) return formulario;
 
   return (
     <details className="card">
       <summary className="cursor-pointer text-label">Encerrar a tratativa</summary>
-      <form action={acao} className="grid gap-3 mt-4">
-        <input type="hidden" name="item_id" value={item.item_id} />
-        <p className="text-label text-ink-muted m-0 max-w-[62ch]">
-          O procedimento formal de resolução ainda não foi definido com o QSMS.
-          Encerrar aqui só fecha este item e registra o motivo — não torna o
-          colaborador apto nem o dispensa. Se houve novo exame, gere um item
-          novo; se foi dispensa, inative o colaborador no cadastro.
-        </p>
-        <div>
-          <label className="label" htmlFor="resolucao">Como o caso foi resolvido</label>
-          <textarea id="resolucao" name="resolucao" className="field" rows={2} required minLength={5} />
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Botao rotulo="Encerrar tratativa" ocupado="Encerrando…" variante="secondary" />
-          {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
-        </div>
-      </form>
+      {formulario}
     </details>
   );
 }
@@ -319,31 +290,46 @@ export function FormularioEncerrarInapto({ item }: { item: ItemAberto }) {
 // Cancelamento administrativo
 // ---------------------------------------------------------------------------
 
-export function FormularioCancelar({ itemId }: { itemId: string }) {
+export function FormularioCancelar({
+  itemId,
+  aoConcluir,
+  embutido = false,
+}: {
+  itemId: string;
+  aoConcluir?: AoConcluir;
+  embutido?: boolean;
+}) {
   const [estado, acao] = useActionState<Acao | null, FormData>(cancelarItem, null);
+  useAvisarConclusao(estado, aoConcluir);
   if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
+
+  const formulario = (
+    <form action={acao} className={`grid gap-3 ${embutido ? "" : "mt-4"}`}>
+      <input type="hidden" name="item_id" value={itemId} />
+      <div>
+        <label className="label" htmlFor="motivo-cancelamento">Motivo</label>
+        <input
+          id="motivo-cancelamento"
+          name="motivo"
+          className="field"
+          required
+          minLength={5}
+          placeholder="Ex.: colaborador desligado"
+        />
+      </div>
+      <div className="flex items-center gap-3 flex-wrap">
+        <Botao rotulo="Cancelar item" ocupado="Cancelando…" variante="secondary" />
+        {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+      </div>
+    </form>
+  );
+
+  if (embutido) return formulario;
 
   return (
     <details className="card">
       <summary className="cursor-pointer text-label">Cancelar este item</summary>
-      <form action={acao} className="grid gap-3 mt-4">
-        <input type="hidden" name="item_id" value={itemId} />
-        <div>
-          <label className="label" htmlFor="motivo-cancelamento">Motivo</label>
-          <input
-            id="motivo-cancelamento"
-            name="motivo"
-            className="field"
-            required
-            minLength={5}
-            placeholder="Ex.: colaborador desligado"
-          />
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Botao rotulo="Cancelar item" ocupado="Cancelando…" variante="secondary" />
-          {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
-        </div>
-      </form>
+      {formulario}
     </details>
   );
 }

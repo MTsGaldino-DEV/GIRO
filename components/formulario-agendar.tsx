@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { agendarItem, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro } from "@/components/aviso";
+import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 import { hojeIso } from "@/lib/dominio";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
 
@@ -19,11 +20,14 @@ function Botao() {
 export function FormularioAgendar({
   item,
   clinicas = [],
+  aoConcluir,
 }: {
   item: ItemAberto;
   clinicas?: Clinica[];
+  aoConcluir?: AoConcluir;
 }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(agendarItem, null);
+  useAvisarConclusao(estado, aoConcluir);
 
   if (estado?.ok) {
     return (
