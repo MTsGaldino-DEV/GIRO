@@ -25,8 +25,8 @@ export const STATUS_CLASSE: Record<StatusConformidade, string> = {
 };
 
 export const STATUS_LEITURA: Record<StatusConformidade, string> = {
-  ok: "Vence em mais de 60 dias.",
-  programar: "Entre 60 e 31 dias. É hora de programar a liberação.",
+  ok: "Vence em mais de 90 dias.",
+  programar: "Entre 90 e 31 dias. É hora de programar a liberação.",
   atencao: "Entre 30 e 15 dias. A programação está atrasada.",
   critico: "Menos de 15 dias. Risco real de parar equipe.",
   vencido: "ASO vencido. O colaborador não pode trabalhar.",

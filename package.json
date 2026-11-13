@@ -12,6 +12,7 @@
     "db:push": "node scripts/db-push.mjs",
     "seed:teste": "node scripts/seed-teste.mjs",
     "teste:permissoes": "node scripts/teste-permissoes.mjs",
+    "teste:semaforo": "node scripts/teste-semaforo.mjs",
     "importar": "node scripts/importar-ativos.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
