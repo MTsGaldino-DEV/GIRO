@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import {
   buscarPaginaItens,
+  contarItensPorEtapa,
   filtrosParaBusca,
   COLUNAS_ORDENAVEIS,
   ehChaveOrdenacao,
@@ -15,6 +16,7 @@ import {
   type FiltrosPainel,
   type PaginaItens,
 } from "@/lib/consulta-itens";
+import { entradasDaFaixa } from "@/lib/acoes-etapa";
 import { BUCKET_FOTOS } from "@/lib/storage";
 import {
   ETAPA_ROTULO,
@@ -24,18 +26,21 @@ import {
   formatarData,
   avisoJanelaUtil,
 } from "@/lib/dominio";
-import { SeloStatus, CartaoContagem } from "@/components/selo-status";
+import { SeloStatus } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
 import { Info } from "@/components/info";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { IconeBusca } from "@/components/icones";
 import { AcoesLinha } from "@/components/radar/botao-acao-linha";
+import { FaixaParaVoce } from "@/components/radar/faixa-para-voce";
 import type { AoConcluir } from "@/components/formularios-item";
-import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } from "@/lib/tipos";
+import type { Etapa, ItemAberto, Papel, StatusConformidade, Supervisor } from "@/lib/tipos";
 
 /** O que `GradeItens` precisa saber de quem está olhando, já resolvido no servidor. */
 export interface EscopoRadar {
+  /** Papel de quem olha: decide quais filas a faixa "Para você agir" mostra. */
+  papel: Papel;
   equipePadrao: Equipe;
   /** `supervisor_id` do perfil logado; null = sem equipe vinculada. */
   supervisorId: string | null;
@@ -68,7 +73,7 @@ export function GradeItens({
   supervisores,
   polos,
   requisitos,
-  resumo,
+  contagensIniciais,
   escopo,
 }: {
   inicial: PaginaItens;
@@ -77,12 +82,14 @@ export function GradeItens({
   supervisores: Supervisor[];
   polos: string[];
   requisitos: string[];
-  resumo: ResumoStatus | null;
+  /** Contagens da faixa "Para você agir" por etapa, calculadas no servidor. */
+  contagensIniciais: Record<string, number>;
   escopo: EscopoRadar;
 }) {
   const [filtros, setFiltros] = useState<FiltrosPainel>(filtrosIniciais);
   const [pagina, setPagina] = useState<PaginaItens>(inicial);
   const [fotos, setFotos] = useState<Record<string, string>>(fotosIniciais);
+  const [contagens, setContagens] = useState<Record<string, number>>(contagensIniciais);
   const [carregando, startTransition] = useTransition();
 
   // A primeira renderização já tem os dados do servidor; buscar de novo seria
@@ -114,6 +121,34 @@ export function GradeItens({
     for (const f of data ?? []) if (f.signedUrl && f.path) mapa[f.path] = f.signedUrl;
     setFotos(mapa);
   }, [escopo.supervisorId]);
+
+  // Contagens da faixa: mesma regra e mesmo escopo da lista (ver
+  // `contarItensPorEtapa`). Roda quando o escopo muda e depois de cada ação.
+  const requisicaoContagem = useRef(0);
+  const atualizarContagens = useCallback(
+    async (equipe: Equipe) => {
+      const meu = ++requisicaoContagem.current;
+      const etapas = entradasDaFaixa(escopo.papel).map((e) => e.etapa);
+      const novas = await contarItensPorEtapa(
+        criarClienteNavegador(),
+        etapas,
+        equipe,
+        escopo.supervisorId
+      );
+      if (meu === requisicaoContagem.current) setContagens(novas);
+    },
+    [escopo.papel, escopo.supervisorId]
+  );
+
+  const equipeAtual = filtros.equipe ?? escopo.equipePadrao;
+  const primeiraContagem = useRef(true);
+  useEffect(() => {
+    if (primeiraContagem.current) {
+      primeiraContagem.current = false;
+      return;
+    }
+    void atualizarContagens(equipeAtual);
+  }, [equipeAtual, atualizarContagens]);
 
   useEffect(() => {
     if (primeiraRenderizacao.current) {
@@ -179,7 +214,8 @@ export function GradeItens({
   // Depois de uma ação da linha: a mensagem do servidor fica acima da lista,
   // a página atual é consultada de novo (o item mudou de etapa ou saiu) e o
   // `router.refresh()` atualiza o que vem do servidor — contagens do topo e a
-  // faixa da base. Os filtros vão por ref para o callback ser estável: ele
+  // faixa da base; as contagens da faixa "Para você agir" são refeitas junto.
+  // Os filtros vão por ref para o callback ser estável: ele
   // desce até os formulários, que avisam a conclusão num efeito.
   const router = useRouter();
   const [avisoAcao, setAvisoAcao] = useState<string | null>(null);
@@ -209,43 +245,22 @@ export function GradeItens({
       router.refresh();
       startTransition(() => {
         void buscar(filtrosAtuais.current);
+        void atualizarContagens(filtrosAtuais.current.equipe ?? escopo.equipePadrao);
       });
     },
-    [buscar, router]
+    [buscar, atualizarContagens, router, escopo.equipePadrao]
   );
 
   return (
     <>
-      {resumo && (
-        <>
-          <h2 className="sr-only">Contagem por status</h2>
-          <div className="grid gap-3 mb-5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-            {ORDEM_STATUS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="cartao-contagem-botao"
-                aria-pressed={filtros.status === s}
-                onClick={() =>
-                  setFiltros((f) => ({
-                    // Clicar no status já ativo desliga o filtro: o cartão é um
-                    // interruptor, não um caminho só de ida.
-                    ...f,
-                    status: f.status === s ? undefined : s,
-                    pagina: undefined,
-                  }))
-                }
-              >
-                <CartaoContagem
-                  status={s}
-                  quantidade={Number(resumo[s as keyof ResumoStatus] ?? 0)}
-                  ativo={filtros.status === s}
-                />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      <FaixaParaVoce
+        papel={escopo.papel}
+        contagens={contagens}
+        etapaAtiva={filtros.etapa}
+        // Mesmo caminho do seletor "Etapa": o filtro vai para o estado, a URL
+        // acompanha e a lista é consultada de novo, sem recarregar a página.
+        aoEscolher={(etapa) => mudarFiltro("etapa", etapa ?? "")}
+      />
 
       <Filtros
         filtros={filtros}

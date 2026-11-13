@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ItemAberto, Perfil } from "./tipos";
+import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
+import type { Etapa, ItemAberto, Perfil } from "./tipos";
 
 /** Colunas que aceitam ordenação, e como cada uma vira ORDER BY na consulta. */
 export const COLUNAS_ORDENAVEIS = {
@@ -48,6 +49,31 @@ export interface FiltrosPainel {
 }
 
 /**
+ * Regras do Radar que valem para a lista e para as contagens da faixa "Para
+ * você agir": entrada (vencidos e sem registro sempre; os demais, até 90 dias;
+ * cancelados fora) e escopo da equipe. Um lugar só, para a contagem da faixa
+ * nunca divergir do total da lista.
+ *
+ * Aplicada só aqui (a view segue intacta para as outras telas). `.or()`
+ * repetido vira AND no PostgREST, então combina com o `.or()` da busca por
+ * matrícula.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function aplicarRegrasRadar<Q extends PostgrestFilterBuilder<any, any, any, any, any, any, any>>(
+  consulta: Q,
+  filtros: Pick<FiltrosPainel, "equipe">,
+  supervisorIdPerfil: string | null
+): Q {
+  let q = consulta.neq("etapa", "cancelado").or(`status.in.(sem_registro,vencido),dias_restantes.lte.${DIAS_RADAR}`);
+
+  // Escopo "minha equipe": o vínculo vem do perfil de quem consulta.
+  if (filtros.equipe === "minha") {
+    q = q.eq("supervisor_id", supervisorIdPerfil ?? NENHUM_SUPERVISOR);
+  }
+  return q as Q;
+}
+
+/**
  * Monta a consulta do painel a partir dos filtros.
  *
  * Um lugar só porque a mesma consulta roda dos dois lados: no servidor para a
@@ -63,20 +89,11 @@ export function montarConsultaItens(
   filtros: FiltrosPainel,
   supervisorIdPerfil: string | null = null
 ) {
-  let consulta = supabase.from("vw_itens_abertos").select("*", { count: "exact" });
-
-  // Regra de entrada do Radar, aplicada só aqui (a view segue intacta para as
-  // outras telas): vencidos e sem registro sempre; os demais, até 90 dias.
-  // Cancelados não são trabalho em aberto. `.or()` repetido vira AND no
-  // PostgREST, então combina com o `.or()` da busca por matrícula.
-  consulta = consulta
-    .neq("etapa", "cancelado")
-    .or(`status.in.(sem_registro,vencido),dias_restantes.lte.${DIAS_RADAR}`);
-
-  // Escopo "minha equipe": o vínculo vem do perfil de quem consulta.
-  if (filtros.equipe === "minha") {
-    consulta = consulta.eq("supervisor_id", supervisorIdPerfil ?? NENHUM_SUPERVISOR);
-  }
+  let consulta = aplicarRegrasRadar(
+    supabase.from("vw_itens_abertos").select("*", { count: "exact" }),
+    filtros,
+    supervisorIdPerfil
+  );
 
   const ordem = ehChaveOrdenacao(filtros.ordem) ? filtros.ordem : null;
   const direcao = filtros.dir === "desc" ? "desc" : "asc";
@@ -170,4 +187,36 @@ export function filtrosParaBusca(filtros: FiltrosPainel, equipeDoPadrao?: Equipe
     if (valor) busca.set(chave, String(valor));
   }
   return busca.toString();
+}
+
+/**
+ * Quantos itens do Radar há em cada etapa, no escopo da equipe dado. Mesma
+ * regra de entrada e de escopo da lista (`aplicarRegrasRadar`), só que sem
+ * trazer linhas: `head: true` devolve apenas o total. Os demais filtros da
+ * lista (busca, requisito etc.) não entram: a faixa mostra o trabalho do
+ * papel, e o total da lista bate com ela quando só a etapa está aplicada.
+ *
+ * Supervisor sem vínculo olhando a própria equipe: tudo zero, sem consultar.
+ * Erro numa etapa vira 0 naquela etapa; a lista logo abaixo já avisa falhas.
+ */
+export async function contarItensPorEtapa(
+  supabase: SupabaseClient,
+  etapas: readonly Etapa[],
+  equipe: Equipe,
+  supervisorIdPerfil: string | null
+): Promise<Record<string, number>> {
+  const zerado = Object.fromEntries(etapas.map((e) => [e, 0]));
+  if (equipe === "minha" && !supervisorIdPerfil) return zerado;
+
+  const contagens = await Promise.all(
+    etapas.map(async (etapa) => {
+      const { count } = await aplicarRegrasRadar(
+        supabase.from("vw_itens_abertos").select("item_id", { count: "exact", head: true }),
+        { equipe },
+        supervisorIdPerfil
+      ).eq("etapa", etapa);
+      return [etapa, count ?? 0] as const;
+    })
+  );
+  return Object.fromEntries(contagens);
 }

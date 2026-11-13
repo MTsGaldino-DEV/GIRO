@@ -2,16 +2,18 @@ import type { Metadata } from "next";
 import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GradeItens } from "@/components/grade-itens";
-import { assinarFotos, obterResumoStatus, obterPolos } from "@/lib/colaborador";
+import { assinarFotos, obterPolos } from "@/lib/colaborador";
 import {
   buscarPaginaItens,
+  contarItensPorEtapa,
   equipePadrao,
   resolverEquipe,
   type FiltrosPainel,
 } from "@/lib/consulta-itens";
+import { entradasDaFaixa } from "@/lib/acoes-etapa";
 import { BotaoGerarItens } from "./gerar-itens";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
-import type { ResumoStatus, Supervisor } from "@/lib/tipos";
+import type { Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Radar" };
 export const dynamic = "force-dynamic";
@@ -39,12 +41,17 @@ export default async function Radar({
 
   const supabase = await criarClienteServidor();
 
-  // Três consultas independentes entre si, disparadas juntas. Os polos ficavam
-  // por último, no fim da fila, esperando itens e fotos que não têm nada a ver
-  // com eles — 38 ms de espera pura, medidos. O resumo vem de `cache()`, então
-  // aqui reaproveita o que o layout já pediu em vez de repetir a RPC.
-  const [resumo, { data: supervisoresBrutos }, polos, { data: tipos }] = await Promise.all([
-    obterResumoStatus(),
+  // Consultas independentes entre si, disparadas juntas. Os polos ficavam por
+  // último, no fim da fila, esperando itens e fotos que não têm nada a ver com
+  // eles — 38 ms de espera pura, medidos. As contagens da faixa "Para você
+  // agir" entram aqui pelo mesmo motivo: o HTML já chega com os números.
+  const [contagensIniciais, { data: supervisoresBrutos }, polos, { data: tipos }] = await Promise.all([
+    contarItensPorEtapa(
+      supabase,
+      entradasDaFaixa(perfil.papel).map((e) => e.etapa),
+      filtros.equipe ?? padrao,
+      perfil.supervisor_id
+    ),
     supabase.from("supervisores").select("id, nome, email, ativo").order("nome"),
     obterPolos(),
     supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
@@ -75,8 +82,9 @@ export default async function Radar({
         supervisores={supervisores}
         polos={polos}
         requisitos={(tipos ?? []).map((t) => t.nome as string)}
-        resumo={resumo}
+        contagensIniciais={contagensIniciais}
         escopo={{
+          papel: perfil.papel,
           equipePadrao: padrao,
           supervisorId: perfil.supervisor_id,
           // QSMS/admin sem vínculo não têm "equipe" para escolher.

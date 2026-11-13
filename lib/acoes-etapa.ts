@@ -79,6 +79,35 @@ const SECUNDARIAS: Record<Etapa, IdAcao[]> = {
   cancelado: [...CONSULTA],
 };
 
+/**
+ * Faixa "Para você agir" no topo do Radar: as filas em que cada papel é o
+ * dono do próximo passo. O supervisor é decidido na spec (seção 7, 13/11); a
+ * do QSMS é palpite da spec, a confirmar com Matheus. `aguardando_documento`
+ * fica fora: a etapa saiu do fluxo normal em 13/11.
+ */
+export type PapelFaixa = "supervisor" | "qsms";
+export type EntradaFaixa = { etapa: Etapa; rotulo: string };
+
+export const FAIXA_PARA_AGIR: Record<PapelFaixa, readonly EntradaFaixa[]> = {
+  supervisor: [
+    { etapa: "data_solicitada", rotulo: "Informar data" },
+    { etapa: "enviado_clinica", rotulo: "Registrar resultado" },
+  ],
+  qsms: [
+    { etapa: "previsto", rotulo: "Pedir data" },
+    { etapa: "data_proposta", rotulo: "Agendar" },
+    { etapa: "inapto_em_tratativa", rotulo: "Tratativa" },
+    { etapa: "agendado", rotulo: "Enviar à clínica" },
+  ],
+};
+
+/** Admin opera como QSMS. Papel desconhecido: faixa vazia. */
+export function entradasDaFaixa(papel: string): EntradaFaixa[] {
+  const chave: PapelFaixa | null =
+    papel === "supervisor" ? "supervisor" : papel === "qsms" || papel === "admin" ? "qsms" : null;
+  return chave ? FAIXA_PARA_AGIR[chave].map((e) => ({ ...e })) : [];
+}
+
 function acao(id: IdAcao): AcaoLinha {
   return { id, rotulo: ROTULO[id] };
 }

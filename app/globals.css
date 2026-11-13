@@ -468,21 +468,61 @@ a {
   color: var(--color-brand);
 }
 
-/* Cartão de contagem: é um filtro clicável, então precisa responder ao mouse
-   e mostrar qual está aplicado. Petróleo lavado, nunca a cor do status que o
-   cartão conta — senão o cartão compete com o próprio selo que ele exibe. */
-.cartao-contagem {
-  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), transform var(--duracao-media) var(--ease-giro), box-shadow var(--duracao-media) var(--ease-giro);
+/* Faixa "Para você agir" do Radar: cada entrada é um interruptor do filtro de
+   etapa. Petróleo e grafite, nunca a cor de status. Zero fica apagado, não some. */
+.faixa-agir {
+  padding: 0.75rem 1rem;
 }
-.cartao-contagem:hover {
+.faixa-agir__titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.faixa-agir__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 42px;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-label);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro);
+}
+.faixa-agir__item:hover {
   border-color: var(--color-brand);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-media);
 }
-.cartao-contagem[data-ativo="true"] {
+.faixa-agir__item[aria-pressed="true"] {
   border-color: var(--color-brand);
   background: var(--color-brand-wash);
   box-shadow: inset 0 0 0 1px var(--color-brand);
+}
+.faixa-agir__item[data-vazio="true"] {
+  color: var(--color-ink-muted);
+  background: var(--color-mist);
+}
+.faixa-agir__numero {
+  min-width: 1.5rem;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-brand);
+  color: #FFFFFF;
+  text-align: center;
+  font-weight: 600;
+}
+.faixa-agir__item[data-vazio="true"] .faixa-agir__numero {
+  background: transparent;
+  color: var(--color-ink-muted);
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
 }
 
 /* Abas da página do colaborador.
@@ -1243,20 +1283,6 @@ span.rosca__marca { animation: none; }
 @keyframes esqueleto-brilho {
   0%   { background-position: 100% 50%; }
   100% { background-position: 0 50%; }
-}
-
-/* Cartão de contagem como filtro: o botão só carrega o clique, sem trazer
-   aparência própria — o visual continua todo no CartaoContagem. */
-.cartao-contagem-botao {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
 }
 
 /* --------------------------------------------------------------------------
