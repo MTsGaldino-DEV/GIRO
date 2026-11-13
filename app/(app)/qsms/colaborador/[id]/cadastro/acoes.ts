@@ -212,10 +212,11 @@ const ESQUEMAS: Record<CampoColaborador, z.ZodType> = {
  *
  * A lista fechada `CAMPOS_COLABORADOR` é a barreira: sem ela, o `campo` que
  * chega do formulário escreveria qualquer coluna da tabela — `ativo`,
- * `foto_url`, `id`. Cada campo declara também quem pode escrevê-lo, e é isso
- * que separa a identidade (só admin, porque trocar matrícula reaponta ASOs,
- * itens e histórico de uma pessoa para outra) da lotação (o QSMS mexe todo
- * dia).
+ * `foto_url`, `id`. Qualquer operador (admin, QSMS ou supervisor) edita
+ * qualquer campo da lista; é a RLS (`colaboradores_escrita_operador`) e o
+ * `exigirOperador()` abaixo que barram quem não é operador. Trocar a matrícula
+ * reaponta ASOs, itens e histórico, por isso toda alteração fica na trilha,
+ * com o valor anterior.
  *
  * Salvar campo a campo custa uma coisa: não existe mais "cancelar tudo". Cada
  * confirmação já gravou. Para cadastro é o comportamento certo — corrigir o
@@ -276,6 +277,7 @@ export async function salvarCampo(_anterior: Acao | null, formData: FormData): P
 
   revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
   revalidatePath("/radar");
+  revalidatePath("/colaboradores");
   revalidatePath("/qsms/base");
   return { ok: true, mensagem: `${definicao.rotulo} atualizado.` };
 }
@@ -363,6 +365,10 @@ async function textoDaMudanca(
  * filtram por `ativo = true`, então um desligado sai do semáforo e para de
  * gerar pendência — ninguém é cobrado por quem não trabalha mais aqui.
  * Reativar devolve tudo, sem perda.
+ *
+ * Aberta a qualquer operador (admin, QSMS ou supervisor), como o resto do
+ * cadastro; a RLS e o `exigirOperador()` barram quem não é operador. Também é
+ * chamada pelo botão "Reativar" da lista de Colaboradores (situação Desligados).
  */
 export async function alternarAtivo(_anterior: Acao | null, formData: FormData): Promise<Acao> {
   await exigirOperador();
@@ -389,6 +395,7 @@ export async function alternarAtivo(_anterior: Acao | null, formData: FormData):
 
   revalidatePath(`/qsms/colaborador/${id}`, "layout");
   revalidatePath("/radar");
+  revalidatePath("/colaboradores");
   revalidatePath("/qsms/base");
   return { ok: true, mensagem: ativo ? "Colaborador reativado." : "Colaborador desligado." };
 }

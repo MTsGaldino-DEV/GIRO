@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Cadastro" };
 export const dynamic = "force-dynamic";
 
 export default async function AbaCadastro({ params }: { params: Promise<{ id: string }> }) {
-  const perfil = await exigirOperador();
+  await exigirOperador();
   const { id } = await params;
 
   const colaborador = await carregarColaborador(id);
@@ -27,7 +27,6 @@ export default async function AbaCadastro({ params }: { params: Promise<{ id: st
       <FichaCadastro
         colaborador={colaborador}
         supervisores={(supervisoresBrutos ?? []) as Supervisor[]}
-        papel={perfil.papel}
       />
 
       <div className="card">
@@ -38,17 +37,15 @@ export default async function AbaCadastro({ params }: { params: Promise<{ id: st
         <EnvioFoto colaboradorId={id} nome={colaborador.nome} fotoUrl={fotoUrl} />
       </div>
 
-      {perfil.papel === "admin" && (
-        <div className="card">
-          <h3 className="mb-1">Quadro</h3>
-          <p className="text-ink-muted text-label mb-4">
-            {colaborador.ativo
-              ? "Colaborador ativo: entra no semáforo e gera pendência de ASO."
-              : "Colaborador desligado."}
-          </p>
-          <BotaoDesligar colaborador={colaborador} />
-        </div>
-      )}
+      <div className="card">
+        <h3 className="mb-1">Quadro</h3>
+        <p className="text-ink-muted text-label mb-4">
+          {colaborador.ativo
+            ? "Colaborador ativo: entra no semáforo e gera pendência de ASO."
+            : "Colaborador desligado."}
+        </p>
+        <BotaoDesligar colaborador={colaborador} />
+      </div>
     </div>
   );
 }

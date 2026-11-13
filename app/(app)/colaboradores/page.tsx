@@ -1,7 +1,67 @@
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { exigirOperador } from "@/lib/perfil";
+import { criarClienteServidor } from "@/lib/supabase/server";
+import { assinarFotos } from "@/lib/colaborador";
+import { carregarColaboradores } from "@/lib/consulta-colaboradores";
+import {
+  consultarColaboradores,
+  equipePadrao,
+  normalizarFiltros,
+  podeEscolherMinha,
+  type ParametrosUrl,
+} from "@/lib/regras-colaboradores";
+import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { ListaColaboradores } from "@/components/colaboradores/lista";
 
-// Provisório: a lista de colaboradores é construída na Task 13. Até lá, /colaboradores
-// (já no menu) leva ao Radar para não cair em 404.
-export default function Colaboradores() {
-  redirect("/radar");
+export const metadata: Metadata = { title: "Colaboradores" };
+export const dynamic = "force-dynamic";
+
+/**
+ * Lista única de colaboradores da UEN, para qualquer operador (spec, seção 9).
+ *
+ * Lê as ~250 pessoas uma vez e entrega à lista, que filtra e pagina no
+ * navegador. O supervisor com equipe vinculada abre em "Minha equipe" e pode
+ * tirar o filtro; os demais abrem em "Todos". As fotos da primeira página vêm
+ * assinadas daqui, para o HTML já chegar com elas.
+ */
+export default async function Colaboradores({
+  searchParams,
+}: {
+  searchParams: Promise<ParametrosUrl>;
+}) {
+  const perfil = await exigirOperador();
+  const filtros = normalizarFiltros(await searchParams, perfil);
+
+  const supabase = await criarClienteServidor();
+  const [dados, { data: supervisoresBrutos }, { data: tipos }] = await Promise.all([
+    carregarColaboradores(supabase),
+    supabase.from("supervisores").select("id, nome").order("nome"),
+    supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
+  ]);
+
+  const primeira = consultarColaboradores(dados, filtros, perfil.supervisor_id);
+  const urlPorCaminho = await assinarFotos(primeira.linhas.map((l) => l.foto_url));
+
+  return (
+    <div>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Operação" }, { rotulo: "Colaboradores" }]}
+        titulo="Colaboradores"
+        descricao="Quem trabalha na UEN, com o pior status de cada pessoa. Abra o nome para ver o perfil."
+      />
+
+      <ListaColaboradores
+        dados={dados}
+        filtrosIniciais={filtros}
+        fotosIniciais={Object.fromEntries(urlPorCaminho)}
+        supervisores={(supervisoresBrutos ?? []) as { id: string; nome: string }[]}
+        requisitos={(tipos ?? []).map((t) => t.nome as string)}
+        escopo={{
+          equipePadrao: equipePadrao(perfil),
+          supervisorId: perfil.supervisor_id,
+          podeEscolherMinha: podeEscolherMinha(perfil),
+        }}
+      />
+    </div>
+  );
 }

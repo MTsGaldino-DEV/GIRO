@@ -16,7 +16,7 @@ export type AbaPerfil = (typeof ABAS_PERFIL)[number]["chave"];
 interface EstadoPerfil {
   colaboradorId: string | null;
   aba: AbaPerfil;
-  /** Papel do usuário logado, para decidir o que a aba Cadastro deixa editar. */
+  /** Papel do usuário logado, para decidir as ações da linha do Radar. */
   papel: Papel;
   abrir: (colaboradorId: string, aba?: AbaPerfil) => void;
   trocarAba: (aba: AbaPerfil) => void;

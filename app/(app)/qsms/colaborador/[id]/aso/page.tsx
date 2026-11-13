@@ -29,8 +29,7 @@ interface EventoLinha {
 }
 
 export default async function AbaAso({ params }: { params: Promise<{ id: string }> }) {
-  const perfil = await exigirOperador();
-  const ehAdmin = perfil.papel === "admin";
+  await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
@@ -121,7 +120,6 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
                         eventoId={evento.id}
                         campo="data_documento"
                         valor={evento.data_documento}
-                        editavel={ehAdmin}
                         origem="Cadastro do colaborador"
                       />
                       {evento.estimado && (
@@ -134,7 +132,6 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
                         eventoId={evento.id}
                         campo="data_realizado"
                         valor={evento.data_realizado}
-                        editavel={ehAdmin}
                         origem="Cadastro do colaborador"
                       />
                     </td>

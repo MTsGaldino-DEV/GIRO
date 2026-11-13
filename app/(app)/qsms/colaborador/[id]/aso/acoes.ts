@@ -29,8 +29,8 @@ const esquema = z.object({
  *
  * Existe para consertar o que veio errado da carga inicial (datas lidas à mão
  * nos documentos das pastas) sem apagar e relançar o evento — apagar perderia
- * o vínculo com o item que o concluiu. Só admin: é reescrever um fato, e a
- * política `eventos_escrita_qsms` sozinha deixaria o QSMS inteiro fazer isso.
+ * o vínculo com o item que o concluiu. Qualquer operador (admin, QSMS ou
+ * supervisor) pode corrigir; a correção fica na trilha, com o valor anterior.
  *
  * O vencimento é derivado do último exame apto (vw_status_colaborador), então
  * a correção já move o semáforo. O que não se move sozinho é o item aberto,

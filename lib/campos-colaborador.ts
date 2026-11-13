@@ -3,7 +3,8 @@
  *
  * Mora fora de `acoes.ts` porque os dois lados precisam da mesma lista: o
  * componente, para saber o rótulo e o tipo de entrada; a Server Action, para
- * decidir quem pode escrever e como a alteração aparece na trilha.
+ * decidir como a alteração aparece na trilha. Todo operador (admin, QSMS e
+ * supervisor) edita todos os campos; quem barra é `exigirOperador()` na ação.
  *
  * Só metadado de apresentação — as validações ficam em `acoes.ts`, para que
  * o zod não entre no pacote do navegador junto.
@@ -30,50 +31,41 @@ export interface DefinicaoCampo {
   /** Como aparece na trilha: "alterou cargo: …". Minúsculo, sem artigo. */
   auditoria: string;
   tipo: TipoCampo;
-  /**
-   * Quem pode escrever. Na tela decide se o lápis aparece; quem barra de
-   * verdade é `exigirOperador()` dentro da Server Action.
-   */
-  papel: "admin" | "qsms";
   /** Aviso curto abaixo do campo enquanto ele está aberto para edição. */
   ajuda?: string;
 }
 
 export const CAMPOS_COLABORADOR: Record<CampoColaborador, DefinicaoCampo> = {
-  nome: { rotulo: "Nome", auditoria: "nome", tipo: "texto", papel: "admin" },
+  nome: { rotulo: "Nome", auditoria: "nome", tipo: "texto" },
   matricula: {
     rotulo: "Matrícula",
     auditoria: "matrícula",
     tipo: "numero",
-    papel: "admin",
     ajuda: "Identifica a pessoa em toda a base. Trocar reaponta ASOs, itens e histórico.",
   },
-  cpf: { rotulo: "CPF", auditoria: "CPF", tipo: "texto", papel: "admin", ajuda: "Somente números." },
-  uen: { rotulo: "UEN", auditoria: "UEN", tipo: "texto", papel: "admin" },
-  data_admissao: { rotulo: "Admissão", auditoria: "admissão", tipo: "data", papel: "admin" },
-  data_nascimento: { rotulo: "Nascimento", auditoria: "nascimento", tipo: "data", papel: "admin" },
-  cargo: { rotulo: "Cargo", auditoria: "cargo", tipo: "texto", papel: "qsms" },
-  polo: { rotulo: "Polo", auditoria: "polo", tipo: "texto", papel: "qsms" },
-  local: { rotulo: "Local", auditoria: "local", tipo: "texto", papel: "qsms" },
+  cpf: { rotulo: "CPF", auditoria: "CPF", tipo: "texto", ajuda: "Somente números." },
+  uen: { rotulo: "UEN", auditoria: "UEN", tipo: "texto" },
+  data_admissao: { rotulo: "Admissão", auditoria: "admissão", tipo: "data" },
+  data_nascimento: { rotulo: "Nascimento", auditoria: "nascimento", tipo: "data" },
+  cargo: { rotulo: "Cargo", auditoria: "cargo", tipo: "texto" },
+  polo: { rotulo: "Polo", auditoria: "polo", tipo: "texto" },
+  local: { rotulo: "Local", auditoria: "local", tipo: "texto" },
   situacao: {
     rotulo: "Situação",
     auditoria: "situação",
     tipo: "select",
-    papel: "qsms",
     ajuda: "Qualquer situação diferente de “Trabalhando” bloqueia agendamento.",
   },
   supervisor_id: {
     rotulo: "Supervisor",
     auditoria: "supervisor",
     tipo: "select",
-    papel: "qsms",
     ajuda: "Sem supervisor, o colaborador não entra em nenhum e-mail semanal.",
   },
   exige_avp: {
     rotulo: "Avaliação psicológica",
     auditoria: "exige AVP",
     tipo: "booleano",
-    papel: "qsms",
     ajuda: "Marcado, entra no controle da AVP (a cada 24 meses). Desmarcar cancela a pendência aberta.",
   },
 };

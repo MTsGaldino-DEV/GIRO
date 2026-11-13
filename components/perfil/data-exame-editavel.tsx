@@ -24,27 +24,25 @@ function BotaoConfirmar() {
 }
 
 /**
- * Uma data de exame na tabela "Exames realizados", com lápis para o admin.
+ * Uma data de exame na tabela "Exames realizados", com lápis para qualquer operador.
  *
  * Mesmo gesto do `CampoEditavel` do cadastro: o lápis troca o valor por uma
  * entrada, Enter ou ✓ grava, Esc ou ✕ desiste. Fica num componente à parte
  * porque escreve em `eventos_requisito`, não em `colaboradores`, e a correção
  * de um exame reposiciona o ciclo aberto — outra Server Action, outra regra.
  *
- * `editavel` só decide se o lápis aparece; quem barra é `exigirOperador()` na ação.
+ * Quem barra é `exigirOperador()` na ação.
  */
 export function DataExameEditavel({
   eventoId,
   campo,
   valor,
-  editavel,
   origem = "Perfil do Colaborador",
   aoSalvar,
 }: {
   eventoId: string;
   campo: "data_documento" | "data_realizado";
   valor: string | null;
-  editavel: boolean;
   origem?: string;
   aoSalvar?: () => void;
 }) {
@@ -70,17 +68,15 @@ export function DataExameEditavel({
     return (
       <span className="inline-flex items-center gap-1">
         <span className={valor ? "" : "text-ink-faint"}>{formatarData(valor)}</span>
-        {editavel && (
-          <button
-            type="button"
-            className="btn btn--fantasma btn--icone"
-            onClick={() => setEditando(true)}
-            aria-label={`Corrigir ${rotulo}`}
-            title={`Corrigir ${rotulo}`}
-          >
-            <IconeLapis />
-          </button>
-        )}
+        <button
+          type="button"
+          className="btn btn--fantasma btn--icone"
+          onClick={() => setEditando(true)}
+          aria-label={`Corrigir ${rotulo}`}
+          title={`Corrigir ${rotulo}`}
+        >
+          <IconeLapis />
+        </button>
       </span>
     );
   }

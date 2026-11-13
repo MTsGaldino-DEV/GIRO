@@ -8,7 +8,6 @@ import { AcoesItem } from "@/components/acoes-item";
 import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO } from "@/lib/dominio";
 import { carregarExames, type EventoColaborador } from "@/lib/consulta-colaborador";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
-import { usePerfilColaborador } from "./contexto";
 import { DataExameEditavel } from "./data-exame-editavel";
 
 /**
@@ -33,14 +32,12 @@ export function AbaAso({
   /** Recarrega o cabeçalho do painel: corrigir uma data move o vencimento. */
   aoAtualizar?: () => void;
 }) {
-  const { papel } = usePerfilColaborador();
   const [eventos, setEventos] = useState<EventoColaborador[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [versao, setVersao] = useState(0);
 
-  const ehAdmin = papel === "admin";
   const aoCorrigir = useCallback(() => {
     setVersao((v) => v + 1);
     aoAtualizar?.();
@@ -88,9 +85,7 @@ export function AbaAso({
       <div className="card">
         <h3 className="mb-1">Exames realizados</h3>
         <p className="text-ink-muted text-label mb-3">
-          {ehAdmin
-            ? "Data errada? Use o lápis. O vencimento é recalculado e a correção fica no histórico."
-            : "Correção de datas: só o admin."}
+          Data errada? Use o lápis. O vencimento é recalculado e a correção fica no histórico.
         </p>
 
         {carregando ? (
@@ -120,7 +115,6 @@ export function AbaAso({
                         eventoId={evento.id}
                         campo="data_documento"
                         valor={evento.data_documento}
-                        editavel={ehAdmin}
                         aoSalvar={aoCorrigir}
                       />
                       {evento.estimado && (
@@ -133,7 +127,6 @@ export function AbaAso({
                         eventoId={evento.id}
                         campo="data_realizado"
                         valor={evento.data_realizado}
-                        editavel={ehAdmin}
                         aoSalvar={aoCorrigir}
                       />
                     </td>

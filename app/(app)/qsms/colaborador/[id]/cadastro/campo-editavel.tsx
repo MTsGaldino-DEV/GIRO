@@ -39,7 +39,6 @@ function CaixaEditavel({
   colaboradorId,
   campo,
   marcado,
-  editavel,
   origem,
   acao,
   estado,
@@ -47,7 +46,6 @@ function CaixaEditavel({
   colaboradorId: string;
   campo: CampoColaborador;
   marcado: boolean;
-  editavel: boolean;
   origem: string;
   acao: (formData: FormData) => void;
   estado: Acao | null;
@@ -76,7 +74,6 @@ function CaixaEditavel({
             name="valor"
             value="true"
             checked={local}
-            disabled={!editavel}
             onChange={(e) => {
               setLocal(e.target.checked);
               formulario.current?.requestSubmit();
@@ -85,7 +82,7 @@ function CaixaEditavel({
           {local ? "Precisa" : "Não precisa"}
         </label>
       </form>
-      {definicao.ajuda && editavel && (
+      {definicao.ajuda && (
         <p className="text-caption text-ink-faint mt-1 mb-0 max-w-[46ch]">{definicao.ajuda}</p>
       )}
       {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
@@ -101,16 +98,15 @@ function CaixaEditavel({
  * salvar no fim de um formulário porque não há formulário: cada campo é uma
  * alteração independente, e é assim que ela chega à trilha.
  *
- * `editavel` só decide se o lápis aparece. Quem barra de verdade é a Server
- * Action, que confere o papel contra a lista fechada de campos — abrir o
- * DevTools e submeter à mão dá no mesmo "não autorizado".
+ * Quem barra de verdade é a Server Action, que exige operador e confere o
+ * campo contra a lista fechada — abrir o DevTools e submeter à mão dá no mesmo
+ * "não autorizado".
  */
 export function CampoEditavel({
   colaboradorId,
   campo,
   valor,
   opcoes,
-  editavel,
   origem = "Cadastro do colaborador",
   aoSalvar,
 }: {
@@ -119,7 +115,6 @@ export function CampoEditavel({
   valor: string | number | boolean | null;
   /** Obrigatório quando o campo é do tipo select. */
   opcoes?: Opcao[];
-  editavel: boolean;
   origem?: string;
   aoSalvar?: () => void;
 }) {
@@ -147,7 +142,6 @@ export function CampoEditavel({
         colaboradorId={colaboradorId}
         campo={campo}
         marcado={valor === true}
-        editavel={editavel}
         origem={origem}
         acao={acao}
         estado={estado}
@@ -229,17 +223,15 @@ export function CampoEditavel({
           <span className={`text-label break-words ${bruto ? "" : "text-ink-faint"}`}>
             {exibicao}
           </span>
-          {editavel && (
-            <button
-              type="button"
-              className="btn btn--fantasma btn--icone"
-              onClick={() => setEditando(true)}
-              aria-label={`Editar ${definicao.rotulo}`}
-              title={`Editar ${definicao.rotulo}`}
-            >
-              <IconeLapis />
-            </button>
-          )}
+          <button
+            type="button"
+            className="btn btn--fantasma btn--icone"
+            onClick={() => setEditando(true)}
+            aria-label={`Editar ${definicao.rotulo}`}
+            title={`Editar ${definicao.rotulo}`}
+          >
+            <IconeLapis />
+          </button>
         </div>
       )}
     </div>

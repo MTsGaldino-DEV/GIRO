@@ -8,7 +8,6 @@ import { EnvioFoto } from "@/app/(app)/qsms/colaborador/[id]/cadastro/envio-foto
 import { carregarSupervisoresAtivos } from "@/lib/consulta-colaborador";
 import type { ResumoColaborador } from "@/lib/consulta-colaborador";
 import type { Supervisor } from "@/lib/tipos";
-import { usePerfilColaborador } from "./contexto";
 
 /**
  * Aba Cadastro.
@@ -16,7 +15,7 @@ import { usePerfilColaborador } from "./contexto";
  * Reutiliza `FichaCadastro`, `EnvioFoto` e `BotaoDesligar` da página cheia — os
  * mesmos componentes, chamando as mesmas Server Actions. As permissões
  * continuam valendo onde sempre valeram: `exigirOperador()` na
- * ação e a política `colaboradores_escrita_qsms` no banco. O painel não abre
+ * ação e a política `colaboradores_escrita_operador` no banco. O painel não abre
  * nenhuma porta que a página já não abrisse.
  */
 export function AbaCadastro({
@@ -26,7 +25,6 @@ export function AbaCadastro({
   resumo: ResumoColaborador;
   aoAtualizar: () => void;
 }) {
-  const { papel } = usePerfilColaborador();
   const [supervisores, setSupervisores] = useState<Supervisor[] | null>(null);
   const { colaborador, fotoUrl } = resumo;
 
@@ -50,7 +48,6 @@ export function AbaCadastro({
         <FichaCadastro
           colaborador={colaborador}
           supervisores={supervisores}
-          papel={papel}
           origem="Perfil do Colaborador"
           aoSalvar={aoAtualizar}
         />
@@ -69,21 +66,19 @@ export function AbaCadastro({
         />
       </div>
 
-      {papel === "admin" && (
-        <div className="card">
-          <h3 className="mb-1">Quadro</h3>
-          <p className="text-ink-muted text-label mb-4">
-            {colaborador.ativo
-              ? "Colaborador ativo: entra no semáforo e gera pendência de ASO."
-              : "Colaborador desligado."}
-          </p>
-          <BotaoDesligar
-            colaborador={colaborador}
-            origem="Perfil do Colaborador"
-            aoSalvar={aoAtualizar}
-          />
-        </div>
-      )}
+      <div className="card">
+        <h3 className="mb-1">Quadro</h3>
+        <p className="text-ink-muted text-label mb-4">
+          {colaborador.ativo
+            ? "Colaborador ativo: entra no semáforo e gera pendência de ASO."
+            : "Colaborador desligado."}
+        </p>
+        <BotaoDesligar
+          colaborador={colaborador}
+          origem="Perfil do Colaborador"
+          aoSalvar={aoAtualizar}
+        />
+      </div>
     </div>
   );
 }

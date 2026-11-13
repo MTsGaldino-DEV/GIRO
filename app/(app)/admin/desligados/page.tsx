@@ -19,7 +19,9 @@ export const dynamic = "force-dynamic";
  * desligamento seria porta de mão única: reativar dependeria de alguém ter
  * guardado o link direto do perfil.
  *
- * Só admin, porque desligar e reativar também são só do admin.
+ * Aberta a qualquer operador, como desligar e reativar. A lista de
+ * Colaboradores (filtro "Desligados") já cobre isto; esta página sai do menu
+ * na Task 14.
  */
 export default async function PaginaDesligados() {
   await exigirOperador();
