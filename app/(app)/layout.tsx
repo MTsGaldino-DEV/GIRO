@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { exigirPerfil } from "@/lib/perfil";
 import { obterResumoStatus } from "@/lib/colaborador";
-import { BarraTopo } from "@/components/barra-topo";
+import { Sidebar } from "@/components/sidebar";
 import { BannerBase } from "@/components/banner-base";
 import { ProvedorPerfilColaborador } from "@/components/perfil/contexto";
 import { PainelPerfilColaborador } from "@/components/perfil/painel-perfil";
@@ -23,21 +23,21 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
       <Suspense fallback={null}>
         <BarraNavegacao />
       </Suspense>
-      <div className="min-h-dvh flex flex-col">
-        <BarraTopo perfil={perfil} />
-        {resumo && (
-          <BannerBase
-            semRegistro={Number(resumo.sem_registro)}
-            total={Number(resumo.total)}
-            mostrarLink={perfil.papel !== "supervisor"}
-          />
-        )}
-        {/* A faixa escura continua a barra do topo; o cabeçalho de cada tela
-            assenta nela e os cartões sobem por cima da borda. O teto de
-            1680px é o mesmo da barra, para logo e título caírem na mesma
-            coluna. */}
-        <div className="faixa-app flex-1 flex flex-col min-w-0">
-          <main className="conteudo-pagina flex-1 w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-6">{children}</main>
+      <div className="app-grade">
+        <Sidebar perfil={perfil} />
+        <div className="app-conteudo">
+          {resumo && (
+            <BannerBase
+              semRegistro={Number(resumo.sem_registro)}
+              total={Number(resumo.total)}
+              mostrarLink={perfil.papel !== "supervisor"}
+            />
+          )}
+          {/* A faixa escura abre a coluna de conteúdo; o cabeçalho de cada
+              tela assenta nela e os cartões sobem por cima da borda. */}
+          <div className="faixa-app flex-1 flex flex-col min-w-0">
+            <main className="conteudo-pagina flex-1 w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-6">{children}</main>
+          </div>
         </div>
       </div>
 

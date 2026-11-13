@@ -617,171 +617,176 @@ a {
 }
 
 /* --------------------------------------------------------------------------
-   Navegação no topo e faixa escura (redesign do QSMS, 03/11/2026)
+   Sidebar (Task 6 de 13/11/2026)
 
-   A sidebar virou barra no topo. Abaixo dela, a mesma cor escura continua por
-   uma faixa onde o cabeçalho de cada tela assenta, e os cartões da tela sobem
-   por cima da borda dessa faixa — referência "Employees" enviada por Matheus.
+   Substitui a barra no topo de 03/11. Coluna fixa de 16rem no desktop; abaixo
+   de 1024px vira barra compacta com botão de menu e a coluna abre como gaveta.
    A cor é a da antiga sidebar (#132523), deliberadamente diferente do preto
-   reservado do semáforo.
+   reservado do semáforo; o destaque é petróleo, nunca verde/âmbar/coral/vermelho.
+   A faixa escura (.faixa-app) continua no topo da coluna de conteúdo, onde o
+   cabeçalho de cada tela assenta.
    -------------------------------------------------------------------------- */
 
-.topo {
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: var(--color-sidebar-bg);
+.app-grade { min-height: 100dvh; }
+.app-conteudo { display: flex; flex-direction: column; min-width: 0; min-height: 100dvh; }
+@media (min-width: 1024px) {
+  .app-grade {
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr);
+  }
+}
+
+.sidebar { display: none; }
+@media (min-width: 1024px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-sidebar-bg);
+    border-right: 1px solid var(--color-sidebar-line);
+  }
+}
+
+/* O anel de foco padrão é petróleo; sobre #132523 ele some. */
+.sidebar :focus-visible,
+.sidebar-topo :focus-visible,
+.sidebar-gaveta :focus-visible {
+  outline-color: var(--color-brand-light);
+}
+
+.sidebar__cabeca {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 4rem;
+  padding: 0 1rem 0 1.25rem;
   border-bottom: 1px solid var(--color-sidebar-line);
 }
 
-.topo__interno {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  height: 4rem;
-  max-width: 1680px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-@media (min-width: 640px) {
-  .topo__interno { padding: 0 1.5rem; gap: 2rem; }
-}
-
-.topo__logo {
+.sidebar__logo {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  flex-shrink: 0;
+  min-height: 2.75rem;
   color: var(--color-sidebar-text-active);
   font-weight: 500;
   letter-spacing: 0.06em;
   font-size: var(--text-body);
 }
-.topo__logo-dot { color: var(--color-brand-light); }
+.sidebar__logo-ponto { color: var(--color-brand-light); }
 
-.topo__nav {
+.sidebar__nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 0.75rem;
+}
+
+.sidebar__item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.topo__item {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  height: 2.5rem;
-  padding: 0 0.875rem;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-sidebar-text);
   font: inherit;
   font-size: var(--text-label);
+  text-align: left;
   text-decoration: none;
-  white-space: nowrap;
   cursor: pointer;
   transition: color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro);
 }
-.topo__item:hover,
-.topo__item[data-state="open"] {
+.sidebar__item:hover {
   color: var(--color-sidebar-text-active);
   background: rgb(255 255 255 / 0.06);
 }
-.topo__item[data-ativo="true"] {
+.sidebar__item[data-contem-ativo="true"] { color: var(--color-sidebar-text-active); }
+.sidebar__item[data-ativo="true"] {
   color: var(--color-sidebar-text-active);
   background: var(--color-sidebar-active);
   font-weight: 500;
 }
+/* Marca à esquerda do item ativo: o destaque não depende só de cor. */
+.sidebar__item[data-ativo="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-brand-light);
+}
+.sidebar__rotulo { flex: 1; min-width: 0; }
 
-/* A seta do grupo aponta para baixo e gira quando o menu abre. */
-.topo__seta {
+.sidebar__seta {
   width: 14px;
   height: 14px;
-  rotate: 90deg;
   opacity: 0.7;
   transition: rotate var(--duracao-media) var(--ease-giro);
 }
-.topo__item[data-state="open"] .topo__seta { rotate: -90deg; }
+.sidebar__item[aria-expanded="true"] .sidebar__seta { rotate: 90deg; }
 
-/* Pílula deslizante: um elemento só, que desliza até o item ativo; uma
-   "sombra" mais clara segue o mouse. Enquanto o JavaScript não mede os itens
-   (primeira pintura), o item ativo mantém o fundo próprio e a pílula fica
-   escondida — data-pilula="pronta" é o que troca um pelo outro. */
-.topo__pilula,
-.topo__sombra {
-  position: absolute;
-  top: 0;
-  left: 0;
-  border-radius: 999px;
-  pointer-events: none;
-  opacity: 0;
+/* Grupo: abre e fecha por altura (0fr -> 1fr). Fechado, o conteúdo sai da
+   ordem de tabulação (visibility) depois que a animação termina. */
+.sidebar__sub {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--duracao-media) var(--ease-giro),
+    visibility 0s linear var(--duracao-media);
 }
-.topo__pilula {
-  z-index: 0;
-  background: var(--color-sidebar-active);
-  box-shadow: 0 4px 14px -4px rgb(14 124 116 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.12);
-  transition: transform 380ms var(--ease-giro), height 380ms var(--ease-giro), width 380ms var(--ease-giro);
+.sidebar__sub[data-aberto="true"] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition: grid-template-rows var(--duracao-media) var(--ease-giro);
 }
-/* O sublinhado vai junto com a pílula. */
-.topo__pilula::after {
-  content: "";
-  position: absolute;
-  left: 30%;
-  right: 30%;
-  bottom: -0.75rem;
-  height: 3px;
-  border-radius: 3px 3px 0 0;
-  background: var(--color-brand-light);
-}
-.topo__sombra {
-  z-index: 0;
-  background: rgb(255 255 255 / 0.07);
-  transition: transform var(--duracao-lenta) var(--ease-giro), width var(--duracao-lenta) var(--ease-giro), opacity var(--duracao-media) var(--ease-giro);
-}
-.topo__nav[data-pilula="pronta"] .topo__pilula[data-visivel="true"] { opacity: 1; }
-.topo__nav[data-pilula="pronta"] .topo__sombra[data-visivel="true"] { opacity: 1; }
-.topo__nav[data-pilula="pronta"] .topo__item { z-index: 1; }
-.topo__nav[data-pilula="pronta"] .topo__item:hover,
-.topo__nav[data-pilula="pronta"] .topo__item[data-ativo="true"] { background: transparent; }
-
-.topo__usuario {
+.sidebar__sub-interno { min-height: 0; overflow: hidden; }
+.sidebar__sub-lista {
   display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  flex-shrink: 0;
-  min-width: 0;
-  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--duracao-rapida) var(--ease-giro);
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.25rem 1.375rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--color-sidebar-line);
 }
-.topo__usuario:hover,
-.topo__usuario[data-state="open"] { background: rgb(255 255 255 / 0.08); }
 
-.topo__avatar {
+.sidebar__usuario {
+  flex-shrink: 0;
+  margin: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-sidebar-line);
+  border-radius: var(--radius-lg);
+  background: rgb(255 255 255 / 0.04);
+}
+.sidebar__usuario-id { display: flex; align-items: center; gap: 0.625rem; min-width: 0; }
+.sidebar__avatar {
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--color-brand);
   color: #FFFFFF;
   font-size: var(--text-label);
   font-weight: 500;
-  flex-shrink: 0;
 }
-.topo__identidade { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
-.topo__nome {
-  max-width: 16ch;
+.sidebar__identidade { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.sidebar__nome {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -789,23 +794,78 @@ a {
   font-weight: 500;
   color: var(--color-sidebar-text-active);
 }
-.topo__papel { font-size: var(--text-caption); color: var(--color-sidebar-text); }
-
-/* Tela estreita: só ícones. O rótulo continua no DOM para o leitor de tela. */
-@media (max-width: 767px) {
-  .topo__rotulo {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-  .topo__item { padding: 0 0.75rem; }
-  .topo__seta { display: none; }
-  .topo__identidade { display: none; }
-  .topo__usuario { padding: 0.25rem; }
+.sidebar__papel { font-size: var(--text-caption); color: var(--color-sidebar-text); }
+.sidebar__usuario-acoes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
 }
+.sidebar__acao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.625rem;
+  padding: 0 0.5rem;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-sidebar-text-active);
+  font: inherit;
+  font-size: var(--text-label);
+  cursor: pointer;
+  transition: background-color var(--duracao-rapida) var(--ease-giro);
+}
+.sidebar__acao:hover { background: rgb(255 255 255 / 0.08); }
+
+/* Barra compacta e gaveta (< 1024px). */
+.sidebar-topo {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 3.5rem;
+  padding: 0 0.75rem;
+  background: var(--color-sidebar-bg);
+  border-bottom: 1px solid var(--color-sidebar-line);
+}
+@media (min-width: 1024px) {
+  .sidebar-topo { display: none; }
+}
+.sidebar-topo__menu {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-sidebar-text-active);
+  cursor: pointer;
+  transition: background-color var(--duracao-rapida) var(--ease-giro);
+}
+.sidebar-topo__menu:hover { background: rgb(255 255 255 / 0.08); }
+
+.dialogo.sidebar-gaveta[data-lado="direita"] {
+  right: auto;
+  left: 0;
+  width: min(20rem, 88vw);
+  border-left: 0;
+  border-right: 1px solid var(--color-sidebar-line);
+  background: var(--color-sidebar-bg);
+}
+.dialogo.sidebar-gaveta[data-lado="direita"][data-state="open"] {
+  animation: gaveta-entra var(--duracao-lenta) var(--ease-giro);
+}
+.dialogo.sidebar-gaveta[data-lado="direita"][data-state="closed"] {
+  animation: gaveta-sai var(--duracao-media) var(--ease-giro);
+}
+@keyframes gaveta-entra { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes gaveta-sai   { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 
 /* Grade de cartões do painel (era tabela até 03/11/2026). */
 .grade-itens {

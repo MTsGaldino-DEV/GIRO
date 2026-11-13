@@ -169,3 +169,35 @@ export function IconeDocumento({ className }: Props) {
     </svg>
   );
 }
+
+/** Radar — círculos concêntricos com o ponteiro. */
+export function IconeRadar({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 12 18.5 5.5" />
+    </svg>
+  );
+}
+
+/** Colaboradores — pessoa à frente de outra. */
+export function IconeColaboradores({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <circle cx="9" cy="8" r="3.25" />
+      <path d="M3 20v-1a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v1" />
+      <path d="M16 4.5a3.25 3.25 0 0 1 0 6" />
+      <path d="M18 14.2a5 5 0 0 1 3 4.8v1" />
+    </svg>
+  );
+}
+
+/** Menu — três linhas, abre a gaveta no celular. */
+export function IconeMenu({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
