@@ -6,7 +6,8 @@
 -- recorte por equipe passa a ser filtro de tela, não permissão.
 --
 -- Continua restrito (fn_e_qsms, sem mudança aqui): perfis, supervisores,
--- tipos_requisito, alertas_enviados e clinicas. Gestão de usuários não abre.
+-- tipos_requisito e alertas_enviados. Gestão de usuários não abre.
+-- Clínicas (cadastro operacional) e a comunicação à CEMIG abrem ao operador.
 --
 -- Idempotente: pode ser reaplicada, inclusive depois de um db:push completo
 -- que recrie as funções de 0002/0012/0014 com fn_e_qsms().
@@ -31,7 +32,7 @@ grant execute on function public.fn_e_operador() to authenticated;
 -- 2. Funções do fluxo: fn_e_qsms() -> fn_e_operador()
 --
 -- Lê a definição atual de cada função no banco (pg_get_functiondef) e troca só
--- a checagem e o texto da mensagem. Evita copiar 12 corpos e herdar versões
+-- a checagem e o texto da mensagem. Evita copiar 13 corpos e herdar versões
 -- velhas. CREATE OR REPLACE preserva dono, grants, SECURITY DEFINER e
 -- search_path (que fazem parte do texto devolvido). Se já trocada, não muda.
 -- -----------------------------------------------------------------------------
@@ -49,7 +50,8 @@ declare
     'fn_cancelar_item',
     'fn_devolver_ao_supervisor',
     'fn_registrar_auditoria',
-    'fn_registrar_aso_retroativo'
+    'fn_registrar_aso_retroativo',
+    'fn_registrar_comunicacao_cemig'
   ];
   -- Leituras SECURITY DEFINER que repetem a regra das políticas de
   -- historico_item e auditoria_colaborador. Sem a troca, a tabela abriria para
@@ -198,11 +200,20 @@ drop policy if exists historico_leitura on public.historico_item;
 create policy historico_leitura on public.historico_item
   for select to authenticated using (public.fn_e_operador());
 
+-- clinicas: leitura segue aberta a qualquer autenticado (0011); só a escrita
+-- passa ao operador.
+drop policy if exists clinicas_escrita_qsms on public.clinicas;
+drop policy if exists clinicas_escrita_operador on public.clinicas;
+create policy clinicas_escrita_operador on public.clinicas
+  for all to authenticated
+  using (public.fn_e_operador()) with check (public.fn_e_operador());
+
 -- -----------------------------------------------------------------------------
 -- 5. Storage: buckets asos, documentos e fotos
 --
--- A leitura de `documentos` e `fotos` já era de qualquer autenticado (0008,
--- 0014) e fica como está.
+-- A leitura de `documentos` e `fotos` era de qualquer autenticado (0008,
+-- 0014): quem tivesse login sem perfil ativo listava e baixava documentos e
+-- fotos de todos. Agora as quatro operações exigem operador nos três buckets.
 -- -----------------------------------------------------------------------------
 
 -- asos
@@ -230,6 +241,11 @@ create policy asos_delete_operador on storage.objects
   using (bucket_id = 'asos' and public.fn_e_operador());
 
 -- documentos
+drop policy if exists documentos_leitura_storage on storage.objects;
+create policy documentos_leitura_storage on storage.objects
+  for select to authenticated
+  using (bucket_id = 'documentos' and public.fn_e_operador());
+
 drop policy if exists documentos_escrita_qsms_storage on storage.objects;
 drop policy if exists documentos_escrita_operador_storage on storage.objects;
 create policy documentos_escrita_operador_storage on storage.objects
@@ -249,6 +265,11 @@ create policy documentos_delete_operador_storage on storage.objects
   using (bucket_id = 'documentos' and public.fn_e_operador());
 
 -- fotos
+drop policy if exists fotos_leitura on storage.objects;
+create policy fotos_leitura on storage.objects
+  for select to authenticated
+  using (bucket_id = 'fotos' and public.fn_e_operador());
+
 drop policy if exists fotos_escrita_qsms on storage.objects;
 drop policy if exists fotos_escrita_operador on storage.objects;
 create policy fotos_escrita_operador on storage.objects

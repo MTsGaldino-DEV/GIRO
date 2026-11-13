@@ -41,7 +41,11 @@ const EMAILS = [
   "perm-user-b@exemplo.invalido",
   "perm-sem-perfil@exemplo.invalido",
   "perm-forjado@exemplo.invalido",
+  "perm-inativo@exemplo.invalido",
 ];
+const CLINICA_TESTE = "Clínica Teste Permissões (exemplo.invalido)";
+const PREFIXO_STORAGE = "teste-permissoes-999102/";
+const ORIGEM_TESTE = "teste de permissões";
 
 // Funções do fluxo abertas ao operador pela 0016.
 const FUNCOES_FLUXO = [
@@ -57,6 +61,7 @@ const FUNCOES_FLUXO = [
   "fn_devolver_ao_supervisor",
   "fn_registrar_auditoria",
   "fn_registrar_aso_retroativo",
+  "fn_registrar_comunicacao_cemig",
 ];
 
 let sp = 0;
@@ -101,7 +106,11 @@ async function tentar(sql, params) {
   }
 }
 
+// Objetos de storage não entram aqui: o trigger storage.protect_delete barra o
+// delete direto. Eles só existem dentro da transação desfeita, e o resíduo é
+// conferido em residuo().
 async function limpar() {
+  await client.query(`delete from clinicas where nome = $1`, [CLINICA_TESTE]);
   await client.query(`delete from colaboradores where matricula = any($1)`, [MATRICULAS]);
   await client.query(`delete from perfis where email = any($1)`, [EMAILS]);
   await client.query(`delete from auth.users where email = any($1)`, [EMAILS]);
@@ -114,8 +123,12 @@ async function residuo() {
        (select count(*) from colaboradores where matricula = any($1))::int as colaboradores,
        (select count(*) from perfis where email = any($2))::int as perfis,
        (select count(*) from auth.users where email = any($2))::int as usuarios,
-       (select count(*) from supervisores where email = any($2))::int as supervisores`,
-    [MATRICULAS, EMAILS]
+       (select count(*) from supervisores where email = any($2))::int as supervisores,
+       (select count(*) from clinicas where nome = $3)::int as clinicas,
+       (select count(*) from storage.objects where name like $4 || '%')::int as objetos_storage,
+       (select count(*) from documentos_colaborador where storage_path like $4 || '%')::int as documentos,
+       (select count(*) from auditoria_colaborador where origem = $5)::int as auditoria`,
+    [MATRICULAS, EMAILS, CLINICA_TESTE, PREFIXO_STORAGE, ORIGEM_TESTE]
   );
   return rows[0];
 }
@@ -194,7 +207,35 @@ async function cenario() {
     [colB]
   );
 
-  return { supA, supB, uidA, uidB, uidSemPerfil, colA, colB, itemB: item[0].id, tipoId: tipo[0].id };
+  // Perfil desativado: existe, mas não pode operar nem ler.
+  const uidInativo = await criarPerfilSupervisor(EMAILS[6], supB);
+  await client.query(`update perfis set ativo = false where id = $1`, [uidInativo]);
+
+  // Documento e auditoria da equipe do B.
+  await client.query(
+    `insert into documentos_colaborador (colaborador_id, nome_arquivo, tipo, storage_path)
+     values ($1, 'teste.pdf', 'Outro', $2)`,
+    [colB, `${PREFIXO_STORAGE}documento.pdf`]
+  );
+  await client.query(
+    `insert into auditoria_colaborador (colaborador_id, acao, entidade, origem)
+     values ($1, 'alterou', 'colaborador', $2)`,
+    [colB, ORIGEM_TESTE]
+  );
+
+  // Um objeto em cada bucket privado de leitura ampla (só a linha em
+  // storage.objects; nenhum arquivo é enviado).
+  for (const bucket of ["documentos", "fotos"]) {
+    await client.query(
+      `insert into storage.objects (bucket_id, name) values ($1, $2)`,
+      [bucket, `${PREFIXO_STORAGE}${bucket}.bin`]
+    );
+  }
+
+  return {
+    supA, supB, uidA, uidB, uidSemPerfil, uidInativo, colA, colB,
+    itemB: item[0].id, tipoId: tipo[0].id,
+  };
 }
 
 async function etapa(itemId) {
@@ -320,6 +361,62 @@ async function main() {
       }
     });
 
+    await sessao(c.uidA, async () => {
+      const doc = await client.query(
+        `select count(*)::int n from documentos_colaborador where colaborador_id = $1`,
+        [c.colB]
+      );
+      const aud = await client.query(
+        `select count(*)::int n from auditoria_colaborador where colaborador_id = $1`,
+        [c.colB]
+      );
+      if (doc.rows[0].n >= 1 && aud.rows[0].n >= 1) {
+        ok("supervisor A lê documentos_colaborador e auditoria_colaborador da equipe B");
+      } else {
+        erro("supervisor A lê documentos_colaborador e auditoria_colaborador da equipe B",
+          `documentos ${doc.rows[0].n}, auditoria ${aud.rows[0].n}`);
+      }
+    });
+
+    /** Quantos objetos de teste o usuário da sessão enxerga em storage.objects. */
+    const objetosVistos = async () =>
+      (await client.query(
+        `select count(*)::int n from storage.objects
+          where bucket_id in ('documentos', 'fotos') and name like $1 || '%'`,
+        [PREFIXO_STORAGE]
+      )).rows[0].n;
+
+    await sessao(c.uidA, async () => {
+      const n = await objetosVistos();
+      if (n === 2) ok("supervisor A lê objetos dos buckets documentos e fotos");
+      else erro("supervisor A lê objetos dos buckets documentos e fotos", `viu ${n} de 2`);
+    });
+
+    await sessao(c.uidA, async () => {
+      const falha = await tentar(`select fn_registrar_comunicacao_cemig($1, current_date)`, [c.itemB]);
+      const { rows } = await client.query(
+        `select comunicado_cemig_em is not null as marcado from itens_pendencia where id = $1`,
+        [c.itemB]
+      );
+      if (!falha && rows[0]?.marcado) {
+        ok("supervisor A registra comunicação à CEMIG em item da equipe B");
+      } else {
+        erro("supervisor A registra comunicação à CEMIG em item da equipe B", falha ?? "data não gravada");
+      }
+    });
+
+    await sessao(c.uidA, async () => {
+      const falha =
+        (await tentar(`insert into clinicas (nome, cidade) values ($1, 'Teste')`, [CLINICA_TESTE])) ??
+        (await tentar(`update clinicas set contato = 'teste' where nome = $1`, [CLINICA_TESTE]));
+      const { rows } = await client.query(
+        `select count(*)::int n from clinicas where nome = $1 and contato = 'teste'`,
+        [CLINICA_TESTE]
+      );
+      if (!falha && rows[0].n === 1) ok("supervisor A escreve em clinicas");
+      else erro("supervisor A escreve em clinicas", falha ?? `encontrou ${rows[0].n}`);
+    });
+
     // -----------------------------------------------------------------------
     console.log("\nO que continua restrito");
     // -----------------------------------------------------------------------
@@ -384,6 +481,34 @@ async function main() {
       else erro("usuário sem perfil ativo NÃO lê colaboradores", `viu ${rows[0].n}`);
     });
 
+    await sessao(c.uidSemPerfil, async () => {
+      const n = await objetosVistos();
+      if (n === 0) ok("usuário sem perfil NÃO lê storage dos buckets documentos e fotos");
+      else erro("usuário sem perfil NÃO lê storage dos buckets documentos e fotos", `viu ${n}`);
+    });
+
+    await sessao(c.uidInativo, async () => {
+      const { rows } = await client.query(`select public.fn_e_operador() as e`);
+      let barrado = false;
+      try {
+        await client.query(`select fn_solicitar_data($1, 'teste', null)`, [c.itemB]);
+      } catch (e) {
+        barrado = e.code === "42501";
+      }
+      if (rows[0].e === false && barrado) {
+        ok("perfil com ativo = false NÃO passa fn_e_operador");
+      } else {
+        erro("perfil com ativo = false NÃO passa fn_e_operador",
+          `fn_e_operador=${rows[0].e}, fn_solicitar_data barrada=${barrado}`);
+      }
+    });
+
+    await sessao(c.uidInativo, async () => {
+      const n = await objetosVistos();
+      if (n === 0) ok("perfil com ativo = false NÃO lê storage dos buckets documentos e fotos");
+      else erro("perfil com ativo = false NÃO lê storage dos buckets documentos e fotos", `viu ${n}`);
+    });
+
     // -----------------------------------------------------------------------
     console.log("\nQSMS e admin seguem operando");
     // -----------------------------------------------------------------------
@@ -421,9 +546,9 @@ async function main() {
     const comQsms = funcoes.filter((r) => r.def.includes("fn_e_qsms")).map((r) => r.proname);
     const semOperador = funcoes.filter((r) => !r.def.includes("public.fn_e_operador()")).map((r) => r.proname);
     if (faltando.length === 0 && comQsms.length === 0 && semOperador.length === 0) {
-      ok("as 12 funções do fluxo checam fn_e_operador()");
+      ok(`as ${FUNCOES_FLUXO.length} funções do fluxo checam fn_e_operador()`);
     } else {
-      erro("as 12 funções do fluxo checam fn_e_operador()",
+      erro(`as ${FUNCOES_FLUXO.length} funções do fluxo checam fn_e_operador()`,
         JSON.stringify({ faltando, comQsms, semOperador }));
     }
     const estrutura = funcoes.filter(
