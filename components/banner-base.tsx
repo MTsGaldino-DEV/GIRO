@@ -33,11 +33,11 @@ export function BannerBase({
       </span>
       {mostrarLink && (
         <Link
-          href="/qsms/base"
+          href="/colaboradores?status=sem_registro"
           className="shrink-0 underline underline-offset-2"
           style={{ color: "inherit" }}
         >
-          Conferir a base
+          Ver quem está sem registro
         </Link>
       )}
     </div>

@@ -5,10 +5,11 @@ import Link from "next/link";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { Aviso, Vazio } from "@/components/aviso";
 import { AcoesItem } from "@/components/acoes-item";
-import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO } from "@/lib/dominio";
+import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO, ehExameLancavel } from "@/lib/dominio";
 import { carregarExames, type EventoColaborador } from "@/lib/consulta-colaborador";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
 import { DataExameEditavel } from "./data-exame-editavel";
+import { LancarExameAnterior, type RequisitoLancavel } from "./lancar-exame-anterior";
 
 /**
  * Aba ASO do painel.
@@ -35,6 +36,7 @@ export function AbaAso({
   const [eventos, setEventos] = useState<EventoColaborador[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
+  const [requisitos, setRequisitos] = useState<RequisitoLancavel[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [versao, setVersao] = useState(0);
 
@@ -51,11 +53,13 @@ export function AbaAso({
     Promise.all([
       carregarExames(supabase, colaboradorId),
       supabase.from("clinicas").select("*").eq("ativo", true).order("nome"),
-    ]).then(([exames, { data: clinicasBrutas }]) => {
+      supabase.from("tipos_requisito").select("id, nome").eq("ativo", true).order("nome"),
+    ]).then(([exames, { data: clinicasBrutas }, { data: tiposBrutos }]) => {
       if (!ativo) return;
       setEventos(exames.eventos);
       setLinks(exames.links);
       setClinicas((clinicasBrutas ?? []) as Clinica[]);
+      setRequisitos(((tiposBrutos ?? []) as RequisitoLancavel[]).filter((t) => ehExameLancavel(t.nome)));
       setCarregando(false);
     });
 
@@ -81,6 +85,12 @@ export function AbaAso({
           90 dias, ou pelo botão &ldquo;Gerar itens&rdquo; no painel.
         </Aviso>
       )}
+
+      <LancarExameAnterior
+        colaboradorId={colaboradorId}
+        requisitos={requisitos}
+        aoRegistrar={aoCorrigir}
+      />
 
       <div className="card">
         <h3 className="mb-1">Exames realizados</h3>

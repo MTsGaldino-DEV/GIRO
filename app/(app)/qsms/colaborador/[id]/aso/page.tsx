@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { carregarItemAberto, carregarStatus } from "@/lib/colaborador";
+import { carregarItemAberto } from "@/lib/colaborador";
 import { urlAssinada } from "@/lib/storage";
 import { Aviso, Vazio } from "@/components/aviso";
-import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO } from "@/lib/dominio";
+import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO, ehExameLancavel } from "@/lib/dominio";
 import { AcoesItem } from "@/components/acoes-item";
 import { DataExameEditavel } from "@/components/perfil/data-exame-editavel";
-import { FormularioRetroativo } from "./formulario-retroativo";
+import { LancarExameAnterior } from "@/components/perfil/lancar-exame-anterior";
 import type { Clinica } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "ASO" };
@@ -33,20 +33,20 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
-  const [item, status, { data: eventosBrutos }, { data: tipo }, { data: clinicas }] =
+  const [item, { data: eventosBrutos }, { data: tipos }, { data: clinicas }] =
     await Promise.all([
       carregarItemAberto(id),
-      carregarStatus(id),
       supabase
         .from("vw_eventos_colaborador")
         .select("*")
         .eq("colaborador_id", id)
         .order("data_documento", { ascending: false }),
-      supabase.from("tipos_requisito").select("id").eq("nome", "ASO Periódico").maybeSingle(),
+      supabase.from("tipos_requisito").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("clinicas").select("*").eq("ativo", true).order("nome"),
     ]);
 
   const eventos = (eventosBrutos ?? []) as EventoLinha[];
+  const requisitos = (tipos ?? []).filter((t) => ehExameLancavel(t.nome));
 
   // Uma URL assinada por documento, todas de uma vez. Em série isto era uma
   // ida ao Storage por exame, uma esperando a outra: um colaborador com cinco
@@ -81,16 +81,7 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
         </Aviso>
       )}
 
-      {status?.status === "sem_registro" && tipo && (
-        <div className="card">
-          <h2 className="text-[1.0625rem] mb-1">Registrar o último ASO conhecido</h2>
-          <p className="text-ink-muted text-label mb-4">
-            Sem uma data de referência não dá para calcular vencimento. Se o
-            documento existe em papel ou no sistema da clínica, lance a data aqui.
-          </p>
-          <FormularioRetroativo colaboradorId={id} tipoRequisitoId={tipo.id} />
-        </div>
-      )}
+      <LancarExameAnterior colaboradorId={id} requisitos={requisitos} />
 
       <div>
         <h2 className="text-[1.0625rem] mb-3">Exames realizados</h2>

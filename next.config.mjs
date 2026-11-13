@@ -8,13 +8,21 @@ const nextConfig = {
     },
   },
   // Links antigos (favoritos, e-mails, chat). Temporários (307) e com a query
-  // string preservada. `source` é exata: "/qsms/item/<id>", "/qsms/base" etc.
-  // continuam sendo páginas.
+  // string preservada. `source` é exata: "/qsms/item/<id>" etc. continuam
+  // sendo páginas. "/qsms/base" (Base virou o lançamento de exame anterior na
+  // aba ASO do perfil) e "/admin/desligados" (virou filtro da lista) só existem
+  // aqui.
   async redirects() {
     return [
       { source: "/qsms", destination: "/radar", permanent: false },
       { source: "/qsms/dashboard", destination: "/dashboard", permanent: false },
       { source: "/supervisor", destination: "/radar", permanent: false },
+      { source: "/qsms/base", destination: "/colaboradores", permanent: false },
+      {
+        source: "/admin/desligados",
+        destination: "/colaboradores?situacao=desligados",
+        permanent: false,
+      },
     ];
   },
 };

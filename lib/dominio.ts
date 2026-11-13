@@ -161,6 +161,14 @@ export function hojeIso(): string {
   }).format(new Date());
 }
 
+/**
+ * Requisitos que o formulário "Lançar exame anterior" aceita: o ASO periódico e
+ * a avaliação psicossocial (AVP). Os demais (treinamentos) não têm esse fluxo.
+ */
+export function ehExameLancavel(nome: string): boolean {
+  return nome === "ASO Periódico" || nome.includes("(AVP)");
+}
+
 export function diasParaTexto(dias: number | null): string {
   if (dias === null || dias === undefined) return "sem data";
   if (dias < 0) return `venceu há ${Math.abs(dias)} ${Math.abs(dias) === 1 ? "dia" : "dias"}`;

@@ -49,7 +49,6 @@ const ITEM_COLABORADORES: ItemNav = {
   Icone: IconeColaboradores,
   filhas: ["/qsms/colaborador"],
 };
-const ITEM_BASE: ItemNav = { href: "/qsms/base", rotulo: "Base", Icone: IconeBase };
 const ITEM_SUPERVISORES: ItemNav = { href: "/qsms/supervisores", rotulo: "Supervisores", Icone: IconeSupervisores };
 const ITEM_AUSENCIAS: ItemNav = { href: "/qsms/ausencias", rotulo: "Ausências", Icone: IconeAusencias };
 const ITEM_USUARIOS: ItemNav = { href: "/admin/usuarios", rotulo: "Gestão de usuários", Icone: IconeUsuarios };
@@ -76,7 +75,7 @@ function entradasDoPapel(papel: Perfil["papel"]): EntradaNav[] {
     id: "cadastros",
     rotulo: "Cadastros",
     Icone: IconeBase,
-    itens: [ITEM_BASE, ITEM_SUPERVISORES, ITEM_AUSENCIAS],
+    itens: [ITEM_SUPERVISORES, ITEM_AUSENCIAS],
   });
 
   if (papel === "admin") {

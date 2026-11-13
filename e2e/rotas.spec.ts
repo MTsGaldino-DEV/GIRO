@@ -17,6 +17,8 @@ const ROTAS_PROTEGIDAS = [
   '/qsms?status=vencido',
   '/qsms/dashboard',
   '/supervisor',
+  '/qsms/base',
+  '/admin/desligados',
 ]
 
 for (const rota of ROTAS_PROTEGIDAS) {

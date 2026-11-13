@@ -109,3 +109,61 @@ export async function corrigirDataExame(_anterior: Acao | null, formData: FormDa
   revalidatePath("/dashboard");
   return { ok: true, mensagem: "Data corrigida." };
 }
+
+const esquemaRetroativo = z.object({
+  colaborador_id: z.string().uuid("Colaborador inválido."),
+  tipo_requisito_id: z.string().uuid("Requisito inválido."),
+  data_documento: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Informe a data no formato dd/mm/aaaa.")
+    .refine((d) => d <= hojeIso(), "A data do ASO não pode estar no futuro.")
+    // Um ASO de 2015 quase certamente é erro de digitação no ano.
+    .refine((d) => d >= "2000-01-01", "Data anterior a 2000 — confira o ano."),
+  estimado: z.boolean().optional(),
+  observacoes: z.string().trim().max(500, "A observação passa de 500 caracteres.").optional(),
+});
+
+/**
+ * Registra um exame anterior conhecido de um colaborador (ASO ou AVP).
+ *
+ * Veio da antiga tela "Conferência da base" (Fase 0) e agora é chamada do
+ * perfil. Cria evento retroativo e reposiciona o vencimento do item que
+ * existia por falta de registro. Toda a regra (resultado "apto", cálculo do
+ * vencimento, item aberto) está em fn_registrar_aso_retroativo; aqui só se
+ * valida a entrada e se atualizam as telas.
+ */
+export async function registrarAsoRetroativo(
+  _anterior: Acao | null,
+  formData: FormData
+): Promise<Acao> {
+  await exigirOperador();
+
+  const analise = esquemaRetroativo.safeParse({
+    colaborador_id: formData.get("colaborador_id"),
+    tipo_requisito_id: formData.get("tipo_requisito_id"),
+    data_documento: formData.get("data_documento"),
+    estimado: formData.get("estimado") === "on",
+    observacoes: String(formData.get("observacoes") ?? ""),
+  });
+
+  if (!analise.success) {
+    return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const supabase = await criarClienteServidor();
+  const { error } = await supabase.rpc("fn_registrar_aso_retroativo", {
+    p_colaborador_id: analise.data.colaborador_id,
+    p_tipo_requisito_id: analise.data.tipo_requisito_id,
+    p_data_documento: analise.data.data_documento,
+    p_estimado: analise.data.estimado ?? false,
+    p_observacoes: analise.data.observacoes || null,
+  });
+
+  if (error) return { ok: false, erro: error.message };
+
+  revalidatePath(`/qsms/colaborador/${analise.data.colaborador_id}`, "layout");
+  revalidatePath("/colaboradores");
+  revalidatePath("/radar");
+
+  return { ok: true, mensagem: "Registrado." };
+}

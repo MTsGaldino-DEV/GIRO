@@ -52,7 +52,7 @@ export default async function VisaoGeral({ params }: { params: Promise<{ id: str
         <Aviso tom="forte" titulo="Sem data de referência">
           Não há ASO registrado para este colaborador. Enquanto não houver, ele é
           tratado com a mesma gravidade de um ASO vencido. Lance a data do último
-          exame em <Link href="/qsms/base">Conferir a base</Link> ou na aba ASO.
+          exame em <Link href={`/qsms/colaborador/${id}/aso`}>Conferir na aba ASO</Link>.
         </Aviso>
       )}
 

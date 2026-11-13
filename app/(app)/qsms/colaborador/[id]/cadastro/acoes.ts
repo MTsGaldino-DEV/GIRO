@@ -278,7 +278,6 @@ export async function salvarCampo(_anterior: Acao | null, formData: FormData): P
   revalidatePath(`/qsms/colaborador/${id.data}`, "layout");
   revalidatePath("/radar");
   revalidatePath("/colaboradores");
-  revalidatePath("/qsms/base");
   return { ok: true, mensagem: `${definicao.rotulo} atualizado.` };
 }
 
@@ -396,6 +395,5 @@ export async function alternarAtivo(_anterior: Acao | null, formData: FormData):
   revalidatePath(`/qsms/colaborador/${id}`, "layout");
   revalidatePath("/radar");
   revalidatePath("/colaboradores");
-  revalidatePath("/qsms/base");
   return { ok: true, mensagem: ativo ? "Colaborador reativado." : "Colaborador desligado." };
 }
