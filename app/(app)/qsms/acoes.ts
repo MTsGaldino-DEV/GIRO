@@ -420,7 +420,15 @@ export async function enviarAClinica(_anterior: Acao | null, formData: FormData)
 // para `aguardando_documento`, etapa que saiu do fluxo normal.
 // ---------------------------------------------------------------------------
 
-const dataIso = (mensagem: string) => z.string().regex(/^\d{4}-\d{2}-\d{2}$/, mensagem);
+/** 'YYYY-MM-DD' que existe no calendário: o regex sozinho aceitaria 2026-02-31. */
+function dataDeCalendario(iso: string): boolean {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  const d = new Date(Date.UTC(ano, mes - 1, dia));
+  return d.getUTCFullYear() === ano && d.getUTCMonth() === mes - 1 && d.getUTCDate() === dia;
+}
+
+const dataIso = (mensagem: string) =>
+  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, mensagem).refine(dataDeCalendario, mensagem);
 
 const esquemaResultado = z.object({
   item_id: z.string().uuid(),
@@ -451,6 +459,38 @@ const MENSAGEM_DESFECHO: Record<string, string> = {
   incompleto: "Desfecho registrado. O ciclo voltou ao supervisor para propor nova data.",
   retorno_necessario: "Desfecho registrado. O ciclo voltou ao supervisor para marcar o retorno.",
 };
+
+/**
+ * Apaga o ASO recém-enviado quando o registro falhou — só com certeza de que
+ * ele não ficou em uso. Arquivo órfão custa pouco; evidência apagada de um
+ * item concluído, não.
+ *
+ * Duas condições, as duas obrigatórias:
+ *   - `code` preenchido: o Postgres ou o PostgREST recusou a chamada, então a
+ *     transação foi desfeita. Falha de rede ou tempo esgotado chegam sem
+ *     `code`, e aí o banco pode ter concluído o item com este arquivo;
+ *   - o item, relido, continua em `enviado_clinica`.
+ * Na dúvida (releitura falhou, qualquer exceção), não apaga.
+ */
+async function removerSeNaoUsado(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  itemId: string,
+  caminho: string,
+  codigoErro: string | undefined
+) {
+  if (!codigoErro) return;
+  try {
+    const { data, error } = await supabase
+      .from("itens_pendencia")
+      .select("etapa")
+      .eq("id", itemId)
+      .maybeSingle();
+    if (error || data?.etapa !== "enviado_clinica") return;
+    await supabase.storage.from(BUCKET_ASOS).remove([caminho]);
+  } catch {
+    // Fica o órfão; a mensagem de erro original continua sendo a devolvida.
+  }
+}
 
 export async function registrarResultado(_anterior: Acao | null, formData: FormData): Promise<Acao> {
   await exigirOperador();
@@ -525,16 +565,14 @@ export async function registrarResultado(_anterior: Acao | null, formData: FormD
     p_data_documento: aso?.data_documento ?? null,
     p_data_realizado: aso?.data_realizado ?? null,
     p_resultado: aso?.resultado ?? null,
-    p_medico: aso?.medico ?? null,
+    // Vazio ou só espaços (já aparados pelo Zod) vira null, não texto vazio.
+    p_medico: aso?.medico || null,
     p_documento_url: caminhoDocumento,
-    p_observacoes: observacao ?? null,
+    p_observacoes: observacao || null,
   });
 
   if (error) {
-    // O banco recusou e desfez tudo; o arquivo enviado ficaria órfão no bucket.
-    if (caminhoDocumento) {
-      await supabase.storage.from(BUCKET_ASOS).remove([caminhoDocumento]);
-    }
+    if (caminhoDocumento) await removerSeNaoUsado(supabase, item_id, caminhoDocumento, error.code);
     return { ok: false, erro: mensagemDeErro(error.message) };
   }
 

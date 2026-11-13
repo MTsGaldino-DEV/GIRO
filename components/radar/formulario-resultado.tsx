@@ -53,11 +53,10 @@ export function FormularioResultado({
   // Envio pelo `onSubmit`, não pelo `action` do form: o `action` limpa o
   // formulário ao terminar, e um erro do servidor (data recusada, falha de
   // rede) faria a pessoa escolher o arquivo e as datas de novo. O botão fica
-  // desabilitado enquanto `pendente`, e a checagem abaixo barra o Enter
-  // repetido no mesmo instante.
+  // desabilitado enquanto `pendente`; com o botão padrão desabilitado, o
+  // navegador também não faz o envio implícito pelo Enter.
   function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
-    if (pendente) return;
     const dados = new FormData(evento.currentTarget);
     startTransition(() => acao(dados));
   }

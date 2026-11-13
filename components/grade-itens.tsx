@@ -188,8 +188,23 @@ export function GradeItens({
     filtrosAtuais.current = filtros;
   }, [filtros]);
 
+  // Concluir ou cancelar tira a linha da lista, e com ela o botão que tinha o
+  // foco: o navegador o joga no <body> e quem usa teclado volta ao topo da
+  // página. Depois da nova consulta, se o foco se perdeu assim, ele vai para o
+  // aviso com a mensagem. Se a linha continua (mudou só de etapa), fica onde
+  // está.
+  const avisoRef = useRef<HTMLDivElement>(null);
+  const focarAvisoSePerdido = useRef(false);
+  useEffect(() => {
+    if (!focarAvisoSePerdido.current) return;
+    focarAvisoSePerdido.current = false;
+    const ativo = document.activeElement;
+    if (!ativo || ativo === document.body) avisoRef.current?.focus();
+  }, [pagina]);
+
   const aoConcluirAcao: AoConcluir = useCallback(
     (mensagem) => {
+      focarAvisoSePerdido.current = true;
       setAvisoAcao(mensagem);
       router.refresh();
       startTransition(() => {
@@ -244,6 +259,8 @@ export function GradeItens({
 
       {avisoAcao && (
         <div
+          ref={avisoRef}
+          tabIndex={-1}
           role="status"
           className="card mb-4 flex items-center justify-between gap-3 text-label"
         >
