@@ -13,6 +13,13 @@ import {
 import { entradasDaFaixa } from "@/lib/acoes-etapa";
 import { BotaoGerarItens } from "./gerar-itens";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
+import { ListaGeset } from "@/components/geset/lista-geset";
+import { SegmentoFila } from "@/components/geset/segmento-fila";
+import {
+  buscarPendenciasGeset,
+  contarPendenciasGeset,
+  normalizarFiltrosGeset,
+} from "@/lib/consulta-geset";
 import type { Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Radar" };
@@ -29,10 +36,10 @@ export const dynamic = "force-dynamic";
 export default async function Radar({
   searchParams,
 }: {
-  searchParams: Promise<FiltrosPainel>;
+  searchParams: Promise<FiltrosPainel & { fila?: string }>;
 }) {
   const perfil = await exigirOperador();
-  const pedidos = await searchParams;
+  const { fila, ...pedidos } = await searchParams;
 
   // O escopo é resolvido aqui, uma vez, e desce já definido: servidor e
   // navegador consultam com o mesmo valor, sem cada um inventar o padrão.
@@ -41,11 +48,16 @@ export default async function Radar({
 
   const supabase = await criarClienteServidor();
 
+  // Fila "Falta lançar no GESET": outra visão do mesmo Radar, escolhida pela URL.
+  if (fila === "geset") {
+    return paginaGeset(supabase, pedidos);
+  }
+
   // Consultas independentes entre si, disparadas juntas. Os polos ficavam por
   // último, no fim da fila, esperando itens e fotos que não têm nada a ver com
   // eles — 38 ms de espera pura, medidos. As contagens da faixa "Para você
   // agir" entram aqui pelo mesmo motivo: o HTML já chega com os números.
-  const [contagensIniciais, { data: supervisoresBrutos }, polos, { data: tipos }] = await Promise.all([
+  const [contagensIniciais, { data: supervisoresBrutos }, polos, { data: tipos }, pendentesGeset] = await Promise.all([
     contarItensPorEtapa(
       supabase,
       entradasDaFaixa(perfil.papel).map((e) => e.etapa),
@@ -55,6 +67,7 @@ export default async function Radar({
     supabase.from("supervisores").select("id, nome, email, ativo").order("nome"),
     obterPolos(),
     supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
+    contarPendenciasGeset(supabase),
   ]);
 
   const supervisores = (supervisoresBrutos ?? []) as Supervisor[];
@@ -75,6 +88,8 @@ export default async function Radar({
         <BotaoGerarItens />
       </CabecalhoPagina>
 
+      <SegmentoFila ativa="acoes" pendentes={pendentesGeset} />
+
       <GradeItens
         inicial={{ itens, total, erro }}
         filtrosIniciais={filtros}
@@ -92,6 +107,50 @@ export default async function Radar({
         }}
       />
 
+    </div>
+  );
+}
+
+/**
+ * A fila do GESET, com a primeira página já no HTML. O mesmo cabeçalho e o
+ * mesmo segmento: só o conteúdo abaixo troca.
+ */
+async function paginaGeset(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  pedidos: FiltrosPainel
+) {
+  const filtros = normalizarFiltrosGeset(pedidos);
+
+  const [inicial, pendentes, { data: tipos }] = await Promise.all([
+    buscarPendenciasGeset(supabase, filtros),
+    contarPendenciasGeset(supabase),
+    supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
+  ]);
+
+  const urlPorCaminho = await assinarFotos(inicial.linhas.map((l) => l.foto_url));
+
+  return (
+    <div>
+      <CabecalhoPagina
+        trilha={[{ rotulo: "Operação" }, { rotulo: "Radar" }]}
+        titulo="Radar"
+        descricao="ASO e AVP concluídos que faltam lançar no GESET."
+      >
+        <BotaoGerarItens />
+      </CabecalhoPagina>
+
+      <SegmentoFila ativa="geset" pendentes={pendentes} />
+
+      <ListaGeset
+        inicial={inicial}
+        filtrosIniciais={{
+          busca: filtros.busca || undefined,
+          requisito: filtros.requisito,
+          pagina: filtros.pagina > 1 ? filtros.pagina : undefined,
+        }}
+        fotosIniciais={Object.fromEntries(urlPorCaminho)}
+        requisitos={(tipos ?? []).map((t) => t.nome as string)}
+      />
     </div>
   );
 }

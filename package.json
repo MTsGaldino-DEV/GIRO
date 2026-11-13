@@ -14,6 +14,7 @@
     "teste:consulta": "node --experimental-strip-types scripts/teste-consulta-itens.mjs",
     "teste:acoes": "node --experimental-strip-types scripts/teste-acoes-etapa.mjs",
     "teste:faixa": "node --experimental-strip-types scripts/teste-faixa.mjs",
+    "teste:geset-ui": "node --experimental-strip-types scripts/teste-consulta-geset.mjs",
     "teste:permissoes": "node scripts/teste-permissoes.mjs",
     "teste:semaforo": "node scripts/teste-semaforo.mjs",
     "teste:geset": "node scripts/teste-geset.mjs",
