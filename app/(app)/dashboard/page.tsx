@@ -1,62 +1,49 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { assinarFotos } from "@/lib/colaborador";
-import { SeloStatus } from "@/components/selo-status";
-import { GraficoConclusoes, type PontoMes } from "@/components/grafico-conclusoes";
-import { RoscaStatus } from "@/components/rosca-status";
-import { AvatarColaborador } from "@/components/avatar-colaborador";
-import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
-import { Vazio } from "@/components/aviso";
+import { aplicarRegrasRadar } from "@/lib/consulta-itens";
+import { contarPendenciasGeset } from "@/lib/consulta-geset";
+import { buscarConcluidos, buscarItensAbertos, buscarLinhasStatus, buscarTodas } from "@/lib/consulta-dashboard";
+import {
+  agruparEtapas,
+  conclusoesPorMes,
+  contarPorEtapa,
+  detalheParaTexto,
+  lerDetalhe,
+  maisProximosDeVencer,
+  mediaDiasParados,
+  mediaDiasPorEtapa,
+  montarDetalhe,
+  percentual,
+  podeEscolherEquipe,
+  porResponsavel,
+  primeiroDiaDoMes,
+  resolverEscopoDashboard,
+  resumirPorPessoa,
+  totalPorDono,
+  type ContagemStatus,
+} from "@/lib/regras-dashboard";
+import { hojeIso } from "@/lib/dominio";
+import { Aviso } from "@/components/aviso";
 import { Info } from "@/components/info";
-import { ETAPA_ROTULO, DONO_ROTULO } from "@/lib/dominio";
-import { AtualizacaoAutomatica } from "./atualizacao";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
-import { NumeroAnimado } from "@/components/numero-animado";
-import type { ResumoStatus, Etapa, Dono, ItemAberto } from "@/lib/tipos";
+import type { PontoMes } from "@/components/grafico-conclusoes";
+import { CartoesSemaforo } from "@/components/dashboard/cartoes-semaforo";
+import { CartoesProcesso } from "@/components/dashboard/cartoes-processo";
+import { PorEtapa } from "@/components/dashboard/por-etapa";
+import { PorResponsavel } from "@/components/dashboard/por-responsavel";
+import { MaisProximos } from "@/components/dashboard/mais-proximos";
+import { OutrasMetricas } from "@/components/dashboard/outras-metricas";
+import { DetalheDashboard, tituloDetalhe } from "@/components/dashboard/detalhe";
+import { SegmentoEquipe } from "@/components/dashboard/segmento-equipe";
+import { AtualizacaoAutomatica } from "./atualizacao";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
-interface LinhaEtapa {
-  etapa: Etapa;
-  dono: Dono;
-  quantidade: number;
-  estourados: number;
-  dias_max: number;
-}
-
-interface LinhaSupervisor {
-  supervisor_id: string | null;
-  supervisor_nome: string;
-  equipe: number;
-  vencidos: number;
-  sem_registro: number;
-  criticos: number;
-  itens_abertos: number;
-  estourados: number;
-  dias_mais_antigo: number;
-}
-
-/** Barra de proporção. Petróleo, nunca cor de status: mede volume, não risco. */
-function BarraProporcao({ valor, total, indice = 0 }: { valor: number; total: number; indice?: number }) {
-  const porcento = total > 0 ? Math.round((valor / total) * 100) : 0;
-  return (
-    <div
-      className="h-1.5 rounded-full overflow-hidden mt-1.5"
-      style={{ background: "var(--color-line)" }}
-      role="presentation"
-    >
-      <div
-        className="h-full rounded-full barra-proporcao__valor"
-        style={{ width: `${porcento}%`, background: "var(--color-brand)", "--i": indice } as React.CSSProperties}
-      />
-    </div>
-  );
-}
-
 const FUSO = "America/Sao_Paulo";
+/** Meses da curva de conclusões (mockup dashboard-v3: seis). */
+const MESES = 6;
 
 function saudacao(agora: Date): string {
   const hora = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hourCycle: "h23", timeZone: FUSO }).format(agora));
@@ -65,290 +52,155 @@ function saudacao(agora: Date): string {
   return "Boa noite";
 }
 
-/**
- * Dashboard "ação primeiro" (redesign do QSMS, 03/11/2026).
- *
- * A ordem da tela é a ordem das perguntas de quem abre o sistema de manhã:
- * o que está pegando fogo (três números), quem está parado há mais tempo (com
- * o botão para agir), onde está o gargalo (supervisão ou QSMS) e só depois o
- * retrato geral — status, curva, demanda à frente e ranking.
- */
-export default async function Dashboard() {
-  const perfil = await exigirOperador();
-  const supabase = await criarClienteServidor();
+/** Linha de `fn_resumo_status` (bigint chega como texto). */
+function lerResumo(bruto: unknown): ContagemStatus | null {
+  const r = (Array.isArray(bruto) ? bruto[0] : null) as Record<string, number | string> | null;
+  if (!r) return null;
+  const n = (k: string) => Number(r[k]);
+  return {
+    total: n("total"),
+    sem_registro: n("sem_registro"),
+    vencido: n("vencido"),
+    critico: n("critico"),
+    atencao: n("atencao"),
+    programar: n("programar"),
+    ok: n("ok"),
+  };
+}
 
-  const [
-    { data: resumoBruto },
-    { data: etapasBrutas },
-    { data: supervisoresBrutos },
-    { data: curvaBruta },
-    { data: vencimentosBrutos },
-    { data: paradosBrutos },
-  ] = await Promise.all([
-    supabase.rpc("fn_resumo_status"),
-    supabase.rpc("fn_resumo_por_etapa"),
-    supabase.rpc("fn_resumo_por_supervisor"),
-    supabase.rpc("fn_conclusoes_por_mes", { p_meses: 12 }),
-    supabase.rpc("fn_vencimentos_a_frente"),
-    supabase.from("vw_itens_abertos").select("*").order("dias_parados", { ascending: false }).limit(5),
+/**
+ * Dashboard (spec 2026-11-13-telas-e-fluxo, seção 6; mockup dashboard-v3).
+ *
+ * UEN inteira para todos; quem tem equipe vinculada pode recortar a sua
+ * (`?equipe=minha`). Na UEN, semáforo, etapas e curva vêm das RPCs; no recorte,
+ * das mesmas views filtradas por `supervisor_id` (as RPCs não filtram). Cada
+ * número abre a lista no fim da página (`?detalhe=`).
+ */
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ equipe?: string; detalhe?: string }>;
+}) {
+  const perfil = await exigirOperador();
+  const pedidos = await searchParams;
+  const escopo = resolverEscopoDashboard(perfil, pedidos.equipe);
+  const chave = lerDetalhe(pedidos.detalhe);
+  const ativo = chave ? detalheParaTexto(chave) : null;
+  const equipe = escopo === "minha" ? perfil.supervisor_id : null;
+  const uen = escopo === "todas";
+
+  const supabase = await criarClienteServidor();
+  const hoje = hojeIso();
+  const inicioMes = primeiroDiaDoMes(hoje);
+
+  const [resumoRpc, etapasRpc, curvaRpc, geset, status, itens, radar, concluidos] = await Promise.all([
+    uen ? supabase.rpc("fn_resumo_status") : null,
+    uen ? supabase.rpc("fn_resumo_por_etapa") : null,
+    uen ? supabase.rpc("fn_conclusoes_por_mes", { p_meses: MESES }) : null,
+    contarPendenciasGeset(supabase),
+    buscarLinhasStatus(supabase, equipe),
+    buscarItensAbertos(supabase, equipe),
+    buscarTodas<{ item_id: string }>((de, ate) =>
+      aplicarRegrasRadar(supabase.from("vw_itens_abertos").select("item_id"), { equipe: escopo }, perfil.supervisor_id)
+        .order("item_id")
+        .range(de, ate)
+    ),
+    // Na UEN a curva vem da RPC; aqui basta o mês corrente. No recorte, os seis meses.
+    buscarConcluidos(supabase, uen ? inicioMes : primeiroDiaDoMes(hoje, 1 - MESES), primeiroDiaDoMes(hoje, 1), equipe),
   ]);
 
-  const resumo = (resumoBruto?.[0] ?? null) as ResumoStatus | null;
-  const etapas = (etapasBrutas ?? []) as LinhaEtapa[];
-  const supervisores = (supervisoresBrutos ?? []) as LinhaSupervisor[];
-  const curva = (curvaBruta ?? []) as PontoMes[];
-  const vencimentos = (vencimentosBrutos?.[0] ?? { ate_30: 0, ate_60: 0, ate_90: 0 }) as {
-    ate_30: number;
-    ate_60: number;
-    ate_90: number;
-  };
-  const parados = (paradosBrutos ?? []) as ItemAberto[];
-  const fotos = await assinarFotos(parados.map((p) => p.foto_url));
+  const erros = [resumoRpc?.error, etapasRpc?.error, curvaRpc?.error, status.erro, itens.erro, radar.erro, concluidos.erro].filter(Boolean);
 
-  const totalAbertos = etapas.reduce((soma, e) => soma + Number(e.quantidade), 0);
+  const contagem = (uen ? lerResumo(resumoRpc?.data) : null) ?? (status.erro ? null : resumirPorPessoa(status.linhas));
+  const etapas = uen && etapasRpc?.data ? agruparEtapas(etapasRpc.data) : contarPorEtapa(itens.linhas);
+  const curva: PontoMes[] =
+    uen && curvaRpc?.data
+      ? (curvaRpc.data as { mes: string; quantidade: number | string }[]).map((p) => ({ mes: p.mes, quantidade: Number(p.quantidade) }))
+      : conclusoesPorMes(concluidos.linhas.map((c) => c.data_documento), hoje, MESES);
+  const concluidosMes = concluidos.linhas.filter((c) => c.data_documento >= inicioMes);
+  const idsRadar = radar.erro ? null : new Set(radar.linhas.map((r) => r.item_id));
+  const responsaveis = porResponsavel(itens.linhas);
 
-  // "Onde está a bola", dividido pelo dono da etapa: é o que responde se o
-  // gargalo é a supervisão que não libera ou o QSMS que não agenda.
-  const lados = (["supervisor", "qsms"] as const).map((dono) => {
-    const linhas = etapas.filter((e) => e.dono === dono);
-    return {
-      dono,
-      linhas,
-      quantidade: linhas.reduce((soma, e) => soma + Number(e.quantidade), 0),
-      estourados: linhas.reduce((soma, e) => soma + Number(e.estourados), 0),
-    };
-  });
+  const etapaPorRequisito = new Map(itens.linhas.map((i) => [`${i.colaborador_id}|${i.tipo_requisito_id}`, i.etapa]));
+  const proximos = maisProximosDeVencer(status.linhas, 20).map((l) => ({
+    ...l,
+    etapa: etapaPorRequisito.get(`${l.colaborador_id}|${l.tipo_requisito_id}`) ?? null,
+  }));
+
+  const semItens = !!itens.erro;
+  const detalhe = chave
+    ? montarDetalhe(chave, { linhasStatus: status.linhas, itens: itens.linhas, idsRadar, concluidos: concluidosMes })
+    : null;
 
   const agora = new Date();
   const primeiroNome = (perfil.nome ?? perfil.email).trim().split(/\s+/)[0];
-  const hoje = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: FUSO }).format(agora);
-
-  const urgencias = resumo
-    ? [
-        {
-          rotulo: "Vencidos",
-          valor: Number(resumo.vencido),
-          href: "/radar?status=vencido",
-          selo: <SeloStatus status="vencido" dias={null} />,
-        },
-        {
-          rotulo: "Sem registro",
-          valor: Number(resumo.sem_registro),
-          href: "/radar?status=sem_registro",
-          selo: <SeloStatus status="sem_registro" dias={null} />,
-        },
-        {
-          rotulo: "Fora do prazo",
-          valor: Number(resumo.sla_estourado),
-          href: "/radar?parados=1",
-          selo: <span className="text-caption text-ink-muted">SLA da etapa estourado</span>,
-        },
-      ]
-    : [];
+  const dataHoje = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: FUSO }).format(agora);
 
   return (
     <div>
       <CabecalhoPagina
         titulo={`${saudacao(agora)}, ${primeiroNome}`}
-        descricao={<span className="first-letter:uppercase inline-block">{hoje}</span>}
+        descricao={
+          <>
+            <span className="first-letter:uppercase inline-block">
+              {`${dataHoje} · ${uen ? "UEN inteira" : "sua equipe"}${contagem ? ` · ${contagem.total} pessoas` : ""}`}
+            </span>{" "}
+            <Info>Nos cartões coloridos, cada pessoa conta uma vez, no pior status entre ASO e AVP.</Info>
+          </>
+        }
       >
         <AtualizacaoAutomatica />
       </CabecalhoPagina>
 
-      {urgencias.length > 0 && (
-        <>
-          <h2 className="sr-only">O que pede ação</h2>
-          <div className="grid gap-4 mb-5 sm:grid-cols-3">
-            {urgencias.map((u) => (
-              <Link key={u.rotulo} href={u.href} className="card card--interativo urgencia no-underline">
-                <span className="urgencia__rotulo">{u.rotulo}</span>
-                <span className="urgencia__numero tabular">
-                  <NumeroAnimado valor={u.valor} />
-                </span>
-                {u.selo}
-              </Link>
-            ))}
-          </div>
-        </>
+      {podeEscolherEquipe(perfil) && (
+        <div className="mb-4">
+          <SegmentoEquipe escopo={escopo} />
+        </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] items-start mb-5">
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[1.0625rem]">Parados há mais tempo</h2>
-            <Info>Os cinco itens que estão há mais dias na mesma etapa, de qualquer status.</Info>
-            <Link href="/radar?ordem=parados&dir=desc" className="ml-auto text-label">
-              Ver todos
-            </Link>
-          </div>
+      {erros.length > 0 && (
+        <div className="mb-4">
+          <Aviso tom="forte" titulo="Parte dos números não carregou">
+            Onde aparece “—”, o valor não pôde ser lido. Atualize a página em instantes.
+          </Aviso>
+        </div>
+      )}
 
-          {parados.length === 0 ? (
-            <Vazio>Nenhum item em aberto.</Vazio>
-          ) : (
-            <ul className="list-none m-0 p-0 grid">
-              {parados.map((item) => (
-                <li key={item.item_id} className="parado">
-                  <AvatarColaborador nome={item.nome} fotoUrl={fotos.get(item.foto_url ?? "")} tamanho={40} />
-                  <div className="min-w-0 flex-1">
-                    <BotaoNomeColaborador
-                      colaboradorId={item.colaborador_id}
-                      nome={item.nome}
-                      className="cartao-item__nome"
-                    />
-                    <span className="block text-caption text-ink-faint truncate">
-                      {ETAPA_ROTULO[item.etapa]} · com {DONO_ROTULO[item.dono]}
-                    </span>
-                  </div>
-                  <span className="dias-parados parado__dias" data-estourado={item.sla_estourado}>
-                    {item.dias_parados}d
-                  </span>
-                  <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
-                    Agir
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+      <CartoesSemaforo contagem={contagem} escopo={escopo} ativo={ativo} />
 
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[1.0625rem]">Onde está a bola</h2>
-            <Info>
-              Itens abertos pelo dono da etapa atual: mostra se o gargalo é a
-              supervisão que não libera ou o QSMS que não agenda.
-            </Info>
-          </div>
+      <CartoesProcesso
+        escopo={escopo}
+        ativo={ativo}
+        numeros={{
+          noRadar: idsRadar ? idsRadar.size : null,
+          agendados: semItens ? null : itens.linhas.filter((i) => i.etapa === "agendado").length,
+          parados: semItens ? null : itens.linhas.filter((i) => i.sla_estourado).length,
+          concluidosMes: concluidos.erro ? null : concluidosMes.length,
+          geset,
+        }}
+      />
 
-          {totalAbertos === 0 ? (
-            <Vazio>Nenhum item em aberto.</Vazio>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {lados.map((lado) => (
-                <div key={lado.dono} className="bola">
-                  <span className="urgencia__rotulo">{DONO_ROTULO[lado.dono]}</span>
-                  <span className="text-[1.75rem] font-medium leading-tight tabular">
-                    <NumeroAnimado valor={lado.quantidade} />
-                  </span>
-                  <span className="text-caption text-ink-faint">
-                    {lado.estourados > 0 ? `${lado.estourados} fora do prazo` : "Nada fora do prazo"}
-                  </span>
-                  <BarraProporcao valor={lado.quantidade} total={totalAbertos} />
-
-                  <ul className="list-none m-0 p-0 mt-3 grid gap-1.5">
-                    {lado.linhas.map((linha) => (
-                      <li key={linha.etapa}>
-                        <Link
-                          href={`/radar?etapa=${linha.etapa}`}
-                          className="flex items-baseline justify-between gap-2 text-label text-ink no-underline hover:text-brand"
-                        >
-                          <span className="truncate">{ETAPA_ROTULO[linha.etapa]}</span>
-                          <span className="tabular text-ink-muted">{linha.quantidade}</span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+      <div className="grid grid-cols-1 gap-5 mb-5 lg:grid-cols-2 items-start">
+        <PorEtapa etapas={etapas} medias={mediaDiasPorEtapa(itens.linhas)} escopo={escopo} ativo={ativo} />
+        <PorResponsavel donos={totalPorDono(etapas)} linhas={responsaveis} escopo={escopo} ativo={ativo} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] items-start mb-5">
-        <section className="card">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-[1.0625rem]">Conclusões por mês</h2>
-            <Info>ASOs concluídos nos últimos 12 meses. É o indicador que diz se a operação está melhorando.</Info>
-          </div>
-          <GraficoConclusoes dados={curva} />
-        </section>
-
-        <div className="grid gap-5">
-          {resumo && (
-            <section className="card">
-              <h2 className="text-[1.0625rem] mb-4">Status da base</h2>
-              <RoscaStatus resumo={resumo} />
-            </section>
-          )}
-
-          <section className="card">
-            <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-[1.0625rem]">Vencimentos à frente</h2>
-              <Info>Para dimensionar a demanda da clínica.</Info>
-            </div>
-            <dl className="grid grid-cols-3 gap-3 m-0">
-              {[
-                { rotulo: "30 dias", valor: vencimentos.ate_30 },
-                { rotulo: "60 dias", valor: vencimentos.ate_60 },
-                { rotulo: "90 dias", valor: vencimentos.ate_90 },
-              ].map((faixa) => (
-                <div key={faixa.rotulo} className="flex flex-col">
-                  <dd className="m-0 order-1 text-[1.5rem] font-medium tabular">
-                    <NumeroAnimado valor={Number(faixa.valor)} />
-                  </dd>
-                  <dt className="order-2 text-caption text-ink-faint">{faixa.rotulo}</dt>
-                </div>
-              ))}
-            </dl>
-          </section>
-        </div>
+      <div className="grid grid-cols-1 gap-5 mb-5 lg:grid-cols-2 items-start">
+        <MaisProximos linhas={proximos} />
+        <OutrasMetricas
+          emDia={contagem ? percentual(contagem.ok, contagem.total) : null}
+          mediaDias={mediaDiasParados(itens.linhas)}
+          curva={curva}
+          escopo={escopo}
+          ativo={ativo}
+        />
       </div>
 
-      <section className="card">
-        <div className="flex items-center gap-2">
-          <h2 className="text-[1.0625rem]">Por supervisor</h2>
-          <Info>
-            Ordenado por quem tem mais gente irregular. A linha “Sem supervisor”
-            são os colaboradores por quem ninguém é cobrado.
-          </Info>
-        </div>
-
-        <div className="overflow-x-auto mt-3">
-          {supervisores.length === 0 ? (
-            <Vazio>Nenhum supervisor com equipe.</Vazio>
-          ) : (
-            <table className="tabela">
-              <caption className="sr-only">Situação por supervisor</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Supervisor</th>
-                  <th scope="col">Equipe</th>
-                  <th scope="col">Vencidos</th>
-                  <th scope="col">Sem registro</th>
-                  <th scope="col">Críticos</th>
-                  <th scope="col">Itens abertos</th>
-                  <th scope="col">Parado há</th>
-                </tr>
-              </thead>
-              <tbody>
-                {supervisores.map((s) => (
-                  <tr key={s.supervisor_id ?? "sem-supervisor"}>
-                    <td>
-                      <Link
-                        href={`/radar?supervisor=${s.supervisor_id ?? "sem-supervisor"}`}
-                        className="font-medium no-underline"
-                      >
-                        {s.supervisor_nome}
-                      </Link>
-                    </td>
-                    <td className="tabular">{Number(s.equipe)}</td>
-                    <td className="tabular">{Number(s.vencidos)}</td>
-                    <td className="tabular">{Number(s.sem_registro)}</td>
-                    <td className="tabular">{Number(s.criticos)}</td>
-                    <td className="tabular">{Number(s.itens_abertos)}</td>
-                    <td>
-                      <span className="dias-parados" data-estourado={Number(s.estourados) > 0}>
-                        {Number(s.dias_mais_antigo)}d
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </section>
+      <DetalheDashboard
+        titulo={chave ? tituloDetalhe(chave, responsaveis) : null}
+        detalhe={detalhe}
+        escopo={escopo}
+      />
     </div>
   );
 }

@@ -1069,63 +1069,141 @@ a {
    alinhados mesmo com nomes e cargos de tamanhos diferentes. */
 .cartao-item__abrir { margin-top: auto; }
 
-/* Dashboard "ação primeiro" (03/11/2026). */
-.urgencia {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-  padding: 1.125rem 1.25rem;
-  color: var(--color-ink);
-}
-.urgencia__rotulo {
+/* Dashboard (spec 2026-11-13-telas-e-fluxo, seção 6; mockup dashboard-v3).
+   Cartões são links: cada número abre a lista no fim da página. */
+.dash-rotulo {
+  margin: 0 0 0.5rem;
   font-size: 0.6875rem;
   font-weight: 500;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-ink-faint);
+  color: var(--color-ink-muted);
 }
-.urgencia__numero {
-  font-size: 2.5rem;
+.kpis {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 1.25rem;
+}
+@media (min-width: 640px) {
+  .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .kpis--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .kpis--5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-height: 42px;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-suave);
+  text-decoration: none;
+  transition: transform var(--duracao-media) var(--ease-giro), box-shadow var(--duracao-media) var(--ease-giro);
+}
+.kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-media); color: inherit; }
+/* Número escolhido: contorno petróleo (navegação), nunca cor de status. */
+.kpi[aria-current="true"] { box-shadow: 0 0 0 2px var(--color-brand), var(--shadow-media); }
+.kpi__numero {
+  font-size: 1.75rem;
   font-weight: 500;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
+.kpi__rotulo { font-size: var(--text-label); }
+.kpi__nota { font-size: var(--text-caption); color: var(--color-ink-faint); }
 
-.parado {
+/* Semáforo: os seis cartões são a única superfície do Dashboard com as cores
+   reservadas — o que eles contam é exatamente conformidade. */
+.kpi--vencido,
+.kpi--sem_registro { background: var(--color-status-vencido-bg); color: var(--color-status-vencido-fg); border-color: var(--color-status-vencido-bg); }
+.kpi--critico   { background: var(--color-status-critico-bg);   color: var(--color-status-critico-fg); }
+.kpi--atencao   { background: var(--color-status-atencao-bg);   color: var(--color-status-atencao-fg); }
+.kpi--programar { background: var(--color-status-programar-bg); color: var(--color-status-programar-fg); }
+.kpi--ok        { background: var(--color-status-regular-bg);   color: var(--color-status-regular-fg); }
+.kpi--critico, .kpi--atencao, .kpi--programar, .kpi--ok { border-color: color-mix(in srgb, currentColor 14%, transparent); }
+.kpi--vencido:hover, .kpi--sem_registro:hover { color: var(--color-status-vencido-fg); }
+.kpi--critico:hover   { color: var(--color-status-critico-fg); }
+.kpi--atencao:hover   { color: var(--color-status-atencao-fg); }
+.kpi--programar:hover { color: var(--color-status-programar-fg); }
+.kpi--ok:hover        { color: var(--color-status-regular-fg); }
+
+/* Barras de volume (por etapa): petróleo, mede quantidade, não risco. */
+.barra-etapa {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 11rem) minmax(0, 1fr) 2.5rem 4.5rem;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 42px;
+  padding: 0 0.375rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  font-size: var(--text-label);
+  text-decoration: none;
+}
+.barra-etapa:hover, .barra-etapa[aria-current="true"] { background: var(--color-brand-wash); color: var(--color-ink); }
+.barra-etapa__trilho { height: 0.75rem; border-radius: 4px; background: var(--color-line); overflow: hidden; }
+.barra-etapa__valor { display: block; height: 100%; border-radius: 4px; background: var(--color-brand); }
+.barra-etapa__media { color: var(--color-ink-faint); font-size: var(--text-caption); text-align: right; }
+
+/* Supervisão × QSMS: petróleo e grafite, os dois tons de navegação. */
+.divisao-dono { display: flex; min-height: 42px; border-radius: var(--radius-sm); overflow: hidden; margin-bottom: 0.75rem; }
+.divisao-dono__lado {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.625rem 0;
-  border-top: 1px solid var(--color-line);
+  min-width: max-content;
+  padding: 0 0.75rem;
+  color: #FFFFFF;
+  font-size: var(--text-label);
+  text-decoration: none;
+  white-space: nowrap;
 }
-.parado:first-child { border-top: 0; padding-top: 0; }
-.parado__dias { white-space: nowrap; font-size: var(--text-label); }
-.parado__dias[data-estourado="true"]::after { content: ""; }
+.divisao-dono__lado:hover { color: #FFFFFF; filter: brightness(1.12); }
+.divisao-dono__lado--supervisor { background: var(--color-brand); }
+.divisao-dono__lado--qsms { background: var(--color-ink); }
+.divisao-dono__lado[aria-current="true"] { text-decoration: underline; text-underline-offset: 3px; }
 
-.bola { display: flex; flex-direction: column; min-width: 0; }
-
-/* Rosca de status: tons do selo misturados — o fundo do selo é claro demais
-   para um arco fino e o texto, escuro demais para separar fatias vizinhas. */
-.rosca__arco {
-  animation: rosca-desenha 800ms var(--ease-giro) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
+/* Tabela enxuta do Dashboard (a `.tabela` do Radar pede 1000px). */
+.tabela-dash { width: 100%; border-collapse: collapse; font-size: var(--text-label); }
+.tabela-dash th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  text-align: left;
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--color-ink-faint);
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--color-line);
+  white-space: nowrap;
 }
-@keyframes rosca-desenha { from { stroke-dasharray: 0 400; } }
-.rosca__marca { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-.rosca__arco--ok           { stroke: color-mix(in srgb, var(--color-status-regular-fg) 68%, var(--color-status-regular-bg)); }
-.rosca__arco--programar    { stroke: color-mix(in srgb, var(--color-status-programar-fg) 62%, var(--color-status-programar-bg)); }
-.rosca__arco--atencao      { stroke: color-mix(in srgb, var(--color-status-atencao-fg) 62%, var(--color-status-atencao-bg)); }
-.rosca__arco--critico      { stroke: color-mix(in srgb, var(--color-status-critico-fg) 78%, var(--color-status-critico-bg)); }
-.rosca__arco--vencido      { stroke: var(--color-status-vencido-bg); }
-.rosca__arco--sem_registro { stroke: color-mix(in srgb, var(--color-status-vencido-bg) 72%, var(--color-status-vencido-fg)); }
-span.rosca__marca.rosca__arco--ok           { background: color-mix(in srgb, var(--color-status-regular-fg) 68%, var(--color-status-regular-bg)); }
-span.rosca__marca.rosca__arco--programar    { background: color-mix(in srgb, var(--color-status-programar-fg) 62%, var(--color-status-programar-bg)); }
-span.rosca__marca.rosca__arco--atencao      { background: color-mix(in srgb, var(--color-status-atencao-fg) 62%, var(--color-status-atencao-bg)); }
-span.rosca__marca.rosca__arco--critico      { background: color-mix(in srgb, var(--color-status-critico-fg) 78%, var(--color-status-critico-bg)); }
-span.rosca__marca.rosca__arco--vencido      { background: var(--color-status-vencido-bg); }
-span.rosca__marca.rosca__arco--sem_registro { background: color-mix(in srgb, var(--color-status-vencido-bg) 72%, var(--color-status-vencido-fg)); }
-span.rosca__marca { animation: none; }
+.tabela-dash td {
+  padding: 0.125rem 0.5rem;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--color-line);
+  font-variant-numeric: tabular-nums;
+  vertical-align: middle;
+}
+.tabela-dash tbody tr:hover td { background: var(--color-brand-wash); }
+.tabela-dash tr[aria-current="true"] td { background: var(--color-brand-wash); }
+.tabela-dash .nome-colaborador,
+.tabela-dash td > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+}
+.tabela-dash td > a { font-weight: 500; text-decoration: none; }
+.rolagem-dash { max-height: 26rem; overflow: auto; }
+
+/* Lista do número clicado, no fim da página. */
+.detalhe-dash { border: 2px solid var(--color-brand); scroll-margin-top: 1rem; }
 
 /* --------------------------------------------------------------------------
    Telas de acesso — "papel de eletro" (components/casca-login.tsx)

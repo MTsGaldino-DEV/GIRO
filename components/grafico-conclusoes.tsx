@@ -18,7 +18,14 @@ export interface PontoMes {
   quantidade: number;
 }
 
-export function GraficoConclusoes({ dados }: { dados: PontoMes[] }) {
+export function GraficoConclusoes({
+  dados,
+  largura = 720,
+}: {
+  dados: PontoMes[];
+  /** Largura mínima do desenho; abaixo dela o gráfico rola. Seis meses cabem em 420. */
+  largura?: number;
+}) {
   if (dados.length === 0) {
     return <p className="text-ink-faint text-label m-0">Sem dados suficientes.</p>;
   }
@@ -27,7 +34,6 @@ export function GraficoConclusoes({ dados }: { dados: PontoMes[] }) {
   // Escala arredondada para cima, para o topo do gráfico não encostar na barra.
   const teto = Math.ceil(maximo * 1.15) || 1;
 
-  const largura = 720;
   const altura = 220;
   const margemEsquerda = 32;
   const margemInferior = 26;

@@ -56,10 +56,10 @@ export interface FiltrosPainel {
  *
  * Aplicada só aqui (a view segue intacta para as outras telas). `.or()`
  * repetido vira AND no PostgREST, então combina com o `.or()` da busca por
- * matrícula.
+ * matrícula. O Dashboard usa a mesma função para o cartão "No radar".
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function aplicarRegrasRadar<Q extends PostgrestFilterBuilder<any, any, any, any, any, any, any>>(
+export function aplicarRegrasRadar<Q extends PostgrestFilterBuilder<any, any, any, any, any, any, any>>(
   consulta: Q,
   filtros: Pick<FiltrosPainel, "equipe">,
   supervisorIdPerfil: string | null
