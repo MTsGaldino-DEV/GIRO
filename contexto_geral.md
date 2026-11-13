@@ -49,7 +49,7 @@ app/
 components/                     # 26 componentes + components/ui (shadcn) + components/perfil (painel flutuante)
 lib/                            # dominio, tipos, perfil, colaborador, consulta-*, storage, cron, email-semanal, utils, campos-colaborador
 lib/supabase/                   # server.ts, browser.ts, admin.ts
-scripts/                        # db-push, seed-teste, criar-perfil, teste-fluxo, teste-rls, verificar, gerar-icones + lib/
+scripts/                        # db-push, seed-teste, criar-perfil, teste-fluxo, teste-rls (removido em 13/11/2026; ver teste-permissoes), verificar, gerar-icones + lib/
 supabase/migrations/            # 0001 … 0014 (.sql)
 docs/                           # contexto-atual, identidade-visual, perfil-colaborador-criterios, superpowers/specs/
 data/                           # apenas .gitkeep (vazio)
@@ -85,7 +85,7 @@ Não há `create type ... as enum` em nenhuma migration. Todos os "enums" são `
 
 ### View de status e o `cross join` — **implementado**
 
-`public.vw_status_colaborador`, criada em [0003](supabase/migrations/0003_view_status.sql) e redefinida em [0012](supabase/migrations/0012_fase1_rpcs.sql#L16). Usa **`cross join public.tipos_requisito t`** contra `public.colaboradores c`, com `left join` no último evento apto — é o que faz aparecer quem nunca teve registro (status `sem_registro`). Filtros: `c.ativo`, `t.ativo` e, desde 0012, `(t.opcional = false or c.exige_avp = true)`. `security_invoker = true`, portanto respeita a RLS de quem consulta. Semáforo de 6 faixas (`sem_registro`, `vencido`, `critico` <15d, `atencao` ≤30d, `programar` ≤60d, `ok`) + `peso_status` para ordenação.
+`public.vw_status_colaborador`, criada em [0003](supabase/migrations/0003_view_status.sql) e redefinida em [0012](supabase/migrations/0012_fase1_rpcs.sql#L16). Usa **`cross join public.tipos_requisito t`** contra `public.colaboradores c`, com `left join` no último evento apto — é o que faz aparecer quem nunca teve registro (status `sem_registro`). Filtros: `c.ativo`, `t.ativo` e, desde 0012, `(t.opcional = false or c.exige_avp = true)`. `security_invoker = true`, portanto respeita a RLS de quem consulta. Semáforo de 6 faixas (`sem_registro`, `vencido`, `critico` <15d, `atencao` ≤30d, `programar` ≤60d, `ok`) + `peso_status` para ordenação. **Atualizado em 13/11/2026:** desde a migration 0017, `programar` cobre 90 a 31 dias e `ok` é > 90 dias.
 
 Outras views: `vw_itens_abertos` (0003, redefinida em 0012 e [0013](supabase/migrations/0013_foto_na_view.sql)), `vw_eventos_colaborador` (0009/0012), `vw_documentos_colaborador` (0014). Todas com `security_invoker = true`.
 
@@ -160,7 +160,7 @@ Toda a lógica está no Postgres, não na aplicação.
 | `/auth/redefinir-senha`, `/auth/sair` | route handlers | troca code→sessão; logout |
 | `/qsms` | `exigirQsms` | painel principal: cards por status, filtros (status, etapa, supervisor, polo, "parados"), ordenação por coluna, paginação de 25, miniatura do colaborador, menu ⋮ por linha, botão de gerar itens |
 | `/qsms/dashboard` | `exigirQsms` | cartões por status, distribuição por etapa com dono e SLA estourado, vencimentos 30/60/90, curva de conclusões (SVG inline), ranking por supervisor, auto-refresh 60s |
-| `/qsms/base` | `exigirQsms` | conferência da base: lista `sem_registro`, lança ASO retroativo |
+| `/qsms/base` | `exigirQsms` | conferência da base: lista `sem_registro`, lança ASO retroativo. **Atualizado em 13/11/2026:** tela removida; substituída pela lista de Colaboradores (`/colaboradores`) e pelo formulário "Lançar exame anterior" na aba ASO do perfil. Navegação agora por sidebar (`/dashboard`, `/radar`, `/colaboradores`); `/qsms`, `/qsms/dashboard` e `/supervisor` redirecionam |
 | `/qsms/item/[id]` | `exigirQsms` | ficha do item, trilha de etapas, formulários de ação, timeline do histórico; item encerrado cai numa visão só-histórico em vez de 404 |
 | `/qsms/colaborador/[id]/{visao-geral,aso,treinamentos,ausencias,cadastro,historico}` | `exigirQsms` | perfil em tela cheia, 6 abas ([abas.tsx](app/(app)/qsms/colaborador/[id]/abas.tsx)) |
 | `/qsms/supervisores` | `exigirQsms` | cadastro de supervisores + vínculo em massa |
@@ -191,7 +191,7 @@ Toda a lógica está no Postgres, não na aplicação.
 - Nenhum arquivo do repositório importa `csv-parse`, `exceljs` ou `iconv-lite`; nenhuma menção a `ASO__Proximos_vencimentos.CSV`, `Colaboradores__211_2.xlsx`, `cp1252` ou `win1252` em código. As três dependências estão declaradas em `devDependencies` de [package.json](package.json), o que sugere que existiu (ou foi planejado) um script de importação que não está versionado.
 - O diretório [data/](data/) contém apenas `.gitkeep`.
 - Não há feature de admin para upload de planilha, nem script solto em [scripts/](scripts/) (os 7 scripts existentes são: db-push, seed-teste, criar-perfil, teste-fluxo, teste-rls, verificar, gerar-icones).
-- O único caminho de entrada de dados históricos que existe é manual: a tela `/qsms/base` + `fn_registrar_aso_retroativo`.
+- O único caminho de entrada de dados históricos que existe é manual: a tela `/qsms/base` + `fn_registrar_aso_retroativo`. **Atualizado em 13/11/2026:** a tela `/qsms/base` foi substituída pelo formulário "Lançar exame anterior" na aba ASO do perfil (lista em `/colaboradores`); a RPC continua a mesma.
 - Resíduo de uma importação passada: comentário em [app/(app)/qsms/ausencias/acoes.ts:25](app/(app)/qsms/ausencias/acoes.ts#L25) — "A coluna 'Férias' do CSV de origem veio inteiramente vazia".
 
 ## 12. Testes — **parcial (integração em SQL); unitários ausentes**
@@ -203,7 +203,7 @@ O que existe são scripts Node que abrem conexão `pg` contra o banco real usand
 | Script | Linhas | Cobre |
 |---|---|---|
 | [scripts/teste-fluxo.mjs](scripts/teste-fluxo.mjs) | 658 | ciclo de vida completo da máquina de estados contra o banco, com colaborador de teste (matrícula 999999) criado e removido; troca `auth.uid()` para simular os papéis, já que as RPCs decidem permissão por perfil |
-| [scripts/teste-rls.mjs](scripts/teste-rls.mjs) | 412 | isolamento por RLS: conecta como role `authenticated` e verifica que o supervisor A não enxerga a equipe do supervisor B |
+| [scripts/teste-rls.mjs](scripts/teste-rls.mjs) | 412 | isolamento por RLS: conecta como role `authenticated` e verifica que o supervisor A não enxerga a equipe do supervisor B. **Atualizado em 13/11/2026:** script removido; a migration 0016 retirou esse isolamento de propósito (supervisor opera em toda a UEN) e `npm run teste:permissoes` cobre as permissões atuais |
 | [scripts/verificar.mjs](scripts/verificar.mjs) | 49 | conferência (não é teste): contagens por situação, catálogo, semáforo, `fn_resumo_status`, itens por etapa |
 
 Nada cobre a camada TypeScript ([lib/dominio.ts](lib/dominio.ts), [lib/cron.ts](lib/cron.ts) `referenciaSemanal`, [lib/email-semanal.ts](lib/email-semanal.ts), [lib/consulta-itens.ts](lib/consulta-itens.ts)) — que é justamente onde há lógica pura, fácil de testar.
@@ -254,7 +254,7 @@ Branch atual: **`main`** (também é o branch principal).
 4. Papéis: o enunciado desta auditoria fala em `admin`, `qsms`, `supervisor`; o banco tem os três, mas `fn_e_qsms()` trata `admin` e `qsms` como o mesmo papel para efeito de RLS. A separação real entre eles é feita apenas na aplicação (`exigirAdmin`) — quem tiver `service_role` ou acesso direto não vê essa distinção.
 5. O `check` de `perfis.papel` foi ampliado em 0007, mas o comentário de `perfis` em 0001 e o constraint `perfil_supervisor_precisa_vinculo` continuam escritos para o modelo de dois papéis; não há restrição impedindo um `admin` de ter `supervisor_id`.
 6. Semáforo duplicado: a mesma escada de 6 faixas está codificada em SQL (`vw_status_colaborador`, duas vezes — 0003 e 0012) e em TS (`lib/dominio.ts`, rótulos e classes). Divergem por edição isolada sem que nada acuse.
-7. `fn_gerar_itens_pendentes` mudou a janela de 60 para 90 dias entre 0005 e 0012, mas a faixa `programar` da view continua em ≤60 dias — itens podem ser criados para colaboradores ainda com status `ok`.
+7. `fn_gerar_itens_pendentes` mudou a janela de 60 para 90 dias entre 0005 e 0012, mas a faixa `programar` da view continua em ≤60 dias — itens podem ser criados para colaboradores ainda com status `ok`. **Atualizado em 13/11/2026:** resolvido pela migration 0017; `programar` agora cobre 90 a 31 dias e `ok` é > 90 dias.
 8. `data_limite_marcar` existe duas vezes: como coluna gerada em `itens_pendencia` (0011) e como expressão calculada em `vw_status_colaborador` (0012). São definições paralelas da mesma regra (vencimento − 7).
 9. `historico_item` e `auditoria_colaborador` são descritas nos comentários como trilha de auditoria inviolável, mas a proteção vem da ausência de policies, não de um trigger que bloqueie UPDATE/DELETE.
 10. [lib/cron.ts](lib/cron.ts#L15) deixa as rotas de cron **abertas sem autenticação** quando `CRON_SECRET` não está definido e `NODE_ENV !== "production"`. É deliberado e comentado, mas depende de o ambiente de preview da Vercel reportar `production`.

@@ -20,7 +20,7 @@ Commits: `631b3d0` (V1) + o commit desta rodada.
 
 | | Critério | Como foi verificado |
 |---|---|---|
-| `[x]` | perfil abre a partir da lista | Clique no nome em `/qsms`, no item "Ver colaborador" do menu ⋮, e na lista de `/qsms/base` |
+| `[x]` | perfil abre a partir da lista | Clique no nome em `/qsms`, no item "Ver colaborador" do menu ⋮, e na lista de `/qsms/base` (atualizado em 13/11/2026: essa tela foi substituída pela lista de Colaboradores em `/colaboradores`) |
 | `[x]` | perfil mantém contexto da lista | Painel lateral por cima; URL não muda; ao fechar (X e Escape) a lista continua na mesma posição e com os mesmos filtros |
 | `[x]` | foto aparece corretamente | Upload de PNG pelo painel → avatar renderiza no cabeçalho e na linha da tabela |
 | `[x]` | informações cadastrais aparecem | Abas Visão geral e Cadastro: nome, matrícula, CPF, cargo, setor, polo/UEN, admissão, nascimento, supervisor, situação |
@@ -40,7 +40,7 @@ Commits: `631b3d0` (V1) + o commit desta rodada.
 | `[x]` | upload registra usuário | `anexou avaliacao-psicologica.pdf · QSMS de Teste · Perfil do Colaborador` |
 | `[x]` | exclusão registra usuário | `removeu rg.pdf (Documento Pessoal) · QSMS de Teste · Perfil do Colaborador` |
 | `[x]` | auditoria é paginada | 25 por página com "Carregar mais"; a RPC pede uma linha a mais para saber se há próxima sem `count` |
-| `[x]` | RLS é respeitado | `teste-rls.mjs` 22/22 |
+| `[x]` | RLS é respeitado | `teste-rls.mjs` 22/22 (histórico; script removido em 13/11/2026, substituído por `npm run teste:permissoes`) |
 | `[x]` | supervisor não acessa colaborador fora da equipe | Testado em documentos, view, linha do tempo e nas escritas |
 | `[x]` | admin mantém acesso adequado | Testes novos: admin lê, edita documento e grava auditoria pela RPC |
 | `[x]` | QSMS mantém acesso adequado | Coberto pelos testes existentes e pelos novos |

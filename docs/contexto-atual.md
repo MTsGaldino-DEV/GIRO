@@ -48,7 +48,7 @@ lotação, vínculo e envio de foto) e Histórico (todos os ciclos, agrupados).
 
 ### Painel do QSMS
 - `/qsms` — visão completa, cards de contagem por status, filtros (supervisor, status, polo, cargo, etapa), coluna "dias parados" com destaque de SLA estourado, ação em massa de geração de itens. Linhas em cartão com miniatura do colaborador, hover em petróleo lavado, ordenação por coluna e paginação de 25
-- `/qsms/base` — conferência da base (Fase 0): lista colaboradores `sem_registro`, permite lançar data retroativa
+- `/qsms/base` — conferência da base (Fase 0): lista colaboradores `sem_registro`, permite lançar data retroativa. **Atualizado em 13/11/2026:** tela substituída pela lista de Colaboradores (`/colaboradores`) e pelo formulário "Lançar exame anterior" na aba ASO do perfil
 - `/qsms/item/[id]` — agendar (clínica/data/hora), registrar resultado + upload de documento, registrar comunicação à CEMIG, timeline do histórico
 - `/qsms/supervisores` — cadastro de supervisores e vínculo em massa colaborador → supervisor
 - `/qsms/ausencias` — registro manual de férias/atestado/afastamento
@@ -91,14 +91,14 @@ Regra chave: comparecimento não é conformidade. Só o documento com resultado 
 - Rotas de cron protegidas por `CRON_SECRET`
 
 ### Scripts de operação (`scripts/`)
-`db:push` (migrations), `seed:teste` (base fictícia + contas de teste), `criar-perfil`, `teste-fluxo`, `teste-rls`, `verificar`, `gerar-icones`.
+`db:push` (migrations), `seed:teste` (base fictícia + contas de teste), `criar-perfil`, `teste-fluxo`, `teste:permissoes` (substituiu o `teste-rls`, removido em 13/11/2026), `verificar`, `gerar-icones`.
 
 ## Pendências de negócio ainda abertas (P1–P11)
 
 Documentadas em detalhe no `plano_mvp.md` §13. Resumo do que mais pesa:
 
 - **P1 — mapa colaborador → supervisor**: não existe fonte de dados pronta. Colaborador sem supervisor não entra em e-mail nenhum. Mitigado por tela de vínculo em massa, mas o vínculo em si precisa ser feito à mão.
-- **P2 — data-base dos ~177 colaboradores sem registro**: sem histórico, entram como `sem_registro` até alguém lançar manualmente em `/qsms/base`.
+- **P2 — data-base dos ~177 colaboradores sem registro**: sem histórico, entram como `sem_registro` até alguém lançar manualmente (desde 13/11/2026, pelo "Lançar exame anterior" na aba ASO do perfil, em `/colaboradores`; a antiga `/qsms/base` foi removida).
 - Demais pendências (P3–P11) têm padrão implementado e `TODO` marcado — não bloqueiam o uso, só precisam de confirmação de regra de negócio.
 
 ## Fase 1 — camada de workflow (migrations 0011 e 0012)

@@ -69,7 +69,7 @@ semáforo e todos os estágios do fluxo.
 | `npm run seed:teste` | popula a base fictícia e as 3 contas de teste |
 | `node scripts/verificar.mjs` | conferência rápida da base |
 | `node scripts/teste-fluxo.mjs` | ciclo de vida completo contra o banco real |
-| `node scripts/teste-rls.mjs` | isolamento entre equipes |
+| `npm run teste:permissoes` | permissões por papel (admin, QSMS, supervisor), em transação com rollback |
 | `node scripts/criar-perfil.mjs admin <email> "<nome>" <senha>` | cria o primeiro acesso |
 | `node scripts/gerar-icones.mjs` | rasteriza `apple-icon.png` e os ícones de PWA a partir do SVG |
 
@@ -104,8 +104,8 @@ significar "colaborador regular". A regra está no topo de `app/globals.css`.
 
 | Status | Faixa | Leitura |
 |---|---|---|
-| `ok` | > 60 dias | tranquilo |
-| `programar` | 60 a 31 dias | hora de programar |
+| `ok` | > 90 dias | tranquilo |
+| `programar` | 90 a 31 dias | hora de programar |
 | `atencao` | 30 a 15 dias | atrasado na programação |
 | `critico` | < 15 dias | risco real de parar equipe |
 | `vencido` | vencido | não pode trabalhar amanhã |
@@ -206,7 +206,8 @@ por noite. Toda data de negócio passa por `public.hoje()`, que devolve a data e
 - Bucket `asos` privado; leitura por URL assinada com validade de uma hora.
 - Rotas `/api/cron/*` exigem `Authorization: Bearer $CRON_SECRET`.
 
-`scripts/teste-rls.mjs` prova o isolamento conectando como role `authenticated`.
+`scripts/teste-permissoes.mjs` prova as permissões de cada papel conectando como role `authenticated`
+(desde a migration 0016 o supervisor opera o fluxo em toda a UEN; perfis e supervisores continuam restritos).
 O `teste-fluxo.mjs` roda como `postgres`, que tem `BYPASSRLS` — ele valida as
 checagens dentro das RPCs, não as políticas. Os dois são necessários.
 
@@ -242,7 +243,7 @@ O código implementa o comportamento padrão de cada uma e deixa o ponto marcado
 | | Pendência | Como está implementado |
 |---|---|---|
 | **P1** | Mapa colaborador → supervisor | `supervisor_id` nulo; grupo "Sem supervisor" no painel; tela `/qsms/supervisores` para vincular em massa |
-| **P2** | Data-base dos sem registro | entram como `sem_registro`; tela `/qsms/base` para informar |
+| **P2** | Data-base dos sem registro | entram como `sem_registro`; a tela `/qsms/base` foi substituída (13/11/2026) pela lista de Colaboradores (`/colaboradores`) e pelo formulário "Lançar exame anterior" na aba ASO do perfil |
 | **P3** | Como o vencimento é calculado hoje | 12 meses a partir da `data_documento`; eventos da carga inicial marcados `estimado = true` |
 | **P4** | Periodicidade é sempre 12 meses? | 12 para todos, em `tipos_requisito` |
 | **P5** | Avaliação psicossocial | booleano informativo no item, sem regra automática |
