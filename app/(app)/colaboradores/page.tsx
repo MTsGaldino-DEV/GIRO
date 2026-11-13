@@ -50,11 +50,7 @@ export default async function Colaboradores({
         descricao="Quem trabalha na UEN, com o pior status de cada pessoa. Abra o nome para ver o perfil."
       />
 
-      {/* A chave refaz o estado da lista quando o endereço muda por navegação
-          (banner, menu, link antigo): sem ela, ir de ?situacao=desligados para
-          ?status=sem_registro manteria os filtros anteriores. */}
       <ListaColaboradores
-        key={JSON.stringify(filtros)}
         dados={dados}
         filtrosIniciais={filtros}
         fotosIniciais={Object.fromEntries(urlPorCaminho)}

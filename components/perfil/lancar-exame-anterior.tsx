@@ -92,6 +92,7 @@ export function LancarExameAnterior({
             name="data_documento"
             type="date"
             className="field w-[11rem]"
+            min="2000-01-01"
             max={hojeIso()}
             required
           />

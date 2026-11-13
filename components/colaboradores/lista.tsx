@@ -84,6 +84,22 @@ export function ListaColaboradores({
   );
   const { linhas, total, pagina, totalPaginas } = resultado;
 
+  // Navegação por link (banner, menu, link antigo) para outro filtro da mesma
+  // página: o Next mantém este componente montado e só troca `filtrosIniciais`,
+  // então o estado precisaria ser ressincronizado. Só age quando o prop mudou em
+  // relação ao prop anterior E difere dos filtros atuais do cliente. Depois de
+  // um `router.refresh()` os dois concordam (o endereço já leva os filtros do
+  // cliente), e aí nada acontece: o aviso, o foco e a busca digitada ficam.
+  const propAnterior = useRef(filtrosParaBusca(filtrosIniciais, escopo.equipePadrao));
+  useEffect(() => {
+    const novo = filtrosParaBusca(filtrosIniciais, escopo.equipePadrao);
+    if (novo === propAnterior.current) return;
+    propAnterior.current = novo;
+    setFiltros((atuais) =>
+      filtrosParaBusca(atuais, escopo.equipePadrao) === novo ? atuais : filtrosIniciais
+    );
+  }, [filtrosIniciais, escopo.equipePadrao]);
+
   // Endereço compartilhável. Pula a primeira renderização: o servidor já
   // abriu a página nesse endereço.
   const primeiraRenderizacao = useRef(true);
