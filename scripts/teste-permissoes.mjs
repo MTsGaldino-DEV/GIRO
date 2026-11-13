@@ -1,4 +1,5 @@
-// Teste de permissões do operador (migration 0016).
+// Teste de permissões do operador (migration 0016) e do registro de resultado
+// em passo único (migration 0018).
 //
 //   npm run teste:permissoes
 //
@@ -62,6 +63,8 @@ const FUNCOES_FLUXO = [
   "fn_registrar_auditoria",
   "fn_registrar_aso_retroativo",
   "fn_registrar_comunicacao_cemig",
+  // 0018: resultado e conclusão num passo só.
+  "fn_registrar_resultado",
 ];
 
 let sp = 0;
@@ -527,6 +530,246 @@ async function main() {
         else erro(`${papel} continua solicitando data`, falha);
       });
     }
+
+    // -----------------------------------------------------------------------
+    console.log("\nRegistrar resultado em passo único (0018)");
+    // -----------------------------------------------------------------------
+
+    // Leva o item da equipe B até `agendado` e, se pedido, até a etapa final,
+    // como `postgres`: o trigger continua validando cada transição.
+    const montarEtapa = (final) => async () => {
+      await paraDataProposta();
+      await client.query(
+        `update itens_pendencia
+            set etapa = 'agendado', data_agendada = public.hoje() - 3,
+                clinica = 'Clínica Teste', medico = 'Médico Teste'
+          where id = $1`,
+        [c.itemB]
+      );
+      if (final !== "agendado") {
+        await client.query(`update itens_pendencia set etapa = $2 where id = $1`, [c.itemB, final]);
+      }
+    };
+    const paraEnviadoClinica = montarEtapa("enviado_clinica");
+
+    /** Chama fn_registrar_resultado; devolve { id, falha }. */
+    const registrar = async ({
+      desfecho = "fez_apto",
+      dataDocumento = "public.hoje() - 2",
+      dataRealizado = "public.hoje() - 3",
+      resultado = "apto",
+      documentoUrl = "teste-permissoes-999102/aso.pdf",
+    } = {}) => {
+      await client.query("savepoint chamada");
+      try {
+        const { rows } = await client.query(
+          `select fn_registrar_resultado($1, $2, ${dataDocumento}, ${dataRealizado},
+                                         $3, null, $4, null) as id`,
+          [c.itemB, desfecho, resultado, documentoUrl]
+        );
+        await client.query("release savepoint chamada");
+        return { id: rows[0].id, falha: null };
+      } catch (e) {
+        await client.query("rollback to savepoint chamada");
+        return { id: null, falha: e.message };
+      }
+    };
+
+    /** Recusa pela regra, não por a função não existir. */
+    const recusada = (r) => Boolean(r.falha) && !/does not exist/.test(r.falha);
+
+    /** Eventos gravados pelo supervisor A no colaborador do B. */
+    const eventosDoA = async () =>
+      (await client.query(
+        `select count(*)::int n from eventos_requisito
+          where colaborador_id = $1 and registrado_por = $2`,
+        [c.colB, c.uidA]
+      )).rows[0].n;
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const semUrl = await registrar({ documentoUrl: null });
+        const urlVazia = await registrar({ documentoUrl: "  " });
+        const semData = await registrar({ dataDocumento: "null" });
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (recusada(semUrl) && recusada(urlVazia) && recusada(semData) && e === "enviado_clinica" && n === 0) {
+          ok("fez_apto sem documento_url falha e o item continua em enviado_clinica");
+        } else {
+          erro("fez_apto sem documento_url falha e o item continua em enviado_clinica",
+            JSON.stringify({ semUrl: semUrl.falha, urlVazia: urlVazia.falha, semData: semData.falha, etapa: e, eventos: n }));
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar({ dataDocumento: "public.hoje() + 1" });
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (recusada(r) && e === "enviado_clinica" && n === 0) ok("fez_apto com data_documento futura falha");
+        else erro("fez_apto com data_documento futura falha", JSON.stringify({ falha: r.falha, etapa: e, eventos: n }));
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar({ resultado: "inapto" });
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (recusada(r) && e === "enviado_clinica" && n === 0) ok("fez_apto com resultado inapto falha");
+        else erro("fez_apto com resultado inapto falha", JSON.stringify({ falha: r.falha, etapa: e, eventos: n }));
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar();
+        const { rows } = await client.query(
+          `select i.etapa, i.desfecho, i.evento_id = $2 as evento_ok,
+                  (select count(*)::int from itens_pendencia p
+                    where p.colaborador_id = i.colaborador_id
+                      and p.tipo_requisito_id = i.tipo_requisito_id
+                      and p.etapa = 'previsto'
+                      and p.data_vencimento = (public.hoje() - 3
+                            + (t.periodicidade_meses || ' months')::interval)::date) as proximo,
+                  (select count(*)::int from historico_item h
+                    where h.item_id = i.id and h.etapa_de = 'enviado_clinica'
+                      and h.etapa_para = 'concluido' and h.autor = $3) as historico
+             from itens_pendencia i
+             join tipos_requisito t on t.id = i.tipo_requisito_id
+            where i.id = $1`,
+          [c.itemB, r.id, c.uidA]
+        );
+        const x = rows[0];
+        if (!r.falha && r.id && x?.etapa === "concluido" && x.desfecho === "fez_apto"
+            && x.evento_ok && x.proximo === 1 && x.historico === 1) {
+          ok("fez_apto com documento e data conclui o item e abre o próximo ciclo previsto");
+        } else {
+          erro("fez_apto com documento e data conclui o item e abre o próximo ciclo previsto",
+            r.falha ?? JSON.stringify(x));
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar({ resultado: "apto_com_restricao" });
+        const e = await etapa(c.itemB);
+        const { rows } = await client.query(
+          `select resultado from eventos_requisito where id = $1`,
+          [r.id]
+        );
+        if (!r.falha && e === "concluido" && rows[0]?.resultado === "apto_com_restricao") {
+          ok("fez_apto com apto_com_restricao também conclui");
+        } else {
+          erro("fez_apto com apto_com_restricao também conclui", r.falha ?? `etapa ${e}`);
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar();
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (recusada(r) && e === "agendado" && n === 0) ok("fez_apto em item que está em agendado falha");
+        else erro("fez_apto em item que está em agendado falha", JSON.stringify({ falha: r.falha, etapa: e, eventos: n }));
+      },
+      montarEtapa("agendado")
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar({ desfecho: "faltou", dataDocumento: "null", dataRealizado: "null",
+                                    resultado: null, documentoUrl: null });
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (!r.falha && r.id === null && e === "data_solicitada" && n === 0) {
+          ok("faltou volta o item para data_solicitada sem exigir documento");
+        } else {
+          erro("faltou volta o item para data_solicitada sem exigir documento",
+            JSON.stringify({ falha: r.falha, id: r.id, etapa: e, eventos: n }));
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const falha = await tentar(
+          `select fn_concluir_item($1, public.hoje() - 1, 'apto', null, null, 'teste-permissoes-999102/aso.pdf', null)`,
+          [c.itemB]
+        );
+        const e = await etapa(c.itemB);
+        if (!falha && e === "concluido") {
+          ok("fn_concluir_item continua concluindo item em aguardando_documento para supervisor");
+        } else {
+          erro("fn_concluir_item continua concluindo item em aguardando_documento para supervisor", falha ?? `etapa ${e}`);
+        }
+      },
+      montarEtapa("aguardando_documento")
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await registrar();
+        const { rows } = await client.query(
+          `select registrado_por from eventos_requisito where id = $1`,
+          [r.id]
+        );
+        if (!r.falha && rows[0]?.registrado_por === c.uidA) {
+          ok("evento gravado tem registrado_por = uid do supervisor");
+        } else {
+          erro("evento gravado tem registrado_por = uid do supervisor", r.falha ?? JSON.stringify(rows[0]));
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const { rows } = await client.query(
+          `select dono from vw_itens_abertos where item_id = $1`,
+          [c.itemB]
+        );
+        if (rows[0]?.dono === "supervisor") ok("item em enviado_clinica fica com o supervisor em vw_itens_abertos");
+        else erro("item em enviado_clinica fica com o supervisor em vw_itens_abertos", `dono ${rows[0]?.dono}`);
+      },
+      paraEnviadoClinica
+    );
+
+    await sessao(
+      c.uidSemPerfil,
+      async () => {
+        try {
+          await client.query(
+            `select fn_registrar_resultado($1, 'fez_apto', public.hoje() - 2, null, 'apto', null, 'x.pdf', null)`,
+            [c.itemB]
+          );
+          erro("usuário sem perfil ativo NÃO executa fn_registrar_resultado", "a chamada foi aceita");
+        } catch (e) {
+          if (e.code === "42501") ok("usuário sem perfil ativo NÃO executa fn_registrar_resultado");
+          else erro("usuário sem perfil ativo NÃO executa fn_registrar_resultado", `outro motivo (${e.code}): ${e.message}`);
+        }
+      },
+      paraEnviadoClinica
+    );
 
     // -----------------------------------------------------------------------
     console.log("\nEstrutura das funções do fluxo");
