@@ -11,6 +11,7 @@ import {
   SEM_SUPERVISOR,
   POR_PAGINA,
   type ChaveOrdenacao,
+  type Equipe,
   type FiltrosPainel,
   type PaginaItens,
 } from "@/lib/consulta-itens";
@@ -38,8 +39,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Etapa, ItemAberto, ResumoStatus, StatusConformidade, Supervisor } from "@/lib/tipos";
 
+/** O que `GradeItens` precisa saber de quem está olhando, já resolvido no servidor. */
+export interface EscopoRadar {
+  equipePadrao: Equipe;
+  /** `supervisor_id` do perfil logado; null = sem equipe vinculada. */
+  supervisorId: string | null;
+  /** Falso para QSMS/admin sem vínculo: a opção "Minha equipe" nem aparece. */
+  podeEscolherMinha: boolean;
+}
+
 /**
- * A lista do painel, com filtro, ordenação e paginação no navegador.
+ * A lista do Radar, com filtro, ordenação e paginação no navegador.
  *
  * Foi grade de cartões entre 03 e 04/11/2026 e voltou a ser tabela a pedido de
  * Matheus (ver `LinhaItem`).
@@ -64,6 +74,7 @@ export function GradeItens({
   polos,
   requisitos,
   resumo,
+  escopo,
 }: {
   inicial: PaginaItens;
   filtrosIniciais: FiltrosPainel;
@@ -72,6 +83,7 @@ export function GradeItens({
   polos: string[];
   requisitos: string[];
   resumo: ResumoStatus | null;
+  escopo: EscopoRadar;
 }) {
   const [filtros, setFiltros] = useState<FiltrosPainel>(filtrosIniciais);
   const [pagina, setPagina] = useState<PaginaItens>(inicial);
@@ -89,7 +101,7 @@ export function GradeItens({
     const meu = ++requisicao.current;
     const supabase = criarClienteNavegador();
 
-    const resultado = await buscarPaginaItens(supabase, novos);
+    const resultado = await buscarPaginaItens(supabase, novos, escopo.supervisorId);
     if (meu !== requisicao.current) return;
 
     setPagina(resultado);
@@ -106,7 +118,7 @@ export function GradeItens({
     const mapa: Record<string, string> = {};
     for (const f of data ?? []) if (f.signedUrl && f.path) mapa[f.path] = f.signedUrl;
     setFotos(mapa);
-  }, []);
+  }, [escopo.supervisorId]);
 
   useEffect(() => {
     if (primeiraRenderizacao.current) {
@@ -117,13 +129,13 @@ export function GradeItens({
     // `history.replaceState` e não `router.replace`: o endereço precisa
     // continuar compartilhável, mas disparar navegação do Next aqui traria de
     // volta exatamente o round-trip que este componente existe para evitar.
-    const busca = filtrosParaBusca(filtros);
+    const busca = filtrosParaBusca(filtros, escopo.equipePadrao);
     window.history.replaceState(null, "", busca ? `/radar?${busca}` : "/radar");
 
     startTransition(() => {
       void buscar(filtros);
     });
-  }, [filtros, buscar]);
+  }, [filtros, buscar, escopo.equipePadrao]);
 
   const paginaAtual = Math.max(1, Number(filtros.pagina) || 1);
   const ultimaPagina = Math.max(1, Math.ceil(pagina.total / POR_PAGINA));
@@ -131,7 +143,7 @@ export function GradeItens({
   const direcao = filtros.dir === "desc" ? "desc" : "asc";
 
   // Primeiro clique: a direção que responde a pergunta da coluna (nome A→Z,
-  // quem vence primeiro, pior status, parado há mais tempo). Segundo: inverte.
+  // quem vence primeiro, pior status). Segundo: inverte.
   // Terceiro: volta à ordem de prioridade padrão.
   function ordenarPor(chave: ChaveOrdenacao) {
     const padrao = COLUNAS_ORDENAVEIS[chave].ascPadrao ? "asc" : "desc";
@@ -141,6 +153,14 @@ export function GradeItens({
       return { ...f, ordem: undefined, dir: undefined, pagina: undefined };
     });
   }
+
+  const equipe = filtros.equipe ?? escopo.equipePadrao;
+  const semEquipe = equipe === "minha" && !escopo.supervisorId;
+  // Escopo, ordem e página não contam como "filtro": a lista sem eles continua
+  // sendo o Radar padrão.
+  const temFiltro = Object.entries(filtros).some(
+    ([k, v]) => v && k !== "equipe" && k !== "ordem" && k !== "dir" && k !== "pagina"
+  );
 
   const cabecalho = (chave: ChaveOrdenacao, rotulo: string) => (
     <CabecalhoOrdenavel
@@ -196,11 +216,12 @@ export function GradeItens({
 
       <Filtros
         filtros={filtros}
+        escopo={escopo}
         supervisores={supervisores}
         polos={polos}
         requisitos={requisitos}
         aoMudar={mudarFiltro}
-        aoLimpar={() => setFiltros({})}
+        aoLimpar={() => setFiltros({ equipe: filtros.equipe })}
       />
 
       {pagina.erro && (
@@ -223,7 +244,6 @@ export function GradeItens({
                   {cabecalho("vencimento", "Vencimento")}
                   {cabecalho("status", "Status")}
                   <th scope="col">Etapa</th>
-                  {cabecalho("parados", "Parado há")}
                   <th scope="col"><span className="sr-only">Ações</span></th>
                 </tr>
               </thead>
@@ -238,9 +258,13 @@ export function GradeItens({
 
         {pagina.itens.length === 0 && !carregando && (
           <Vazio>
-            {Object.values(filtros).some(Boolean)
-              ? "Nenhum item nesse filtro."
-              : "Nenhum item em aberto. Use “Gerar itens” para criar as pendências dos próximos 90 dias."}
+            {semEquipe
+              ? "Você ainda não tem equipe vinculada. Escolha “Todos” para ver a UEN."
+              : temFiltro
+                ? "Nenhum item nesse filtro."
+                : equipe === "minha"
+                  ? "Nenhum item da sua equipe no Radar."
+                  : "Nenhum item no Radar. Use “Gerar itens” para criar as pendências dos próximos 90 dias."}
           </Vazio>
         )}
       </div>
@@ -344,11 +368,6 @@ function LinhaItem({ item, fotoUrl }: { item: ItemAberto; fotoUrl?: string }) {
       </td>
       <td className="text-label">{ETAPA_ROTULO[item.etapa]}</td>
       <td>
-        <span className="dias-parados" data-estourado={item.sla_estourado}>
-          {item.dias_parados} {item.dias_parados === 1 ? "dia" : "dias"}
-        </span>
-      </td>
-      <td>
         <div className="flex items-center justify-end gap-1.5">
           <Link href={`/qsms/item/${item.item_id}`} className="btn btn--secondary btn--sm">
             Abrir
@@ -451,6 +470,7 @@ const EXPLICACAO_SLA =
  */
 function Filtros({
   filtros,
+  escopo,
   supervisores,
   polos,
   requisitos,
@@ -458,6 +478,7 @@ function Filtros({
   aoLimpar,
 }: {
   filtros: FiltrosPainel;
+  escopo: EscopoRadar;
   supervisores: Supervisor[];
   polos: string[];
   requisitos: string[];
@@ -465,7 +486,10 @@ function Filtros({
   aoLimpar: () => void;
 }) {
   const [texto, setTexto] = useState(filtros.busca ?? "");
-  const temFiltro = Object.entries(filtros).some(([k, v]) => v && k !== "ordem" && k !== "dir" && k !== "pagina");
+  const temFiltro = Object.entries(filtros).some(
+    ([k, v]) => v && k !== "equipe" && k !== "ordem" && k !== "dir" && k !== "pagina"
+  );
+  const equipe = filtros.equipe ?? escopo.equipePadrao;
 
   // "Limpar" zera os filtros por fora; o campo precisa acompanhar.
   useEffect(() => {
@@ -481,6 +505,30 @@ function Filtros({
   return (
     <div className="card mb-4 grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
+        <div role="group" aria-labelledby="f-equipe-rotulo">
+          <span id="f-equipe-rotulo" className="label">Equipe</span>
+          <div className="flex gap-1.5">
+            {escopo.podeEscolherMinha && (
+              <button
+                type="button"
+                className={`btn ${equipe === "minha" ? "btn--primary" : "btn--secondary"}`}
+                aria-pressed={equipe === "minha"}
+                onClick={() => aoMudar("equipe", "minha")}
+              >
+                Minha equipe
+              </button>
+            )}
+            <button
+              type="button"
+              className={`btn ${equipe === "todas" ? "btn--primary" : "btn--secondary"}`}
+              aria-pressed={equipe === "todas"}
+              onClick={() => aoMudar("equipe", "todas")}
+            >
+              Todos
+            </button>
+          </div>
+        </div>
+
         <div className="grow basis-[280px]">
           <label className="label" htmlFor="f-busca">Buscar colaborador</label>
           <div className="relative">
@@ -539,7 +587,7 @@ function Filtros({
           >
             <option value="">Todas</option>
             {(Object.keys(ETAPA_ROTULO) as Etapa[])
-              .filter((e) => e !== "concluido")
+              .filter((e) => e !== "concluido" && e !== "cancelado")
               .map((e) => (
                 <option key={e} value={e}>{ETAPA_ROTULO[e]}</option>
               ))}

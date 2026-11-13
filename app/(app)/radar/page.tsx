@@ -3,7 +3,12 @@ import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GradeItens } from "@/components/grade-itens";
 import { assinarFotos, obterResumoStatus, obterPolos } from "@/lib/colaborador";
-import { buscarPaginaItens, type FiltrosPainel } from "@/lib/consulta-itens";
+import {
+  buscarPaginaItens,
+  equipePadrao,
+  resolverEquipe,
+  type FiltrosPainel,
+} from "@/lib/consulta-itens";
 import { BotaoGerarItens } from "./gerar-itens";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import type { ResumoStatus, Supervisor } from "@/lib/tipos";
@@ -24,8 +29,13 @@ export default async function Radar({
 }: {
   searchParams: Promise<FiltrosPainel>;
 }) {
-  await exigirOperador();
-  const filtros = await searchParams;
+  const perfil = await exigirOperador();
+  const pedidos = await searchParams;
+
+  // O escopo é resolvido aqui, uma vez, e desce já definido: servidor e
+  // navegador consultam com o mesmo valor, sem cada um inventar o padrão.
+  const padrao = equipePadrao(perfil);
+  const filtros: FiltrosPainel = { ...pedidos, equipe: resolverEquipe(perfil, pedidos) };
 
   const supabase = await criarClienteServidor();
 
@@ -44,23 +54,16 @@ export default async function Radar({
 
   // A view já traz foto_url (migration 0013), então a página deixou de precisar
   // de uma segunda consulta a `colaboradores` só para descobrir a miniatura.
-  const { itens, total, erro } = await buscarPaginaItens(supabase, filtros);
+  const { itens, total, erro } = await buscarPaginaItens(supabase, filtros, perfil.supervisor_id);
   const urlPorCaminho = await assinarFotos(itens.map((i) => i.foto_url));
   const fotosIniciais = Object.fromEntries(urlPorCaminho);
-
-  const temFiltro = Object.values(filtros).some(Boolean);
 
   return (
     <div>
       <CabecalhoPagina
         trilha={[{ rotulo: "Operação" }, { rotulo: "Radar" }]}
         titulo="Radar"
-        descricao={
-          <>
-            {total} {total === 1 ? "item em aberto" : "itens em aberto"}
-            {temFiltro && " no filtro atual"}.
-          </>
-        }
+        descricao="Vencidos, sem registro e quem vence em até 90 dias."
       >
         <BotaoGerarItens />
       </CabecalhoPagina>
@@ -73,6 +76,12 @@ export default async function Radar({
         polos={polos}
         requisitos={(tipos ?? []).map((t) => t.nome as string)}
         resumo={resumo}
+        escopo={{
+          equipePadrao: padrao,
+          supervisorId: perfil.supervisor_id,
+          // QSMS/admin sem vínculo não têm "equipe" para escolher.
+          podeEscolherMinha: perfil.papel === "supervisor" || !!perfil.supervisor_id,
+        }}
       />
 
     </div>
