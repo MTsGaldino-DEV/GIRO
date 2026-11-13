@@ -42,6 +42,7 @@
 create or replace function public.fn_carga_inicial_geset()
 returns integer
 language plpgsql
+set search_path = public
 as $fn$
 declare
   v_marcados integer;

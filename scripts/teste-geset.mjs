@@ -9,8 +9,9 @@
 //
 // Só existe o banco de produção. Por isso tudo roda dentro de UMA transação que
 // termina em rollback: os dados de teste (matrícula >= 999000, e-mails
-// @exemplo.invalido) nunca chegam a ser gravados. A carga é exercida sobre
-// fixtures; nas linhas reais o teste só lê contagens. A limpeza no `finally` e
+// @exemplo.invalido) nunca chegam a ser gravados. A função de carga atua no banco
+// todo, então ela também roda sobre linhas reais, mas só dentro da transação
+// desfeita; asserções e contagens ficam restritas às fixtures. A limpeza no `finally` e
 // a conferência de resíduo são uma segunda garantia.
 
 import path from "node:path";
@@ -102,9 +103,13 @@ async function residuo() {
   return rows[0];
 }
 
-const contaCarga = async () => {
+// Escopo: só os colaboradores de fixture. A função de carga atua no banco todo
+// (dentro da transação com rollback); contagens globais dependeriam dos dados reais.
+const contaCarga = async (ids) => {
   const { rows } = await client.query(
-    `select count(*)::int as n from auditoria_colaborador where origem = 'carga inicial'`
+    `select count(*)::int as n from auditoria_colaborador
+      where origem = 'carga inicial' and colaborador_id = any($1)`,
+    [ids]
   );
   return rows[0].n;
 };
@@ -213,7 +218,8 @@ async function main() {
 
     // ---- carga inicial -----------------------------------------------------
     console.log("Carga inicial");
-    const cargaAntes = await contaCarga();
+    const idsFixture = [cA, cB, cC, cD, cE, cF, cG];
+    const cargaAntes = await contaCarga(idsFixture);
     await client.query(`select public.fn_carga_inicial_geset()`);
 
     const lancados = [[evA, "ASO +91"], [evCultimo, "último evento (+120) de quem tem dois"], [evGavp, "AVP +120"]];
@@ -236,7 +242,7 @@ async function main() {
     const { rows: aud } = await client.query(
       `select entidade_id, usuario_id, acao, entidade, campo, valor_anterior, valor_novo, origem
          from auditoria_colaborador where colaborador_id = any($1) and origem = 'carga inicial'`,
-      [[cA, cB, cC, cD, cE, cF, cG]]
+      [idsFixture]
     );
     const audA = aud.find((a) => a.entidade_id === evA);
     confere(
@@ -248,35 +254,9 @@ async function main() {
       JSON.stringify(aud)
     );
 
-    // Invariante nos dados reais (somente leitura): depois da 0019, nenhum
-    // último evento ativo com vencimento > 90 dias pode estar pendente.
-    const { rows: real } = await client.query(
-      `with ultimos as (
-         select distinct on (e.colaborador_id, e.tipo_requisito_id)
-                e.id, e.geset_lancado_em,
-                (coalesce(e.data_realizado, e.data_documento)
-                  + (t.periodicidade_meses || ' months')::interval)::date as venc
-           from eventos_requisito e
-           join colaboradores c on c.id = e.colaborador_id and c.ativo
-           join tipos_requisito t on t.id = e.tipo_requisito_id and t.ativo
-          where e.resultado in ('apto', 'apto_com_restricao') and c.matricula < 999000
-          order by e.colaborador_id, e.tipo_requisito_id,
-                   coalesce(e.data_realizado, e.data_documento) desc, e.criado_em desc, e.id)
-       select count(*) filter (where venc > public.hoje() + 90)::int as acima_90,
-              count(*) filter (where venc > public.hoje() + 90 and geset_lancado_em is null)::int as acima_90_pendentes,
-              count(*) filter (where venc <= public.hoje() + 90 and geset_lancado_em is not null)::int as ate_90_lancados,
-              count(*) filter (where geset_lancado_em is null)::int as pendentes,
-              count(*)::int as total
-         from ultimos`
-    );
-    confere(real[0].acima_90_pendentes === 0,
-      "a migration não deixa pendente quem tem vencimento > 90 dias (dados reais)",
-      JSON.stringify(real[0]));
-    console.log(`        (real: ${real[0].total} últimos eventos ativos, ${real[0].acima_90} com mais de 90 dias, ${real[0].pendentes} pendentes agora)`);
-
     // ---- idempotência ------------------------------------------------------
     console.log("\nIdempotência");
-    const cargaMeio = await contaCarga();
+    const cargaMeio = await contaCarga(idsFixture);
     const fotos = async () => {
       const r = [];
       for (const id of [evA, evCultimo, evGavp, evB]) r.push(await estado(id));
@@ -285,7 +265,7 @@ async function main() {
     const fotoAntes = await fotos();
     await client.query(`select public.fn_carga_inicial_geset()`);
     const fotoDepois = await fotos();
-    const cargaFim = await contaCarga();
+    const cargaFim = await contaCarga(idsFixture);
     confere(
       JSON.stringify(fotoAntes) === JSON.stringify(fotoDepois) &&
         cargaFim === cargaMeio && cargaMeio === cargaAntes + 3,
