@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarColaborador, carregarStatus, carregarItemAberto } from "@/lib/colaborador";
 import { Aviso } from "@/components/aviso";
@@ -29,7 +29,7 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 }
 
 export default async function VisaoGeral({ params }: { params: Promise<{ id: string }> }) {
-  await exigirQsms();
+  await exigirOperador();
   const { id } = await params;
 
   const colaborador = await carregarColaborador(id);

@@ -11,7 +11,7 @@ import type { Perfil } from "./tipos";
  * é o que impede que qualquer e-mail que conheça a URL entre no painel.
  *
  * Embrulhado em `cache()` porque o layout e a página chamam os dois — o layout
- * por `exigirPerfil`, a página por `exigirQsms` — e sem dedupe cada navegação
+ * por `exigirPerfil`, a página por `exigirOperador` — e sem dedupe cada navegação
  * pagava `getUser()` + consulta a `perfis` duas vezes, em série. São ~170 ms
  * por clique que não compravam nada: dentro de um mesmo request a resposta é
  * necessariamente idêntica. O `cache` é por request, então continua revalidando
@@ -46,33 +46,15 @@ export async function exigirPerfil(): Promise<Perfil> {
 }
 
 /**
- * Exige a aba QSMS. Supervisor cai no painel dele em vez de ver um 403.
- *
- * Admin passa: o plano da Fase 1 (seção 4) dá a ele as duas abas, e
- * `fn_e_qsms()` no banco já trata os dois papéis igual. Barrar aqui deixava o
- * admin sem nenhuma tela — era redirecionado para /supervisor, que por sua vez
- * o mandava de volta.
+ * Exige qualquer perfil ativo (admin, qsms ou supervisor). Sem redirecionamento
+ * por papel: os três operam a UEN inteira (spec 4, 10/11). O que continua só do
+ * admin é a gestão de usuários, que usa `exigirAdmin`.
  */
-export async function exigirQsms(): Promise<Perfil> {
-  const perfil = await exigirPerfil();
-  if (perfil.papel === "supervisor") redirect("/supervisor");
-  return perfil;
+export async function exigirOperador(): Promise<Perfil> {
+  return exigirPerfil();
 }
 
-/**
- * Exige a aba Supervisão.
- *
- * Admin entra — e enxerga uma tela vazia, porque não tem `supervisor_id` e a
- * RLS filtra por equipe. É exatamente o scaffolding que o plano pede (seção
- * 10): a aba existe, é visível só para admin, e não tem dado nenhum na Fase 1.
- */
-export async function exigirSupervisor(): Promise<Perfil> {
-  const perfil = await exigirPerfil();
-  if (perfil.papel === "qsms") redirect(rotaInicial(perfil));
-  return perfil;
-}
-
-/** Exige perfil admin. Só admin gerencia usuários. */
+/** Exige perfil admin. Só admin gerencia usuários (/admin/usuarios). */
 export async function exigirAdmin(): Promise<Perfil> {
   const perfil = await exigirPerfil();
   if (perfil.papel !== "admin") redirect(rotaInicial(perfil));

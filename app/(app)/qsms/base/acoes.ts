@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { hojeIso } from "@/lib/dominio";
 
 export type Resultado = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -30,7 +30,7 @@ export async function registrarAsoRetroativo(
   _anterior: Resultado | null,
   formData: FormData
 ): Promise<Resultado> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquema.safeParse({
     colaborador_id: formData.get("colaborador_id"),

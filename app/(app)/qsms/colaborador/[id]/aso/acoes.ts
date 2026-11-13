@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirAdmin } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { hojeIso } from "@/lib/dominio";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -40,7 +40,7 @@ const esquema = z.object({
  * esperar o cron da madrugada.
  */
 export async function corrigirDataExame(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirAdmin();
+  await exigirOperador();
 
   const analise = esquema.safeParse({
     evento_id: formData.get("evento_id"),

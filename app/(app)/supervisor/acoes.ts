@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirSupervisor } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { hojeIso } from "@/lib/dominio";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -34,7 +34,7 @@ export async function informarDataLiberacao(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirSupervisor();
+  await exigirOperador();
 
   const analise = esquemaData.safeParse({
     item_id: formData.get("item_id"),
@@ -71,7 +71,7 @@ export async function registrarComparecimento(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirSupervisor();
+  await exigirOperador();
 
   const analise = esquemaComparecimento.safeParse({
     item_id: formData.get("item_id"),

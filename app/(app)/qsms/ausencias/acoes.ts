@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
@@ -30,7 +30,7 @@ export async function registrarAusencia(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquema.safeParse({
     colaborador_id: formData.get("colaborador_id"),
@@ -63,7 +63,7 @@ export async function removerAusencia(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) return { ok: false, erro: "Ausência inválida." };

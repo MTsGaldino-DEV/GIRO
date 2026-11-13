@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { BUCKET_DOCUMENTOS } from "@/lib/storage";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -37,7 +37,7 @@ function dataOuNulo(valor: string | undefined): string | null {
  * seria encontrado por ninguém.
  */
 export async function anexarDocumento(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquema.safeParse({
     colaborador_id: formData.get("colaborador_id"),
@@ -162,7 +162,7 @@ const CAMPO_AUDITAVEL: Record<string, string> = {
  * atualizado" não responde nada.
  */
 export async function editarDocumento(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaEdicao.safeParse({
     id: formData.get("id"),
@@ -261,7 +261,7 @@ export async function editarDocumento(_anterior: Acao | null, formData: FormData
  * janela em que o arquivo já sumiu e a trilha ainda não existe.
  */
 export async function excluirDocumento(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = z
     .object({ id: z.string().uuid(), colaborador_id: z.string().uuid() })

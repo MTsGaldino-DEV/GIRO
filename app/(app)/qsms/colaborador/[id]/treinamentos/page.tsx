@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso } from "@/components/aviso";
 
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  * o sistema passaria a cobrar como se fosse verdade.
  */
 export default async function AbaTreinamentos() {
-  await exigirQsms();
+  await exigirOperador();
 
   const supabase = await criarClienteServidor();
   const { data: tipos } = await supabase

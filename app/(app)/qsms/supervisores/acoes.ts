@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
@@ -23,7 +23,7 @@ export async function cadastrarSupervisor(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaSupervisor.safeParse({
     nome: formData.get("nome"),
@@ -65,7 +65,7 @@ export async function vincularColaborador(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaVinculo.safeParse({
     colaborador_id: formData.get("colaborador_id"),
@@ -100,7 +100,7 @@ export async function vincularEmMassa(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaMassa.safeParse({
     supervisor_id: formData.get("supervisor_id"),

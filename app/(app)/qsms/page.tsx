@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GradeItens } from "@/components/grade-itens";
 import { assinarFotos, obterResumoStatus, obterPolos } from "@/lib/colaborador";
@@ -24,7 +24,7 @@ export default async function PainelQsms({
 }: {
   searchParams: Promise<FiltrosPainel>;
 }) {
-  await exigirQsms();
+  await exigirOperador();
   const filtros = await searchParams;
 
   const supabase = await criarClienteServidor();

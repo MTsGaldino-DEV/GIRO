@@ -1,4 +1,4 @@
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Trilha } from "@/components/trilha";
 import {
@@ -45,7 +45,7 @@ export default async function LayoutColaborador({
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }) {
-  await exigirQsms();
+  await exigirOperador();
   const { id } = await params;
 
   const colaborador = await carregarColaborador(id);

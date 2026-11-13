@@ -32,7 +32,7 @@ export interface DefinicaoCampo {
   tipo: TipoCampo;
   /**
    * Quem pode escrever. Na tela decide se o lápis aparece; quem barra de
-   * verdade é `exigirAdmin()` / `exigirQsms()` dentro da Server Action.
+   * verdade é `exigirOperador()` dentro da Server Action.
    */
   papel: "admin" | "qsms";
   /** Aviso curto abaixo do campo enquanto ele está aberto para edição. */

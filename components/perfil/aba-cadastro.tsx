@@ -15,7 +15,7 @@ import { usePerfilColaborador } from "./contexto";
  *
  * Reutiliza `FichaCadastro`, `EnvioFoto` e `BotaoDesligar` da página cheia — os
  * mesmos componentes, chamando as mesmas Server Actions. As permissões
- * continuam valendo onde sempre valeram: `exigirQsms()` / `exigirAdmin()` na
+ * continuam valendo onde sempre valeram: `exigirOperador()` na
  * ação e a política `colaboradores_escrita_qsms` no banco. O painel não abre
  * nenhuma porta que a página já não abrisse.
  */

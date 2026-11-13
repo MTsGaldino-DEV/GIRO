@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { hojeIso } from "@/lib/dominio";
 import { enviarDocumentoAso } from "@/lib/storage";
 
@@ -43,7 +43,7 @@ export async function gerarItens(
   _anterior?: ResultadoGeracao | null,
   _formData?: FormData
 ): Promise<ResultadoGeracao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const supabase = await criarClienteServidor();
   const { data, error } = await supabase.rpc("fn_gerar_itens_pendentes");
@@ -78,7 +78,7 @@ const esquemaAgendar = z.object({
 });
 
 export async function agendarItem(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaAgendar.safeParse({
     item_id: formData.get("item_id"),
@@ -140,7 +140,7 @@ const esquemaConcluir = z.object({
 });
 
 export async function concluirItem(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaConcluir.safeParse({
     item_id: formData.get("item_id"),
@@ -214,7 +214,7 @@ export async function registrarComunicacaoCemig(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaCemig.safeParse({
     item_id: formData.get("item_id"),
@@ -249,7 +249,7 @@ export async function devolverAoSupervisor(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaDevolver.safeParse({
     item_id: formData.get("item_id"),
@@ -289,7 +289,7 @@ const esquemaSolicitarData = z.object({
 });
 
 export async function solicitarData(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaSolicitarData.safeParse({
     item_id: formData.get("item_id"),
@@ -329,7 +329,7 @@ export async function registrarDataSupervisor(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaDataSupervisor.safeParse({
     item_id: formData.get("item_id"),
@@ -364,7 +364,7 @@ const esquemaInformarDados = z.object({
 });
 
 export async function informarDados(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaInformarDados.safeParse({
     item_id: formData.get("item_id"),
@@ -391,7 +391,7 @@ export async function informarDados(_anterior: Acao | null, formData: FormData):
 // ---------------------------------------------------------------------------
 
 export async function enviarAClinica(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const itemId = z.string().uuid().safeParse(formData.get("item_id"));
   if (!itemId.success) return { ok: false, erro: "Item inválido." };
@@ -430,7 +430,7 @@ const MENSAGEM_DESFECHO: Record<string, string> = {
 };
 
 export async function registrarDesfecho(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaDesfecho.safeParse({
     item_id: formData.get("item_id"),
@@ -468,7 +468,7 @@ const esquemaInapto = z.object({
 });
 
 export async function encerrarInapto(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaInapto.safeParse({
     item_id: formData.get("item_id"),
@@ -502,7 +502,7 @@ const esquemaCancelar = z.object({
 });
 
 export async function cancelarItem(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const analise = esquemaCancelar.safeParse({
     item_id: formData.get("item_id"),

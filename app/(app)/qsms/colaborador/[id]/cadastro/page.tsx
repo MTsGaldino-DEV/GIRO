@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarColaborador, assinarFoto } from "@/lib/colaborador";
 import { FichaCadastro } from "./ficha-cadastro";
@@ -11,7 +11,7 @@ export const metadata: Metadata = { title: "Cadastro" };
 export const dynamic = "force-dynamic";
 
 export default async function AbaCadastro({ params }: { params: Promise<{ id: string }> }) {
-  const perfil = await exigirQsms();
+  const perfil = await exigirOperador();
   const { id } = await params;
 
   const colaborador = await carregarColaborador(id);

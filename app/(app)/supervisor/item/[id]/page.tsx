@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { exigirSupervisor } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Trilha } from "@/components/trilha";
 import { FichaItem } from "@/components/ficha-item";
@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Item" };
 export const dynamic = "force-dynamic";
 
 export default async function ItemSupervisor({ params }: { params: Promise<{ id: string }> }) {
-  await exigirSupervisor();
+  await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();

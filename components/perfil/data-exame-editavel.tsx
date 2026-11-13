@@ -31,7 +31,7 @@ function BotaoConfirmar() {
  * porque escreve em `eventos_requisito`, não em `colaboradores`, e a correção
  * de um exame reposiciona o ciclo aberto — outra Server Action, outra regra.
  *
- * `editavel` só decide se o lápis aparece; quem barra é `exigirAdmin()` na ação.
+ * `editavel` só decide se o lápis aparece; quem barra é `exigirOperador()` na ação.
  */
 export function DataExameEditavel({
   eventoId,

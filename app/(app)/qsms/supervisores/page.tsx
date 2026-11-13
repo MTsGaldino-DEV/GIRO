@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso, Vazio } from "@/components/aviso";
 import { FormularioSupervisor } from "./formulario-supervisor";
@@ -25,7 +25,7 @@ export default async function PaginaSupervisores({
 }: {
   searchParams: Promise<{ busca?: string; cargo?: string; equipe?: string }>;
 }) {
-  await exigirQsms();
+  await exigirOperador();
   const { busca, cargo, equipe } = await searchParams;
 
   const supabase = await criarClienteServidor();

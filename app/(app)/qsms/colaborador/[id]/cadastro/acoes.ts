@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirAdmin, exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { BUCKET_FOTOS } from "@/lib/colaborador";
 import { SITUACAO_ROTULO } from "@/lib/dominio";
 import { CAMPOS_COLABORADOR, type CampoColaborador } from "@/lib/campos-colaborador";
@@ -71,7 +71,7 @@ async function registrarCampos(
  * limite existe para o caso de alguém chamar a ação por fora do formulário.
  */
 export async function salvarFoto(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirQsms();
+  await exigirOperador();
 
   const id = z.string().uuid().safeParse(formData.get("id"));
   if (!id.success) return { ok: false, erro: "Colaborador inválido." };
@@ -229,8 +229,7 @@ export async function salvarCampo(_anterior: Acao | null, formData: FormData): P
   const campo = bruto as CampoColaborador;
   const definicao = CAMPOS_COLABORADOR[campo];
 
-  if (definicao.papel === "admin") await exigirAdmin();
-  else await exigirQsms();
+  await exigirOperador();
 
   const id = z.string().uuid().safeParse(formData.get("colaborador_id"));
   if (!id.success) return { ok: false, erro: "Colaborador inválido." };
@@ -366,7 +365,7 @@ async function textoDaMudanca(
  * Reativar devolve tudo, sem perda.
  */
 export async function alternarAtivo(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirAdmin();
+  await exigirOperador();
 
   const analise = z
     .object({ id: z.string().uuid(), ativo: z.enum(["true", "false"]) })

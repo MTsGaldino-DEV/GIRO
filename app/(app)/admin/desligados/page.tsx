@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirAdmin } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { formatarData } from "@/lib/dominio";
 import { Vazio } from "@/components/aviso";
@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic";
  * Só admin, porque desligar e reativar também são só do admin.
  */
 export default async function PaginaDesligados() {
-  await exigirAdmin();
+  await exigirOperador();
 
   const supabase = await criarClienteServidor();
   const { data } = await supabase

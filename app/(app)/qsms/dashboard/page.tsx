@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { assinarFotos } from "@/lib/colaborador";
 import { SeloStatus } from "@/components/selo-status";
@@ -74,7 +74,7 @@ function saudacao(agora: Date): string {
  * retrato geral — status, curva, demanda à frente e ranking.
  */
 export default async function Dashboard() {
-  const perfil = await exigirQsms();
+  const perfil = await exigirOperador();
   const supabase = await criarClienteServidor();
 
   const [

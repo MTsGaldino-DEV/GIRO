@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarItemAberto, carregarStatus } from "@/lib/colaborador";
 import { urlAssinada } from "@/lib/storage";
@@ -29,7 +29,7 @@ interface EventoLinha {
 }
 
 export default async function AbaAso({ params }: { params: Promise<{ id: string }> }) {
-  const perfil = await exigirQsms();
+  const perfil = await exigirOperador();
   const ehAdmin = perfil.papel === "admin";
   const { id } = await params;
 

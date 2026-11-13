@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Vazio } from "@/components/aviso";
 import { ETAPA_ROTULO, formatarDataHora } from "@/lib/dominio";
@@ -20,7 +20,7 @@ interface EntradaColaborador {
 }
 
 export default async function AbaHistorico({ params }: { params: Promise<{ id: string }> }) {
-  await exigirQsms();
+  await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();

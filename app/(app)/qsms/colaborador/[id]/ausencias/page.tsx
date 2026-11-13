@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso, Vazio } from "@/components/aviso";
 import { formatarData, TIPO_AUSENCIA_ROTULO } from "@/lib/dominio";
@@ -17,7 +17,7 @@ interface AusenciaLinha {
 }
 
 export default async function AbaAusencias({ params }: { params: Promise<{ id: string }> }) {
-  await exigirQsms();
+  await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();

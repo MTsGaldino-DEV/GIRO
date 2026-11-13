@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirSupervisor } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { ETAPA_ROTULO, formatarData, formatarHora, avisoJanelaUtil } from "@/lib/dominio";
 import { SeloStatus } from "@/components/selo-status";
@@ -23,7 +23,7 @@ const CHAMADA: Record<string, string> = {
 };
 
 export default async function PainelSupervisor() {
-  const perfil = await exigirSupervisor();
+  const perfil = await exigirOperador();
   const supabase = await criarClienteServidor();
 
   // RLS já limita à equipe dele; a ordenação é por gravidade.

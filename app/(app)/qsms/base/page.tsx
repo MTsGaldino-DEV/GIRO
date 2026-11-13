@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirQsms } from "@/lib/perfil";
+import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { formatarData, ORDEM_STATUS, STATUS_ROTULO, SITUACAO_ROTULO } from "@/lib/dominio";
 import { SeloStatus } from "@/components/selo-status";
@@ -21,7 +21,7 @@ export default async function PaginaBase({
 }: {
   searchParams: Promise<{ status?: string; busca?: string; pagina?: string }>;
 }) {
-  await exigirQsms();
+  await exigirOperador();
   const { status: statusParam, busca, pagina: paginaParam } = await searchParams;
 
   // Filtro padrão em 'sem_registro': a tela existe para fechar esse buraco,
