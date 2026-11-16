@@ -205,15 +205,16 @@ grant execute on function public.fn_vincular_apelido_supervisor(text, uuid) to a
 -- 7. fn_registrar_falha_neo
 --
 -- Grava uma tentativa que falhou (NEO fora do ar, segredo errado, resposta
--- incompleta...). Quem chama é o servidor do GIRO: com a sessão de um operador
--- (botão "Atualizar agora") ou com a service role (cron, auth.uid() nulo). O
--- grant execute só vai para authenticated e service_role; anon e public ficam de
--- fora. A mensagem é cortada em 500 caracteres.
+-- incompleta...). Só a service role executa (cron e Server Actions, que antes
+-- conferem o operador e passam o usuário em p_usuario_id): operador logado NÃO
+-- chama direto, senão qualquer um gravaria texto livre no registro. anon, public e
+-- authenticated ficam sem EXECUTE. A mensagem é cortada em 500 caracteres.
 -- -----------------------------------------------------------------------------
 
 create or replace function public.fn_registrar_falha_neo(
-  p_origem text,
-  p_erro   text
+  p_origem     text,
+  p_erro       text,
+  p_usuario_id uuid default null
 )
 returns void
 language plpgsql
@@ -221,15 +222,18 @@ security definer
 set search_path = public
 as $$
 begin
+  -- Defesa extra: uma sessão de usuário só chegaria aqui se alguém devolvesse o
+  -- EXECUTE a authenticated; mesmo assim só operador, e em nome dele.
   if auth.uid() is not null and not public.fn_e_operador() then
     raise exception 'Apenas operadores podem registrar falhas da sincronização.'
       using errcode = '42501';
   end if;
 
   insert into public.neo_sincronizacoes (origem, usuario_id, erro)
-  values (p_origem, auth.uid(), left(coalesce(p_erro, 'Falha sem detalhe.'), 500));
+  values (p_origem, coalesce(auth.uid(), p_usuario_id),
+          left(coalesce(p_erro, 'Falha sem detalhe.'), 500));
 end;
 $$;
 
-revoke all on function public.fn_registrar_falha_neo(text, text) from public, anon;
-grant execute on function public.fn_registrar_falha_neo(text, text) to authenticated, service_role;
+revoke all on function public.fn_registrar_falha_neo(text, text, uuid) from public, anon, authenticated;
+grant execute on function public.fn_registrar_falha_neo(text, text, uuid) to service_role;

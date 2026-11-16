@@ -9,6 +9,9 @@ import type { LinhaNeo } from "./neo";
  * ar, recusar o segredo, devolver HTTP 500 ou cortar a paginação, a RPC nem é
  * chamada e nada fica aplicado pela metade (Review Focus 5 do plano).
  *
+ * A RPC só aceita a service role: quem chama (rota de cron, Server Actions) usa o cliente admin;
+ * as ações conferem o operador antes e passam `usuarioId`.
+ *
  * Sem log de linhas, nomes ou CPF. Mensagens de falha gravadas em
  * `neo_sincronizacoes` e relançadas não carregam segredo nem detalhe do Postgres:
  * só o texto de um `ErroNeo` (escrito em lib/neo.ts) ou uma frase genérica.
@@ -28,7 +31,10 @@ export type RelatorioSincronizacao = {
   nao_numericas: number;
   na_neo_fora_do_giro: number;
   no_giro_sem_neo: number;
-  divergencias: { matricula: number; motivo: "cpf_diferente" | "ja_ligada_a_outro" }[];
+  divergencias: {
+    matricula: number;
+    motivo: "cpf_diferente" | "ja_ligada_a_outro" | "nome_diferente" | "matricula_duplicada_na_neo";
+  }[];
   matricula_diferente: number;
   campos_alterados: Record<string, number>;
   desligados_novos: number;
@@ -41,6 +47,8 @@ export type OpcoesSincronizacao = {
   aplicar: boolean;
   origem: OrigemSincronizacao;
   listar: () => Promise<LinhaNeo[]>;
+  /** Quem pediu (Server Action); vai para a auditoria. O cron não passa. */
+  usuarioId?: string;
 };
 
 const MENSAGEM_GENERICA = "Não foi possível sincronizar com a NEO.";
@@ -54,10 +62,15 @@ function ehErroNeo(e: unknown): e is Error {
 async function registrarFalha(
   supabase: SupabaseClient,
   origem: OrigemSincronizacao,
-  mensagem: string
+  mensagem: string,
+  usuarioId: string | null
 ): Promise<void> {
   try {
-    await supabase.rpc("fn_registrar_falha_neo", { p_origem: origem, p_erro: mensagem });
+    await supabase.rpc("fn_registrar_falha_neo", {
+      p_origem: origem,
+      p_erro: mensagem,
+      p_usuario_id: usuarioId,
+    });
   } catch {
     // não mascarar o erro original
   }
@@ -68,13 +81,14 @@ export async function executarSincronizacao(
   opcoes: OpcoesSincronizacao
 ): Promise<RelatorioSincronizacao> {
   const { aplicar, origem, listar } = opcoes;
+  const usuarioId = opcoes.usuarioId ?? null;
 
   let linhas: LinhaNeo[];
   try {
     linhas = await listar();
   } catch (e) {
     const erro = ehErroNeo(e) ? e : new Error(MENSAGEM_GENERICA);
-    if (aplicar) await registrarFalha(supabase, origem, erro.message);
+    if (aplicar) await registrarFalha(supabase, origem, erro.message, usuarioId);
     throw erro;
   }
 
@@ -82,11 +96,16 @@ export async function executarSincronizacao(
     p_linhas: linhas,
     p_aplicar: aplicar,
     p_origem: origem,
+    p_usuario_id: usuarioId,
   });
 
   if (error) {
-    const mensagem = `Falha ao gravar a sincronização (${error.code ?? "sem código"}).`;
-    if (aplicar) await registrarFalha(supabase, origem, mensagem);
+    // 55000 é a trava da primeira carga: o texto vem do banco, em português, e não tem dado pessoal.
+    const mensagem =
+      error.code === "55000"
+        ? error.message
+        : `Falha ao gravar a sincronização (${error.code ?? "sem código"}).`;
+    if (aplicar) await registrarFalha(supabase, origem, mensagem, usuarioId);
     throw new Error(mensagem);
   }
 

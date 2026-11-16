@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { exigirOperador } from "@/lib/perfil";
 import { ErroNeo, listarColaboradoresNeo } from "@/lib/neo";
 import { executarSincronizacao, type RelatorioSincronizacao } from "@/lib/sincronizar-neo";
@@ -24,6 +25,13 @@ function resumoParaOperador(r: RelatorioSincronizacao): string {
     : "Cadastro já estava em dia com a NEO.";
 }
 
+/** Texto para o operador: o aviso da NEO ou da trava da primeira carga (já em português) ou a frase genérica. */
+function mensagemDoErro(e: unknown): string {
+  if (e instanceof ErroNeo) return e.message;
+  if (e instanceof Error && e.message.startsWith("A primeira carga")) return e.message;
+  return MENSAGEM_FALHA;
+}
+
 function revalidar() {
   revalidatePath("/colaboradores");
   revalidatePath("/qsms/supervisores");
@@ -31,23 +39,24 @@ function revalidar() {
 
 /**
  * "Atualizar agora": qualquer operador puxa o cadastro da NEO sem esperar o cron
- * das 08:30. Usa a sessão do próprio usuário (a auditoria registra quem pediu).
- * Falha da NEO não quebra a tela: devolve o aviso em português.
+ * das 08:30. A ação confere o operador e a função do banco (só service role) grava
+ * a auditoria em nome dele (p_usuario_id). Falha da NEO não quebra a tela: devolve
+ * o aviso em português.
  */
 export async function atualizarAgoraNeo(): Promise<ResultadoNeo> {
-  await exigirOperador();
+  const perfil = await exigirOperador();
   try {
-    const supabase = await criarClienteServidor();
-    const relatorio = await executarSincronizacao(supabase, {
+    const relatorio = await executarSincronizacao(criarClienteAdmin(), {
       aplicar: true,
       origem: "manual",
+      usuarioId: perfil.id,
       listar: listarColaboradoresNeo,
     });
     revalidar();
     return { ok: true, mensagem: resumoParaOperador(relatorio) };
   } catch (e) {
     revalidar(); // a falha também fica em neo_sincronizacoes e muda o aviso da tela
-    return { ok: false, erro: e instanceof ErroNeo ? e.message : MENSAGEM_FALHA };
+    return { ok: false, erro: mensagemDoErro(e) };
   }
 }
 
@@ -83,15 +92,15 @@ export async function vincularNomeSupervisor(
   if (error) return { ok: false, erro: error.message };
 
   try {
-    await executarSincronizacao(supabase, {
+    await executarSincronizacao(criarClienteAdmin(), {
       aplicar: true,
       origem: "manual",
+      usuarioId: perfil.id,
       listar: listarColaboradoresNeo,
     });
   } catch (e) {
     revalidar();
-    const motivo = e instanceof ErroNeo ? e.message : MENSAGEM_FALHA;
-    return { ok: true, mensagem: `Nome vinculado, mas a atualização falhou: ${motivo}` };
+    return { ok: true, mensagem: `Nome vinculado, mas a atualização falhou: ${mensagemDoErro(e)}` };
   }
 
   revalidar();

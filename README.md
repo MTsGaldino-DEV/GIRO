@@ -271,8 +271,11 @@ ligada por `colaboradores.neo_id` e **só lê** a NEO nesta fase; nada é escrit
   `GIRO_INTEGRACAO_SEGREDO` nas secrets da função). Nunca em código, log ou commit.
 - **Regra no banco:** `fn_sincronizar_neo(p_linhas, p_aplicar, p_origem)` (migration 0024) liga cada pessoa pela
   matrícula Engelmig, traz desligamento e matrícula CEMIG e vincula a equipe pelo texto de supervisor da NEO. CPF
-  diferente ou matrícula já ligada a outro cadastro viram **divergência** no relatório (nada é corrigido em silêncio).
-  `p_aplicar = false` só devolve o relatório.
+  diferente, matrícula já ligada a outro cadastro, matrícula repetida na lista da NEO (`0123` e `123`) ou, sem CPF
+  para confirmar, nome diferente viram **divergência** no relatório (nada é ligado nem corrigido em silêncio).
+  `p_aplicar = false` só devolve o relatório. Só a **service role** executa a função (as Server Actions conferem o
+  operador e passam o usuário em `p_usuario_id`); aplicar com origem `cron` ou `manual` só é aceito depois de uma
+  primeira carga concluída (origem `carga`).
 - **Cron:** `/api/cron/sincronizar-neo`, todo dia às 08:30 UTC. Se a NEO falhar, nada é aplicado e a falha fica em
   `neo_sincronizacoes`.
 - **Botão "Atualizar agora"** em `/colaboradores` (qualquer operador) e **nomes de supervisor sem vínculo** em
@@ -280,6 +283,14 @@ ligada por `colaboradores.neo_id` e **só lê** a NEO nesta fase; nada é escrit
 - **Primeira carga:** `npm run neo:carga` gera o relatório sem gravar. Aplicar exige
   `--aplicar --sim-eu-sei --backup <arquivo fora do repositório>`, autorização expressa e o backup do Supabase
   confirmado. Depois dela, `scripts/importar-ativos.mjs` é só contingência.
+- **Ordem de implantação (importa):**
+  1. aplicar as migrations 0023 e 0024 no banco (`npm run db:push -- --only 0023`, depois `--only 0024`), com o
+     backup do Supabase confirmado: a ficha do colaborador seleciona colunas novas e dá 404 sem a 0023;
+  2. publicar a função na NEO **com `--no-verify-jwt`** (ela tem segredo próprio; sem a flag o Supabase exige um
+     JWT e responde 401 a toda chamada do GIRO) e definir `GIRO_INTEGRACAO_SEGREDO` nas secrets dela;
+  3. colocar `NEO_INTEGRACAO_URL` e `NEO_INTEGRACAO_SEGREDO` só no `.env.local` e rodar `npm run neo:carga`
+     (relatório); aprovar o relatório; aplicar a primeira carga com `--aplicar --sim-eu-sei --backup`;
+  4. só então `git push` e as variáveis na Vercel (o cron e o botão recusam aplicar antes da primeira carga).
 - **Testes:** `teste:neo-cliente`, `teste:neo-sincronizar`, `teste:estado-neo`, `teste:neo-carga-args` (puros) e
   `teste:neo-sync` (banco, numa transação desfeita; `-- --ensaio` aplica as migrations 0023/0024 dentro dela).
 

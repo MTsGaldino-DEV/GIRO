@@ -10,12 +10,15 @@
 -- busca as linhas na NEO e entrega a esta função, que casa, atualiza e audita
 -- tudo numa transação.
 --
---   fn_sincronizar_neo(p_linhas jsonb, p_aplicar boolean, p_origem text) returns jsonb
+--   fn_sincronizar_neo(p_linhas jsonb, p_aplicar boolean, p_origem text,
+--                      p_usuario_id uuid default null) returns jsonb
 --
---   p_linhas  array de LinhaNeo (id, nome, cpf, matricula_cemig, matricula_engelmig,
---             cargo, supervisor, base, data_admissao, data_desligamento, ativo, ...)
---   p_aplicar false = só relatório (nada é gravado); true = grava
---   p_origem  'cron' | 'manual' | 'carga'
+--   p_linhas      array de LinhaNeo (id, nome, cpf, matricula_cemig, matricula_engelmig,
+--                 cargo, supervisor, base, data_admissao, data_desligamento, ativo, ...)
+--   p_aplicar     false = só relatório (nada é gravado); true = grava
+--   p_origem      'cron' | 'manual' | 'carga'
+--   p_usuario_id  quem pediu (a Server Action confere o operador antes); vai para a
+--                 auditoria e para neo_sincronizacoes. O cron não passa.
 --
 -- Regras
 --   1. Só entra linha com matricula_engelmig de 1 a 9 dígitos numéricos. As demais
@@ -24,9 +27,14 @@
 --   2. Casamento: primeiro por neo_id; senão pela matrícula (matricula = engelmig).
 --      Sem casamento: conta em `na_neo_fora_do_giro`; esta função nunca cria pessoa.
 --   3. Casada só pela matrícula e ainda sem neo_id vira DIVERGÊNCIA (nada é
---      ligado nem corrigido) quando a pessoa já está ligada a outro cadastro da
---      NEO (`ja_ligada_a_outro`) ou quando os dois CPFs existem e diferem
---      (`cpf_diferente`). Senão, liga.
+--      ligado nem corrigido) quando: a pessoa já está ligada a outro cadastro da
+--      NEO (`ja_ligada_a_outro`); os dois CPFs existem e diferem (`cpf_diferente`);
+--      a mesma matrícula inteira aparece em mais de uma linha da lista, como '0123'
+--      e '123' (`matricula_duplicada_na_neo`, uma entrada por matrícula, ninguém liga);
+--      ou o CPF não confirma a identidade (falta de um dos lados) e o nome, depois de
+--      normalizado, é diferente (`nome_diferente`): uma matrícula digitada errada na
+--      NEO não pode renomear outra pessoa nem prender ASO e histórico a ela. Com os
+--      dois CPFs iguais, o nome da NEO vale. Senão, liga.
 --   4. Campos da NEO para o GIRO, só para pessoas ligadas: nome, cpf, cargo,
 --      data_admissao e matricula_cemig, e somente com valor não vazio (a NEO
 --      nunca APAGA um valor do GIRO). `ativo` e `data_desligamento` valem como a
@@ -50,14 +58,23 @@
 -- nunca CPF nem nome de colaborador. Com p_aplicar = true ele também é gravado em
 -- neo_sincronizacoes.resumo.
 --
--- Permissão: authenticated só se for operador (fn_e_operador); service_role (cron
--- e script da primeira carga) não tem uid. anon e public ficam sem EXECUTE.
+--   8. Primeira carga em duas etapas (spec 5.4): aplicar com origem 'cron' ou 'manual'
+--      só é aceito depois que existir uma carga aplicada com sucesso
+--      (neo_sincronizacoes origem 'carga'); antes disso o erro é 55000. O relatório
+--      (p_aplicar = false) vale com qualquer origem.
+--
+-- Permissão: só service_role (cron, Server Actions e script da primeira carga). Um
+-- operador logado NÃO executa direto: a função confia no conteúdo de p_linhas, e
+-- quem pode chamá-la com linhas inventadas poderia gravar neo_id, matrícula CEMIG e
+-- desligamento de qualquer pessoa. A Server Action confere o operador e passa o
+-- usuário em p_usuario_id. anon, public e authenticated ficam sem EXECUTE.
 -- =============================================================================
 
 create or replace function public.fn_sincronizar_neo(
-  p_linhas  jsonb,
-  p_aplicar boolean,
-  p_origem  text
+  p_linhas     jsonb,
+  p_aplicar    boolean,
+  p_origem     text,
+  p_usuario_id uuid default null
 )
 returns jsonb
 language plpgsql
@@ -84,6 +101,8 @@ declare
   v_divergencias   jsonb := '[]'::jsonb;
   v_campos         jsonb := '{}'::jsonb;
   v_vistos         uuid[] := '{}';
+  v_duplicadas     int[]  := '{}';
+  v_usuario        uuid;
   v_sv_norm        text[] := '{}';
   v_sv_orig        text[] := '{}';
   v_bases          text[] := '{}';
@@ -113,8 +132,8 @@ declare
   v_sv_json      jsonb;
   v_relatorio    jsonb;
 begin
-  -- Guarda: sessão de usuário exige operador; sem usuário (service role) o
-  -- controle é o grant de EXECUTE (só authenticated e service_role).
+  -- Guarda: o controle principal é o grant de EXECUTE (só service_role). Defesa
+  -- extra: se uma sessão de usuário chegar aqui, exige operador e vale o uid dela.
   if auth.uid() is not null and not public.fn_e_operador() then
     raise exception 'Apenas operadores podem sincronizar com a NEO.'
       using errcode = '42501';
@@ -130,7 +149,28 @@ begin
     raise exception 'Informe se a sincronização deve ser aplicada.' using errcode = '22023';
   end if;
 
+  v_usuario := coalesce(auth.uid(), p_usuario_id);
+
+  -- 8. a primeira carga é feita com relatório e backup (script), nunca pelo cron
+  -- nem pelo botão
+  if p_aplicar and p_origem <> 'carga' and not exists (
+    select 1 from public.neo_sincronizacoes where origem = 'carga' and erro is null
+  ) then
+    raise exception 'A primeira carga da NEO ainda não foi feita. Gere o relatório e aplique a carga com scripts/neo-primeira-carga.mjs.'
+      using errcode = '55000';
+  end if;
+
   v_total := jsonb_array_length(p_linhas);
+
+  -- matrículas inteiras que aparecem mais de uma vez na lista (ex.: '0123' e '123')
+  select coalesce(array_agg(m), '{}') into v_duplicadas
+    from (
+      select btrim(x.matricula_engelmig)::int as m
+        from jsonb_to_recordset(p_linhas) as x(matricula_engelmig text)
+       where btrim(x.matricula_engelmig) ~ '^[0-9]{1,9}$'
+       group by 1
+      having count(*) > 1
+    ) d;
 
   -- Tudo abaixo roda em um sub-bloco: com p_aplicar = false ele termina em um erro
   -- próprio (GN001) que desfaz as gravações e é capturado. As variáveis locais
@@ -180,6 +220,14 @@ begin
         v_vistos := v_vistos || v_c.id;
 
         -- 3. casada só pela matrícula: divergência ou ligação
+        if v_mat = any(v_duplicadas) then
+          if not v_divergencias @> jsonb_build_array(
+               jsonb_build_object('matricula', v_c.matricula, 'motivo', 'matricula_duplicada_na_neo')) then
+            v_divergencias := v_divergencias
+              || jsonb_build_object('matricula', v_c.matricula, 'motivo', 'matricula_duplicada_na_neo');
+          end if;
+          continue;
+        end if;
         if v_c.neo_id is not null then
           v_divergencias := v_divergencias
             || jsonb_build_object('matricula', v_c.matricula, 'motivo', 'ja_ligada_a_outro');
@@ -190,6 +238,14 @@ begin
         if v_cpf_neo <> '' and v_cpf_giro <> '' and v_cpf_neo <> v_cpf_giro then
           v_divergencias := v_divergencias
             || jsonb_build_object('matricula', v_c.matricula, 'motivo', 'cpf_diferente');
+          continue;
+        end if;
+        -- sem CPF dos dois lados para confirmar, o nome tem de bater (normalizado)
+        if not (v_cpf_neo <> '' and v_cpf_giro <> '')
+           and public.fn_normalizar_texto(v_r.nome) is distinct from public.fn_normalizar_texto(v_c.nome)
+           and public.fn_normalizar_texto(v_r.nome) is not null then
+          v_divergencias := v_divergencias
+            || jsonb_build_object('matricula', v_c.matricula, 'motivo', 'nome_diferente');
           continue;
         end if;
         v_ligar := true;
@@ -306,11 +362,11 @@ begin
         insert into public.auditoria_colaborador
           (colaborador_id, usuario_id, acao, entidade, entidade_id, campo, valor_anterior, valor_novo, origem)
         values
-          (v_c.id, auth.uid(), 'alterou', 'colaborador', v_c.id, 'neo_id', null, v_r.id::text, c_origem_auditoria);
+          (v_c.id, v_usuario, 'alterou', 'colaborador', v_c.id, 'neo_id', null, v_r.id::text, c_origem_auditoria);
       end if;
       insert into public.auditoria_colaborador
         (colaborador_id, usuario_id, acao, entidade, entidade_id, campo, valor_anterior, valor_novo, origem)
-      select v_c.id, auth.uid(), 'alterou', 'colaborador', v_c.id,
+      select v_c.id, v_usuario, 'alterou', 'colaborador', v_c.id,
              m->>'campo', m->>'de', m->>'para', c_origem_auditoria
         from jsonb_array_elements(v_mud) as m;
     end loop;
@@ -360,7 +416,7 @@ begin
 
   if p_aplicar then
     insert into public.neo_sincronizacoes (origem, usuario_id, resumo)
-    values (p_origem, auth.uid(), v_relatorio);
+    values (p_origem, v_usuario, v_relatorio);
   end if;
 
   return v_relatorio;
@@ -369,5 +425,5 @@ $$;
 
 -- `from public, anon`: no Supabase o `anon` recebe EXECUTE direto por privilégio
 -- padrão do schema; `revoke ... from public` sozinho não o remove (ver 0023).
-revoke all on function public.fn_sincronizar_neo(jsonb, boolean, text) from public, anon;
-grant execute on function public.fn_sincronizar_neo(jsonb, boolean, text) to authenticated, service_role;
+revoke all on function public.fn_sincronizar_neo(jsonb, boolean, text, uuid) from public, anon, authenticated;
+grant execute on function public.fn_sincronizar_neo(jsonb, boolean, text, uuid) to service_role;

@@ -67,6 +67,14 @@ export function FichaCadastro({
 
   return (
     <>
+      {colaborador.neo_id && (
+        <p className="text-label text-ink-muted m-0" role="note">
+          Este cadastro vem da NEO. Nome, CPF, admissão, cargo, situação ativo e supervisor são
+          atualizados de lá todo dia: o que for alterado aqui nesses campos pode ser sobrescrito
+          (a mudança fica no histórico). Para valer, altere também na NEO.
+        </p>
+      )}
+
       <div className="card">
         <h3 className="mb-1">Dados da folha</h3>
         <p className="text-ink-muted text-label mb-4">

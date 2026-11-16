@@ -34,7 +34,7 @@ const ok = (d) => { passou++; console.log(`  ok    ${d}`); };
 const erro = (d, x) => { falhou++; console.log(`  FALHA ${d}${x ? `\n        ${x}` : ""}`); };
 const confere = (cond, d, x) => (cond ? ok(d) : erro(d, x));
 
-const MATRICULAS = [999501, 999502, 999511, 999512, 999513, 999514, 999515, 999516, 999517, 999518];
+const MATRICULAS = [999501, 999502, 999511, 999512, 999513, 999514, 999515, 999516, 999517, 999518, 999520, 999521];
 const EMAILS = [
   "neo-sup@exemplo.invalido",
   "neo-sup-perfil@exemplo.invalido",
@@ -311,18 +311,22 @@ async function main() {
 
     // ======================= 0023: fn_registrar_falha_neo =========================
     console.log("\nfn_registrar_falha_neo");
+    // Revisão final (I4): quem grava a falha é o servidor do GIRO com a service role; o operador
+    // não chama a função direto (texto livre forjado). O usuário vai no parâmetro p_usuario_id.
     await sessao(uidSup, async () => {
+      const f = await tentar(`select fn_registrar_falha_neo('manual', 'x')`);
+      confere(!f.ok && f.codigo === "42501", "operador não executa fn_registrar_falha_neo direto (42501)", f.ok ? "passou" : f.codigo);
+    });
+    await sessaoPapel("service_role", async () => {
       const longo = "x".repeat(900);
-      const f = await tentar(`select fn_registrar_falha_neo('manual', $1)`, [longo]);
-      confere(f.ok, "operador registra falha", f.mensagem);
+      const f = await tentar(`select fn_registrar_falha_neo('manual', $1, $2::uuid)`, [longo, uidSup]);
+      confere(f.ok, "service_role registra falha em nome de um usuário", f.mensagem);
       const { rows: fal } = await client.query(
         `select length(erro)::int as n, usuario_id, resumo from neo_sincronizacoes where erro like 'xxxx%'`);
       confere(fal.length === 1 && fal[0].n === 500 && fal[0].usuario_id === uidSup && fal[0].resumo === null,
         "…truncada em 500 caracteres, com o usuário e sem resumo", JSON.stringify(fal));
-    });
-    await sessaoPapel("service_role", async () => {
-      const f = await tentar(`select fn_registrar_falha_neo('cron', $1)`, [MARCA_ERRO]);
-      confere(f.ok, "service_role (cron) registra falha", f.mensagem);
+      const g = await tentar(`select fn_registrar_falha_neo('cron', $1)`, [MARCA_ERRO]);
+      confere(g.ok, "service_role (cron) registra falha", g.mensagem);
       const { rows: cron } = await client.query(
         `select usuario_id from neo_sincronizacoes where origem = 'cron' and erro = $1`, [MARCA_ERRO]);
       confere(cron.length === 1 && cron[0].usuario_id === null, "…com usuario_id nulo", JSON.stringify(cron));
@@ -343,8 +347,11 @@ async function main() {
          from pg_proc p
         where p.pronamespace = 'public'::regnamespace
           and p.proname in ('fn_normalizar_texto','fn_vincular_apelido_supervisor','fn_registrar_falha_neo')`);
-    confere(priv.length === 3 && priv.every((r) => !r.anon && r.auth && r.servico),
-      "as 3 funções: execute só para authenticated e service_role (anon sem execute)", JSON.stringify(priv));
+    const permPriv = (nome) => priv.find((r) => r.proname === nome);
+    confere(priv.length === 3 && priv.every((r) => !r.anon && r.servico) &&
+            permPriv("fn_normalizar_texto").auth && permPriv("fn_vincular_apelido_supervisor").auth &&
+            !permPriv("fn_registrar_falha_neo").auth,
+      "execute: anon nunca; authenticated só no normalizador e no vínculo de apelido; fn_registrar_falha_neo só service_role", JSON.stringify(priv));
     const origemRuim = await tentar(`select fn_registrar_falha_neo('qualquer', 'x')`);
     confere(!origemRuim.ok, "origem fora de cron/manual/carga é recusada", origemRuim.ok ? "passou" : "");
 
@@ -372,7 +379,9 @@ async function main() {
     const p6 = await insere(999516, { sup: supB });                                  // supervisor sem casamento
     const p7 = await insere(999517, { neo: N(7) });                                  // desligada na NEO
     const p8 = await insere(999518, { neo: N(8) });                                  // matrícula diferente na NEO
-    const todos = [p1, p2, p3, p4, p5, p6, p7, p8];
+    const p9 = await insere(999520);                                                 // sem CPF e nome diferente: não liga
+    const p10 = await insere(999521);                                                // matrícula repetida na NEO: não liga
+    const todos = [p1, p2, p3, p4, p5, p6, p7, p8, p9, p10];
 
     const L = (n, extra = {}) => ({
       id: N(n), nome: "TESTE NEO", cpf: null, matricula_cemig: null, matricula_engelmig: null,
@@ -381,13 +390,13 @@ async function main() {
     });
     const CPF_P1 = "00000000191";
     const linhas = [
-      L(1, { nome: "TESTE NEO P1", cpf: CPF_P1, matricula_cemig: "e999511", matricula_engelmig: "999511",
+      L(1, { nome: "Teste Neo", cpf: CPF_P1, matricula_cemig: "e999511", matricula_engelmig: "999511",
              cargo: "Novo Cargo P1", base: "Base Teste A", data_admissao: "2020-05-04",
              data_desligamento: "2026-10-01" }),
       L(2, { nome: "OUTRO NOME", cpf: "00000000353", matricula_engelmig: "999512" }),
       L(3, { matricula_engelmig: "999513" }),
       L(4, { nome: "", cargo: null, matricula_engelmig: "999514", data_desligamento: null }),
-      L(5, { nome: "TESTE NEO P5", matricula_engelmig: "999515", base: "Base Teste A",
+      L(5, { nome: "Teste Neo", matricula_engelmig: "999515", base: "Base Teste A",
              supervisor: "  JOÃO  da Silva Neotest " }),
       L(6, { matricula_engelmig: "999516", supervisor: "Zé Ninguém Neotest" }),
       L(7, { matricula_engelmig: "999517", ativo: false, data_desligamento: "2026-11-01" }),
@@ -396,6 +405,9 @@ async function main() {
       L(10, { matricula_engelmig: null }),
       L(11, { matricula_engelmig: "" }),
       L(12, { matricula_engelmig: "999999" }),
+      L(13, { nome: "OUTRA PESSOA TOTALMENTE", matricula_engelmig: "999520" }),
+      L(14, { matricula_engelmig: "999521" }),
+      L(15, { matricula_engelmig: "0999521" }),
     ];
 
     // Datas viram texto na consulta para não depender do fuso do driver.
@@ -410,9 +422,9 @@ async function main() {
       const { rows: ns } = await client.query(`select count(*)::int as n from neo_sincronizacoes`);
       return JSON.stringify({ colaboradores: rows, auditoria: a[0].n, sincronizacoes: ns[0].n });
     };
-    const chamar = async (ls, aplicar, origem = "carga") => {
-      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, $2, $3) as r`,
-        [JSON.stringify(ls), aplicar, origem]);
+    const chamar = async (ls, aplicar, origem = "carga", usuario = null) => {
+      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, $2, $3, $4::uuid) as r`,
+        [JSON.stringify(ls), aplicar, origem, usuario]);
       if (!r.ok) throw new Error(`fn_sincronizar_neo falhou: ${r.codigo} ${r.mensagem}`);
       return r.rows[0].r;
     };
@@ -423,6 +435,18 @@ async function main() {
          from auditoria_colaborador where colaborador_id = $1 and origem = 'Sincronização NEO' order by campo`,
       [id])).rows;
 
+    // Revisão final (I1): cron e botão não fazem a primeira carga. Apaga (nesta transação desfeita)
+    // qualquer carga real já registrada, para provar a trava.
+    await client.query(`delete from neo_sincronizacoes where origem = 'carga'`);
+    await sessaoPapel("service_role", async () => {
+      for (const origem of ["manual", "cron"]) {
+        const r = await tentar(`select fn_sincronizar_neo($1::jsonb, true, $2) as r`, [JSON.stringify(linhas), origem]);
+        confere(!r.ok && r.codigo === "55000" && /primeira carga/i.test(r.mensagem),
+          `aplicar com origem '${origem}' antes da primeira carga é recusado (55000)`, r.ok ? "passou" : `${r.codigo} ${r.mensagem}`);
+      }
+      const seco0 = await tentar(`select fn_sincronizar_neo($1::jsonb, false, 'manual') as r`, [JSON.stringify(linhas)]);
+      confere(seco0.ok, "…mas o relatório (p_aplicar=false) vale com qualquer origem", seco0.mensagem);
+    });
     await sessaoPapel("service_role", async () => {
       // (f) p_aplicar = false não grava nada e devolve o relatório que a aplicação devolveria
       const antes = await foto();
@@ -434,7 +458,7 @@ async function main() {
         "(f) o relatório do ensaio é idêntico ao da aplicação", `${JSON.stringify(seco)}\n${JSON.stringify(r1)}`);
 
       // contagens do relatório
-      confere(r1.total_neo === 12, "total_neo", String(r1.total_neo));
+      confere(r1.total_neo === 15, "total_neo", String(r1.total_neo));
       confere(r1.nao_numericas === 3, "(c) matrícula 'e272662', nula e vazia: 3 não numéricas", String(r1.nao_numericas));
       confere(r1.na_neo_fora_do_giro === 1, "linha da NEO sem pessoa no GIRO não cria ninguém", String(r1.na_neo_fora_do_giro));
       confere(r1.ligados_novos === 3, "ligados_novos = 3 (P1, P5, P6)", String(r1.ligados_novos));
@@ -444,8 +468,11 @@ async function main() {
       confere(r1.desligados_novos === 1, "(h) desligados_novos = 1", String(r1.desligados_novos));
       confere(r1.supervisores_vinculados === 1, "supervisores_vinculados = 1", String(r1.supervisores_vinculados));
       const dv = (r1.divergencias ?? []).map((d) => `${d.matricula}:${d.motivo}`).sort();
-      confere(JSON.stringify(dv) === JSON.stringify(["999512:cpf_diferente", "999513:ja_ligada_a_outro"]),
-        "(b) divergências: cpf_diferente e ja_ligada_a_outro", JSON.stringify(dv));
+      confere(JSON.stringify(dv) === JSON.stringify(["999512:cpf_diferente", "999513:ja_ligada_a_outro", "999520:nome_diferente", "999521:matricula_duplicada_na_neo"]),
+        "(b) divergências: cpf_diferente, ja_ligada_a_outro, nome_diferente (sem CPF para confirmar) e matrícula duplicada no lote", JSON.stringify(dv));
+      const d9 = await um(p9), d10 = await um(p10);
+      confere(d9.neo_id === null && d9.nome === "TESTE NEO", "(I2) sem CPF nos dois lados e nome diferente: não liga nem renomeia", JSON.stringify(d9));
+      confere(d10.neo_id === null, "(I5) matrícula 999521 e 0999521 na mesma lista: nenhuma liga, a pessoa fica como está", JSON.stringify(d10));
       confere(JSON.stringify(r1.bases) === JSON.stringify([{ base: "Base Teste A", quantidade: 2 }]),
         "bases listadas com quantidade (não grava local)", JSON.stringify(r1.bases));
       confere(r1.campos_alterados.cargo === 1 && r1.campos_alterados.data_desligamento === 3 &&
@@ -457,7 +484,7 @@ async function main() {
       const a = await um(p1);
       confere(a.neo_id === N(1) && a.matricula_cemig === "e999511" && a.deslig === "2026-10-01",
         "(a) liga P1 por matrícula: neo_id, matricula_cemig e data_desligamento", JSON.stringify(a));
-      confere(a.cargo === "Novo Cargo P1" && a.cpf === CPF_P1 && a.nome === "TESTE NEO P1" && a.neo_sincronizado_em !== null,
+      confere(a.cargo === "Novo Cargo P1" && a.cpf === CPF_P1 && a.nome === "Teste Neo" && a.neo_sincronizado_em !== null,
         "(a) …e atualiza cargo, cpf, nome e neo_sincronizado_em", JSON.stringify(a));
       confere(a.matricula === 999511, "(a) a matrícula do GIRO não muda");
 
@@ -492,12 +519,13 @@ async function main() {
         "auditoria de P1: ligar + 6 campos, todas com origem 'Sincronização NEO'", JSON.stringify(aud1.map((x) => x.campo)));
       confere(aud1.some((x) => x.campo === "neo_id" && x.valor_novo === N(1)), "ligar grava a linha 'neo_id'");
       confere((await auditoria(p8)).length === 0, "pessoa sem mudança não gera auditoria");
-      confere((await auditoria(p2)).length === 0 && (await auditoria(p3)).length === 0,
+      confere((await auditoria(p2)).length === 0 && (await auditoria(p3)).length === 0 &&
+              (await auditoria(p9)).length === 0 && (await auditoria(p10)).length === 0,
         "divergências não geram auditoria");
       const { rows: ns } = await client.query(
         `select origem, usuario_id, resumo from neo_sincronizacoes where origem = 'carga' and resumo is not null`);
       // (now() é o mesmo em toda a transação do teste: por isso se filtra, não se ordena)
-      confere(ns.length === 1 && ns[0].origem === "carga" && ns[0].usuario_id === null && ns[0].resumo?.total_neo === 12,
+      confere(ns.length === 1 && ns[0].origem === "carga" && ns[0].usuario_id === null && ns[0].resumo?.total_neo === 15,
         "a aplicação grava uma linha em neo_sincronizacoes com o resumo", JSON.stringify(ns[0]).slice(0, 120));
 
       // (g) segunda aplicação seguida
@@ -527,27 +555,39 @@ async function main() {
       confere(vazia.total_neo === 0 && vazia.ligados_novos === 0, "lista vazia dá relatório zerado");
     });
 
-    // operador (sessão de usuário): relatório, aplicação e vínculo por apelido
-    await sessao(uidSup, async () => {
-      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, false, 'manual') as r`, [JSON.stringify([linhas[5]])]);
-      confere(r.ok && r.rows[0].r.supervisores_sem_vinculo.length === 1,
-        "operador roda o relatório sem gravar", r.mensagem);
-    });
+    // A sessão acima foi desfeita (savepoint), inclusive a carga que ela aplicou: registra uma carga
+    // concluída para as aplicações 'manual' abaixo passarem pela trava da primeira carga.
+    await client.query(`insert into neo_sincronizacoes (origem, resumo) values ('carga', '{}'::jsonb)`);
+
+    // vínculo por apelido: o QSMS vincula com a sessão dele; a sincronização roda com a service role
+    // e recebe o usuário em p_usuario_id (a ação do app confere o operador antes).
     await sessao(uidQsms, async () => {
       const v = await tentar(`select fn_vincular_apelido_supervisor($1, $2)`, ["zé ninguém neotest", supJoao]);
       confere(v.ok, "QSMS vincula o nome sem casamento a um supervisor", v.mensagem);
-      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, true, 'manual') as r`, [JSON.stringify([linhas[5]])]);
-      confere(r.ok && r.rows[0].r.supervisores_vinculados === 1 && r.rows[0].r.supervisores_sem_vinculo.length === 0,
-        "(e) o apelido resolve o nome sem casamento", r.mensagem ?? JSON.stringify(r.rows[0]?.r));
+      const apelido = await client.query(`select count(*)::int as n from supervisor_apelidos where texto_normalizado = 'ze ninguem neotest'`);
+      confere(apelido.rows[0].n === 1, "…e o apelido fica guardado normalizado", String(apelido.rows[0].n));
+    });
+    await sessaoPapel("service_role", async () => {
+      await client.query(`insert into supervisor_apelidos (texto_normalizado, supervisor_id) values ('ze ninguem neotest', $1)`, [supJoao]);
+      const r = await chamar([linhas[5]], true, "manual", uidQsms);
+      confere(r.supervisores_vinculados === 1 && r.supervisores_sem_vinculo.length === 0,
+        "(e) o apelido resolve o nome sem casamento", JSON.stringify(r));
       const c = (await client.query(`select supervisor_id from colaboradores where id = $1`, [p6])).rows[0];
       confere(c.supervisor_id === supJoao, "(e) …e o vínculo da pessoa muda", String(c.supervisor_id));
       const { rows: ns } = await client.query(
         `select origem, usuario_id from neo_sincronizacoes where origem = 'manual' and resumo is not null`);
-      confere(ns.length === 1 && ns[0].origem === "manual" && ns[0].usuario_id === uidQsms,
-        "a aplicação manual grava origem e usuário em neo_sincronizacoes", JSON.stringify(ns[0]));
+      confere(ns.length === 1 && ns[0].usuario_id === uidQsms,
+        "a aplicação manual grava origem e o usuário recebido em p_usuario_id", JSON.stringify(ns[0]));
+      const au = await client.query(
+        `select usuario_id from auditoria_colaborador where colaborador_id = $1 and origem = 'Sincronização NEO' and campo = 'supervisor'`, [p6]);
+      confere(au.rows.length === 1 && au.rows[0].usuario_id === uidQsms, "…e a auditoria leva esse usuário", JSON.stringify(au.rows));
     });
 
     // (i) quem não pode, não executa
+    await sessao(uidSup, async () => {
+      const r = await tentar(`select fn_sincronizar_neo('[]'::jsonb, false, 'manual')`);
+      confere(!r.ok && r.codigo === "42501", "(I4) operador não executa fn_sincronizar_neo direto (linhas forjadas) (42501)", r.ok ? "passou" : `${r.codigo}`);
+    });
     await sessao(uidSemPerfil, async () => {
       const r = await tentar(`select fn_sincronizar_neo('[]'::jsonb, false, 'manual')`);
       confere(!r.ok && r.codigo === "42501", "(i) usuário sem perfil não executa (42501)", r.ok ? "passou" : `${r.codigo}`);
@@ -556,10 +596,9 @@ async function main() {
       const r = await tentar(`select fn_sincronizar_neo('[]'::jsonb, false, 'manual')`);
       confere(!r.ok && r.codigo === "42501", "(i) anon não executa (42501)", r.ok ? "passou" : `${r.codigo}`);
     });
-    // ======================= desempenho (o botão roda como authenticated) =========
-    // No Supabase o papel authenticated tem statement_timeout curto (8 s). A listagem
-    // real tem ~1100 pessoas; este teste cria 1100 fixtures ligadas e aplica como
-    // operador com esse limite, para o botão "Atualizar agora" poder usar a sessão do usuário.
+    // ======================= desempenho =========================================
+    // A listagem real tem ~1100 pessoas; este teste cria 1100 fixtures ligadas e mede a
+    // aplicação com a service role (cron e botão), com folga sobre o limite de 60 s da rota.
     console.log("\ndesempenho");
     await client.query(
       `insert into colaboradores (matricula, nome, cargo, situacao, ativo, neo_id)
@@ -571,22 +610,21 @@ async function main() {
                 'cargo', 'Cargo Novo', 'supervisor', 'Supervisor Neo Um (teste)', 'ativo', true,
                 'atualizado_em', '2026-11-16T10:00:00Z')) as l
          from colaboradores where matricula between $1 and $2`, FAIXA_DESEMPENHO);
-    await sessao(uidSup, async () => {
-      await client.query("set local statement_timeout = '8s'");
+    await sessaoPapel("service_role", async () => {
       const t0 = Date.now();
-      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, true, 'manual') as r`, [JSON.stringify(perfLinhas[0].l)]);
+      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, true, 'manual', $2::uuid) as r`, [JSON.stringify(perfLinhas[0].l), uidSup]);
       const ms = Date.now() - t0;
-      confere(r.ok && r.rows[0].r.atualizados === 1100, `1100 pessoas, aplicando como operador (limite 8 s): ${ms} ms`,
+      confere(r.ok && r.rows[0].r.atualizados === 1100, `1100 pessoas aplicadas: ${ms} ms`,
         r.ok ? String(r.rows[0].r.atualizados) : r.mensagem);
-      confere(ms < 6000, "…com folga sobre o limite (menos de 6 s)", `${ms} ms`);
+      confere(ms < 10000, "…com folga (menos de 10 s)", `${ms} ms`);
     });
 
     const { rows: pr } = await client.query(
-      `select has_function_privilege('anon', 'public.fn_sincronizar_neo(jsonb, boolean, text)', 'execute') as anon,
-              has_function_privilege('authenticated', 'public.fn_sincronizar_neo(jsonb, boolean, text)', 'execute') as auth,
-              has_function_privilege('service_role', 'public.fn_sincronizar_neo(jsonb, boolean, text)', 'execute') as servico`);
-    confere(!pr[0].anon && pr[0].auth && pr[0].servico,
-      "fn_sincronizar_neo: execute só para authenticated e service_role", JSON.stringify(pr[0]));
+      `select has_function_privilege('anon', 'public.fn_sincronizar_neo(jsonb, boolean, text, uuid)', 'execute') as anon,
+              has_function_privilege('authenticated', 'public.fn_sincronizar_neo(jsonb, boolean, text, uuid)', 'execute') as auth,
+              has_function_privilege('service_role', 'public.fn_sincronizar_neo(jsonb, boolean, text, uuid)', 'execute') as servico`);
+    confere(!pr[0].anon && !pr[0].auth && pr[0].servico,
+      "fn_sincronizar_neo: execute só para service_role", JSON.stringify(pr[0]));
   } finally {
     await client.query("rollback");
     await limpar();

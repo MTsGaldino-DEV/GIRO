@@ -52,7 +52,7 @@ await caso("sucesso: chama fn_sincronizar_neo com as linhas, p_aplicar e p_orige
   const s = supabaseFalso();
   const r = await executarSincronizacao(s, { aplicar: true, origem: "manual", listar: async () => LINHAS });
   assert.deepEqual(nomes(s), ["fn_sincronizar_neo"]);
-  assert.deepEqual(s.chamadas[0].args, { p_linhas: LINHAS, p_aplicar: true, p_origem: "manual" });
+  assert.deepEqual(s.chamadas[0].args, { p_linhas: LINHAS, p_aplicar: true, p_origem: "manual", p_usuario_id: null });
   assert.deepEqual(r, RELATORIO);
 });
 
@@ -63,7 +63,7 @@ await caso("NEO fora do ar (aplicar): a RPC de sincronização não é chamada; 
     executarSincronizacao(s, { aplicar: true, origem: "cron", listar: async () => { throw erro; } }),
     (e) => e === erro);
   assert.deepEqual(nomes(s), ["fn_registrar_falha_neo"]);
-  assert.deepEqual(s.chamadas[0].args, { p_origem: "cron", p_erro: "Não foi possível falar com a NEO." });
+  assert.deepEqual(s.chamadas[0].args, { p_origem: "cron", p_erro: "Não foi possível falar com a NEO.", p_usuario_id: null });
 });
 
 await caso("NEO fora do ar (só relatório): nada é chamado no banco; o erro é relançado", async () => {
@@ -98,6 +98,26 @@ await caso("se registrar a falha também falhar, o erro original continua sendo 
   await assert.rejects(
     executarSincronizacao(s, { aplicar: true, origem: "cron", listar: async () => { throw erro; } }),
     (e) => e === erro);
+});
+
+await caso("usuarioId vai nas duas RPCs (sincronizar e registrar falha) como p_usuario_id", async () => {
+  const s = supabaseFalso();
+  await executarSincronizacao(s, { aplicar: true, origem: "manual", usuarioId: "u-1", listar: async () => LINHAS });
+  assert.equal(s.chamadas[0].args.p_usuario_id, "u-1");
+  const f = supabaseFalso();
+  await assert.rejects(executarSincronizacao(f, {
+    aplicar: true, origem: "manual", usuarioId: "u-1",
+    listar: async () => { throw new ErroNeoFalso("A NEO recusou o acesso da integração."); },
+  }));
+  assert.equal(f.chamadas[0].args.p_usuario_id, "u-1");
+});
+
+await caso("trava da primeira carga (55000): a mensagem em português do banco chega ao operador", async () => {
+  const msg = "A primeira carga da NEO ainda não foi feita. Gere o relatório e aplique a carga com scripts/neo-primeira-carga.mjs.";
+  const s = supabaseFalso({ sincronizar: { data: null, error: { message: msg, code: "55000" } } });
+  await assert.rejects(
+    executarSincronizacao(s, { aplicar: true, origem: "cron", listar: async () => LINHAS }),
+    (e) => e instanceof Error && e.message === msg);
 });
 
 await caso("resumoContagens: listas viram números e nenhuma pessoa, matrícula ou texto aparece", () => {
