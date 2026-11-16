@@ -186,8 +186,9 @@ Toda a lógica está no Postgres, não na aplicação.
 - Datas relativas à execução (`hoje ± offset`), de modo que os status do semáforo saem corretos em qualquer dia.
 - Cria **3 contas de teste** (`teste.admin@`, `teste.qsms@`, `teste.supervisor@giro.local`, senha `Giro@Teste123`), um supervisor fictício, documentos e linhas de auditoria (`criarDocumentosEAuditoria`).
 
-## 11. Import de planilha — **ausente**
+## 11. Import de planilha — **ausente** (cadastro: integração com a NEO em andamento)
 
+- **Atualizado em 16/11/2026:** o cadastro passa a vir da CENTRAL-NEO (spec `docs/superpowers/specs/2026-11-16-integracao-central-neo-design.md`). Fase 1 (leitura e sincronização) implementada: `lib/neo.ts`, `lib/sincronizar-neo.ts`, `fn_sincronizar_neo` (migrations 0023 e 0024), `/api/cron/sincronizar-neo`, botão "Atualizar agora" e `scripts/neo-primeira-carga.mjs`. `scripts/importar-ativos.mjs` fica como contingência depois da primeira carga.
 - Nenhum arquivo do repositório importa `csv-parse`, `exceljs` ou `iconv-lite`; nenhuma menção a `ASO__Proximos_vencimentos.CSV`, `Colaboradores__211_2.xlsx`, `cp1252` ou `win1252` em código. As três dependências estão declaradas em `devDependencies` de [package.json](package.json), o que sugere que existiu (ou foi planejado) um script de importação que não está versionado.
 - O diretório [data/](data/) contém apenas `.gitkeep`.
 - Não há feature de admin para upload de planilha, nem script solto em [scripts/](scripts/) (os 7 scripts existentes são: db-push, seed-teste, criar-perfil, teste-fluxo, teste-rls, verificar, gerar-icones).

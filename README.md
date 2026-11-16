@@ -242,7 +242,9 @@ checagens dentro das RPCs, não as políticas. Os dois são necessários.
 | `/api/cron/gerar-itens` | diário, 09:00 UTC (06:00 BRT) | cria itens para vencimentos em até 90 dias e para quem está sem registro |
 | `/api/cron/email-semanal` | segunda, 10:00 UTC (07:00 BRT) | um e-mail por supervisor (só a equipe dele) **e** o digest interno do QSMS/admin: irregulares, processos parados e fora do prazo de marcação |
 
-Ambas são idempotentes. A geração de itens é protegida pelo índice único
+| `/api/cron/sincronizar-neo` | diário, 08:30 UTC (05:30 BRT) | sincroniza o cadastro de colaboradores com a CENTRAL-NEO (ver *Integração com a NEO*) |
+
+Todas são idempotentes. A geração de itens é protegida pelo índice único
 parcial `uq_item_aberto`; o e-mail, por `alertas_enviados` com referência no
 formato `2026-W34`.
 
@@ -255,6 +257,31 @@ Para testar o e-mail sem enviar nada:
 GET /api/cron/email-semanal?simular=1
 GET /api/cron/email-semanal?previa=qsms      # HTML do digest interno
 ```
+
+---
+
+## Integração com a NEO (fase 1: leitura)
+
+O cadastro de colaboradores tem uma fonte única, a CENTRAL-NEO (projeto `central-neo`). O GIRO guarda uma cópia
+ligada por `colaboradores.neo_id` e **só lê** a NEO nesta fase; nada é escrito lá.
+
+- **Porta de leitura:** a Edge Function `giro-colaboradores` da NEO (ação `listar`, só colunas do contrato, protegida por
+  segredo próprio). O cliente é `lib/neo.ts`.
+- **Variáveis (só servidor — Vercel e `.env.local`):** `NEO_INTEGRACAO_URL` e `NEO_INTEGRACAO_SEGREDO` (o mesmo valor de
+  `GIRO_INTEGRACAO_SEGREDO` nas secrets da função). Nunca em código, log ou commit.
+- **Regra no banco:** `fn_sincronizar_neo(p_linhas, p_aplicar, p_origem)` (migration 0024) liga cada pessoa pela
+  matrícula Engelmig, traz desligamento e matrícula CEMIG e vincula a equipe pelo texto de supervisor da NEO. CPF
+  diferente ou matrícula já ligada a outro cadastro viram **divergência** no relatório (nada é corrigido em silêncio).
+  `p_aplicar = false` só devolve o relatório.
+- **Cron:** `/api/cron/sincronizar-neo`, todo dia às 08:30 UTC. Se a NEO falhar, nada é aplicado e a falha fica em
+  `neo_sincronizacoes`.
+- **Botão "Atualizar agora"** em `/colaboradores` (qualquer operador) e **nomes de supervisor sem vínculo** em
+  `/qsms/supervisores` (só QSMS e admin).
+- **Primeira carga:** `npm run neo:carga` gera o relatório sem gravar. Aplicar exige
+  `--aplicar --sim-eu-sei --backup <arquivo fora do repositório>`, autorização expressa e o backup do Supabase
+  confirmado. Depois dela, `scripts/importar-ativos.mjs` é só contingência.
+- **Testes:** `teste:neo-cliente`, `teste:neo-sincronizar`, `teste:estado-neo`, `teste:neo-carga-args` (puros) e
+  `teste:neo-sync` (banco, numa transação desfeita; `-- --ensaio` aplica as migrations 0023/0024 dentro dela).
 
 ---
 

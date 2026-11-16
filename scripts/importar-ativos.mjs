@@ -1,3 +1,6 @@
+// CONTINGÊNCIA: depois da primeira carga da NEO (scripts/neo-primeira-carga.mjs), o cadastro
+// vem da CENTRAL-NEO. Este importador só deve rodar com --simular revisado.
+//
 // Importa a lista de ativos enviada pelo RH e substitui a base fictícia.
 //
 //   node scripts/importar-ativos.mjs "import/ATIVOS 211 - 031126.xlsx" --simular

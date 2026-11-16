@@ -82,6 +82,7 @@ Regra chave: comparecimento não é conformidade. Só o documento com resultado 
 
 ### Automações (Vercel Cron)
 - `POST /api/cron/gerar-itens` — diário, cria itens para vencimentos em até 90 dias
+- `GET|POST /api/cron/sincronizar-neo` — diário 08:30 UTC, sincroniza o cadastro com a CENTRAL-NEO (fase 1, só leitura)
 - `POST /api/cron/email-semanal` — segunda-feira, um e-mail por supervisor **e** o digest interno do QSMS/admin, ambos deduplicados por semana ISO
 
 ### Segurança
@@ -89,6 +90,9 @@ Regra chave: comparecimento não é conformidade. Só o documento com resultado 
 - Views com `security_invoker = true`
 - Bucket de documentos privado, URL assinada de 1h
 - Rotas de cron protegidas por `CRON_SECRET`
+
+### Integração com a NEO (spec de 16/11/2026, fase 1)
+Cadastro de colaboradores vem da CENTRAL-NEO: função de leitura `giro-colaboradores` (NEO), `lib/neo.ts` (cliente), `fn_sincronizar_neo` (migration 0024; colunas e apelidos de supervisor na 0023), cron diário, botão "Atualizar agora" e `npm run neo:carga` (primeira carga: relatório por padrão, aplicar só com `--aplicar --sim-eu-sei --backup`). Decisão de fases: 1 leitura e sincronização; 2 escrita no NEO (com histórico lá); 3 acabamento (página de estado, selo de fora de sincronia) — as fases 2 e 3 dependem do relatório real da primeira carga. Plano: `docs/superpowers/plans/2026-11-16-integracao-central-neo-fase-1.md`.
 
 ### Scripts de operação (`scripts/`)
 `db:push` (migrations), `seed:teste` (base fictícia + contas de teste), `criar-perfil`, `teste-fluxo`, `teste:permissoes` (substituiu o `teste-rls`, removido em 13/11/2026), `verificar`, `gerar-icones`.
