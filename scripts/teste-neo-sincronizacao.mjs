@@ -45,6 +45,9 @@ const EMAILS = [
 ];
 const MARCA_ERRO = "teste-neo-sync"; // marca as linhas de neo_sincronizacoes criadas pelo teste
 
+// Fixtures do teste de desempenho (1100 pessoas ligadas): fora do intervalo das demais.
+const FAIXA_DESEMPENHO = [1000001, 1001100];
+
 let sp = 0;
 
 /** Roda `fn` como `authenticated` com o uid informado, num savepoint sempre desfeito. */
@@ -97,7 +100,8 @@ async function tentar(sql, params) {
 }
 
 async function limpar() {
-  await client.query(`delete from colaboradores where matricula = any($1)`, [MATRICULAS]);
+  await client.query(`delete from colaboradores where matricula = any($1) or matricula between $2 and $3`,
+    [MATRICULAS, FAIXA_DESEMPENHO[0], FAIXA_DESEMPENHO[1]]);
   await client.query(`delete from perfis where email = any($1)`, [EMAILS]);
   await client.query(`delete from auth.users where email = any($1)`, [EMAILS]);
   await client.query(`delete from supervisores where email = any($1)`, [EMAILS]);
@@ -111,14 +115,14 @@ async function existeTabela(nome) {
 async function residuo() {
   const { rows } = await client.query(
     `select
-       (select count(*) from colaboradores where matricula = any($1))::int as colaboradores,
+       (select count(*) from colaboradores where matricula = any($1) or matricula between $3 and $4)::int as colaboradores,
        (select count(*) from perfis where email = any($2))::int as perfis,
        (select count(*) from auth.users where email = any($2))::int as usuarios,
        (select count(*) from supervisores where email = any($2))::int as supervisores,
        (select count(*) from auditoria_colaborador a
           join colaboradores c on c.id = a.colaborador_id
          where c.matricula = any($1))::int as auditoria`,
-    [MATRICULAS, EMAILS]
+    [MATRICULAS, EMAILS, FAIXA_DESEMPENHO[0], FAIXA_DESEMPENHO[1]]
   );
   const r = rows[0];
   if (await existeTabela("neo_sincronizacoes")) {
@@ -552,6 +556,31 @@ async function main() {
       const r = await tentar(`select fn_sincronizar_neo('[]'::jsonb, false, 'manual')`);
       confere(!r.ok && r.codigo === "42501", "(i) anon não executa (42501)", r.ok ? "passou" : `${r.codigo}`);
     });
+    // ======================= desempenho (o botão roda como authenticated) =========
+    // No Supabase o papel authenticated tem statement_timeout curto (8 s). A listagem
+    // real tem ~1100 pessoas; este teste cria 1100 fixtures ligadas e aplica como
+    // operador com esse limite, para o botão "Atualizar agora" poder usar a sessão do usuário.
+    console.log("\ndesempenho");
+    await client.query(
+      `insert into colaboradores (matricula, nome, cargo, situacao, ativo, neo_id)
+       select g, 'TESTE NEO PERF', 'Cargo Teste', 'trabalhando', true, gen_random_uuid()
+         from generate_series($1::int, $2::int) g`, FAIXA_DESEMPENHO);
+    const { rows: perfLinhas } = await client.query(
+      `select jsonb_agg(jsonb_build_object(
+                'id', neo_id, 'nome', 'TESTE NEO PERF', 'matricula_engelmig', matricula::text,
+                'cargo', 'Cargo Novo', 'supervisor', 'Supervisor Neo Um (teste)', 'ativo', true,
+                'atualizado_em', '2026-11-16T10:00:00Z')) as l
+         from colaboradores where matricula between $1 and $2`, FAIXA_DESEMPENHO);
+    await sessao(uidSup, async () => {
+      await client.query("set local statement_timeout = '8s'");
+      const t0 = Date.now();
+      const r = await tentar(`select fn_sincronizar_neo($1::jsonb, true, 'manual') as r`, [JSON.stringify(perfLinhas[0].l)]);
+      const ms = Date.now() - t0;
+      confere(r.ok && r.rows[0].r.atualizados === 1100, `1100 pessoas, aplicando como operador (limite 8 s): ${ms} ms`,
+        r.ok ? String(r.rows[0].r.atualizados) : r.mensagem);
+      confere(ms < 6000, "…com folga sobre o limite (menos de 6 s)", `${ms} ms`);
+    });
+
     const { rows: pr } = await client.query(
       `select has_function_privilege('anon', 'public.fn_sincronizar_neo(jsonb, boolean, text)', 'execute') as anon,
               has_function_privilege('authenticated', 'public.fn_sincronizar_neo(jsonb, boolean, text)', 'execute') as auth,
