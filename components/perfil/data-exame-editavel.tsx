@@ -67,18 +67,27 @@ export function DataExameEditavel({
 
   if (!editando) {
     return (
-      <span className="inline-flex items-center gap-1">
-        <span className={valor ? "" : "text-ink-faint"}>{formatarData(valor)}</span>
-        <button
-          type="button"
-          className="btn btn--fantasma btn--icone"
-          onClick={() => setEditando(true)}
-          aria-label={`Corrigir ${rotulo}`}
-          title={`Corrigir ${rotulo}`}
-        >
-          <IconeLapis />
-        </button>
-      </span>
+      <>
+        <span className="inline-flex items-center gap-1">
+          <span className={valor ? "" : "text-ink-faint"}>{formatarData(valor)}</span>
+          <button
+            type="button"
+            className="btn btn--fantasma btn--icone"
+            onClick={() => setEditando(true)}
+            aria-label={`Corrigir ${rotulo}`}
+            title={`Corrigir ${rotulo}`}
+          >
+            <IconeLapis />
+          </button>
+        </span>
+        {/* Sem `aoSalvar` (página cheia), a linha não remonta e o aviso fica
+            aqui; no painel, quem mostra é o pai (AbaAso). */}
+        {!aoSalvar && estado?.ok && (
+          <span role="status" className="block text-caption text-ink-faint">
+            {estado.mensagem}
+          </span>
+        )}
+      </>
     );
   }
 
