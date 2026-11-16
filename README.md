@@ -43,6 +43,12 @@ npm run dev
 > produção), aplique uma de cada vez com `npm run db:push -- --only NNNN`.
 > Reaplicar todas recria versões antigas de funções e para na 0003 sem
 > consertar o estrago.
+>
+> Reaplicar sozinha uma migration antiga de permissões (por exemplo a 0004 ou a
+> 0016 com `--only`) **reabre** as políticas que a 0021 e a 0022 fecharam: o
+> `for all` do operador nas tabelas, a escrita do QSMS em `perfis`, o delete e
+> o update do operador no bucket `asos`. Depois de qualquer reaplicação assim,
+> aplique de novo `--only 0021` e `--only 0022`, nessa ordem.
 
 A base **não tem dado real de pessoa**. O seed de teste popula 15 colaboradores
 fictícios com CPFs de dígitos repetidos (inválidos pelo checksum, nunca colidem
@@ -152,16 +158,27 @@ disciplina de quem escreve o código não é regra, é convenção.
 | `inapto_em_tratativa` | QSMS | sem prazo — travado |
 | `cancelado` | — | libera a chave de ciclo aberto |
 
-O desfecho do exame é um de cinco (`fn_registrar_desfecho`), e **quatro deles
-não fecham o ciclo**:
+O desfecho do exame é um de cinco, registrado por `fn_registrar_resultado`
+(migrations 0018/0020), e **quatro deles não fecham o ciclo**:
 
 | Desfecho | Vai para |
 |---|---|
-| `fez_apto` | `aguardando_documento` |
+| `fez_apto` | `concluido` no mesmo passo, só com o ASO anexado (arquivo e data do documento) |
 | `fez_inapto` | `inapto_em_tratativa` — trava |
 | `faltou` | `data_solicitada` |
 | `incompleto` | `data_solicitada` |
 | `retorno_necessario` | `data_solicitada` |
+
+Desde a migration 0021, nenhum caminho fecha o ciclo como apto sem o ASO:
+
+- `fn_registrar_desfecho` (para onde `fn_registrar_resultado` delega os outros
+  quatro) recusa `fez_apto`;
+- `fn_registrar_comparecimento` só aceita a falta (`false`); `true`, que levava
+  a `aguardando_documento` sem documento, é recusado;
+- `fn_concluir_item` (itens antigos em `aguardando_documento`) exige
+  `p_documento_url` para apto e apto com restrição;
+- `fn_registrar_aso_retroativo` (o "Lançar exame anterior" do perfil) exige
+  `p_documento_url`; a assinatura antiga, sem documento, foi removida.
 
 **Comparecimento não é conformidade.** O que zera a pendência é o documento com
 resultado `apto`, e o relógio de 12 meses parte da **data de realização do

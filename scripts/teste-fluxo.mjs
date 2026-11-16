@@ -1,3 +1,10 @@
+// OBSOLETO (16/11/2026): NÃO RODAR. Este script chama caminhos que a
+// migration 0021 passou a recusar: fn_registrar_desfecho('fez_apto'),
+// fn_registrar_comparecimento(true) e fn_concluir_item apto sem documento.
+// Ele falharia no meio, e escreve no banco real. A cobertura atual está em
+// teste-permissoes.mjs, teste-semaforo.mjs e teste-geset.mjs (tudo dentro de
+// transação desfeita). Mantido só como histórico.
+//
 // Teste end-to-end da máquina de estados contra o banco real.
 //
 //   node scripts/teste-fluxo.mjs

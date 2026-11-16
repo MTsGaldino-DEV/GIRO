@@ -143,8 +143,9 @@ const esquemaConcluir = z.object({
  * Apto e apto com restrição fecham o ciclo, então exigem o arquivo do ASO:
  * sem isso, um item concluído mostraria a pessoa "Em dia" por 12 meses sem
  * documento nenhum (spec 2026-11-13-telas-e-fluxo, seção 2: "nenhuma
- * conformidade falsa"). fn_concluir_item não confere o documento, por isso a
- * trava fica aqui. Só inapto pode seguir sem arquivo: não fecha o ciclo.
+ * conformidade falsa"). Desde a migration 0021, fn_concluir_item também
+ * recusa apto sem documento; a checagem aqui é a primeira barreira, com
+ * mensagem amigável. Só inapto pode seguir sem arquivo: não fecha o ciclo.
  *
  * O caminho do documento é sempre o do upload feito aqui; um `documento_url`
  * vindo do formulário é ignorado, senão qualquer arquivo do bucket poderia ser
