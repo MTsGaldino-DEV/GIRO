@@ -1381,6 +1381,38 @@ async function main() {
       liberarDelete
     );
 
+    // 0022: UPDATE no bucket asos só do QSMS. Com o update aberto ao operador,
+    // o supervisor movia (storage.move) ou sobrescrevia (upsert) o ASO de
+    // outro; a Storage API grava o novo dono, e o delete "só do dono" de 0021
+    // deixava apagá-lo em seguida. O app não usa UPDATE no bucket (upload com
+    // upsert: false, nenhum move/copy).
+    const moverObjeto = (nome, sufixo) =>
+      barrada(
+        `update storage.objects set name = name || $2 where bucket_id = 'asos' and name = $1`,
+        [nome, sufixo]
+      );
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await moverObjeto(c.asoDoB, "-movido")) ??
+        (await barrada(
+          `update storage.objects set owner = $2, owner_id = $3 where bucket_id = 'asos' and name = $1`,
+          [c.asoDoB, c.uidA, String(c.uidA)]
+        )) ??
+        (await moverObjeto(c.asoDoA, "-movido"));
+      if (!motivo) ok("supervisor A NÃO move nem toma para si ASO no bucket asos (nem o próprio)");
+      else erro("supervisor A NÃO move nem toma para si ASO no bucket asos (nem o próprio)", motivo);
+    });
+
+    await sessao(c.uidQsms, async () => {
+      const falha = await alterou(
+        `update storage.objects set name = name || '-movido' where bucket_id = 'asos' and name = $1`,
+        [c.asoDoB]
+      );
+      if (!falha) ok("QSMS move ASO no bucket asos");
+      else erro("QSMS move ASO no bucket asos", falha);
+    });
+
     // -----------------------------------------------------------------------
     console.log("\nEstrutura das funções do fluxo");
     // -----------------------------------------------------------------------
