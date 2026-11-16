@@ -17,6 +17,8 @@ const ROTAS_PROTEGIDAS = [
   '/qsms?status=vencido',
   '/qsms/dashboard',
   '/supervisor',
+  // Link dos e-mails semanais; com sessão redireciona para /qsms/item/<id>.
+  '/supervisor/item/00000000-0000-4000-8000-000000000000',
   '/qsms/base',
   '/admin/desligados',
 ]

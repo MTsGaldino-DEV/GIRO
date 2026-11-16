@@ -36,8 +36,8 @@ import {
   type AoConcluir,
 } from "@/components/formularios-item";
 import { FormularioResultado } from "@/components/radar/formulario-resultado";
-import { FormularioLiberacao } from "@/app/(app)/supervisor/item/[id]/formulario-liberacao";
-import { FormularioComparecimento } from "@/app/(app)/supervisor/item/[id]/formulario-comparecimento";
+import { FormularioLiberacao } from "@/components/formulario-liberacao";
+import { FormularioComparecimento } from "@/components/formulario-comparecimento";
 import type { Clinica, ItemAberto, Papel } from "@/lib/tipos";
 
 /** Ações que abrem janela. Perfil e histórico abrem o painel do colaborador. */

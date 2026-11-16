@@ -134,10 +134,22 @@ const esquemaConcluir = z.object({
   data_realizado: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   resultado: z.enum(["apto", "inapto", "apto_com_restricao"]),
   medico: z.string().trim().optional(),
-  documento_url: z.string().trim().optional(),
   observacoes: z.string().trim().optional(),
 });
 
+/**
+ * "Anexar ASO e concluir" (itens em `aguardando_documento`).
+ *
+ * Apto e apto com restrição fecham o ciclo, então exigem o arquivo do ASO:
+ * sem isso, um item concluído mostraria a pessoa "Em dia" por 12 meses sem
+ * documento nenhum (spec 2026-11-13-telas-e-fluxo, seção 2: "nenhuma
+ * conformidade falsa"). fn_concluir_item não confere o documento, por isso a
+ * trava fica aqui. Só inapto pode seguir sem arquivo: não fecha o ciclo.
+ *
+ * O caminho do documento é sempre o do upload feito aqui; um `documento_url`
+ * vindo do formulário é ignorado, senão qualquer arquivo do bucket poderia ser
+ * "anexado" a qualquer item.
+ */
 export async function concluirItem(_anterior: Acao | null, formData: FormData): Promise<Acao> {
   await exigirOperador();
 
@@ -147,7 +159,6 @@ export async function concluirItem(_anterior: Acao | null, formData: FormData): 
     data_realizado: formData.get("data_realizado") || "",
     resultado: formData.get("resultado"),
     medico: formData.get("medico") || undefined,
-    documento_url: formData.get("documento_url") || undefined,
     observacoes: formData.get("observacoes") || undefined,
   });
 
@@ -155,14 +166,19 @@ export async function concluirItem(_anterior: Acao | null, formData: FormData): 
     return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
+  const enviado = formData.get("documento");
+  const arquivo = enviado instanceof File && enviado.size > 0 ? enviado : null;
+  if (!arquivo && analise.data.resultado !== "inapto") {
+    return { ok: false, erro: "Anexe o ASO (PDF, JPG ou PNG) para concluir com resultado apto." };
+  }
+
   const supabase = await criarClienteServidor();
 
   // Upload antes de concluir: se o arquivo falhar, o item não muda de etapa.
   // O contrário deixaria um ASO concluído sem documento e sem como voltar atrás.
-  let caminhoDocumento = analise.data.documento_url ?? null;
-  const arquivo = formData.get("documento");
+  let caminhoDocumento: string | null = null;
 
-  if (arquivo instanceof File && arquivo.size > 0) {
+  if (arquivo) {
     const { data: item } = await supabase
       .from("itens_pendencia")
       .select("colaborador_id")

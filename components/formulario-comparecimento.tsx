@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { registrarComparecimento, type Acao } from "../../acoes";
+import { registrarComparecimento, type Acao } from "@/app/(app)/supervisor/acoes";
 import { MensagemErro } from "@/components/aviso";
 import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 

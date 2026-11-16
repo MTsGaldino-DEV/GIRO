@@ -44,7 +44,8 @@ export function DataExameEditavel({
   campo: "data_documento" | "data_realizado";
   valor: string | null;
   origem?: string;
-  aoSalvar?: () => void;
+  /** Recebe a mensagem da ação (ex.: avisa quando o exame voltou para a fila do GESET). */
+  aoSalvar?: (mensagem: string) => void;
 }) {
   const [editando, setEditando] = useState(false);
   const [estado, acao] = useActionState<Acao | null, FormData>(corrigirDataExame, null);
@@ -58,7 +59,7 @@ export function DataExameEditavel({
     ultimoTratado.current = estado;
     if (estado.ok) {
       setEditando(false);
-      aoSalvar?.();
+      aoSalvar?.(estado.mensagem);
     }
   }, [estado, aoSalvar]);
 

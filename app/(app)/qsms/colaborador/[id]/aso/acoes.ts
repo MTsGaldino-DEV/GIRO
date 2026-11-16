@@ -57,7 +57,9 @@ export async function corrigirDataExame(_anterior: Acao | null, formData: FormDa
 
   const { data: evento } = await supabase
     .from("eventos_requisito")
-    .select("colaborador_id, tipo_requisito_id, data_documento, data_realizado, tipos_requisito(nome)")
+    .select(
+      "colaborador_id, tipo_requisito_id, data_documento, data_realizado, resultado, geset_lancado_em, tipos_requisito(nome)"
+    )
     .eq("id", evento_id)
     .maybeSingle();
   if (!evento) return { ok: false, erro: "Exame não encontrado." };
@@ -70,6 +72,23 @@ export async function corrigirDataExame(_anterior: Acao | null, formData: FormDa
     .update({ [campo]: valor })
     .eq("id", evento_id);
   if (error) return { ok: false, erro: error.message };
+
+  // Data mudou num exame já lançado no GESET: o lançamento foi feito com a data
+  // antiga, então a marca cai e o exame volta para a fila de conferência do
+  // QSMS. Sem isso, empurrar a data para frente transformava "vencido" em "Em
+  // dia" sem ninguém conferir. fn_marcar_geset audita a desmarcação. Se ela
+  // falhar, a correção da data continua valendo (já foi gravada) e a mensagem
+  // avisa que a marca ficou.
+  let gesetDesmarcado = false;
+  let gesetFalhou = false;
+  if (evento.geset_lancado_em && evento.resultado !== "inapto") {
+    const { error: erroGeset } = await supabase.rpc("fn_marcar_geset", {
+      p_evento_id: evento_id,
+      p_lancado: false,
+    });
+    if (erroGeset) gesetFalhou = true;
+    else gesetDesmarcado = true;
+  }
 
   const { data: status } = await supabase
     .from("vw_status_colaborador")
@@ -107,6 +126,14 @@ export async function corrigirDataExame(_anterior: Acao | null, formData: FormDa
   revalidatePath(`/qsms/colaborador/${evento.colaborador_id}`, "layout");
   revalidatePath("/radar");
   revalidatePath("/dashboard");
+  if (gesetDesmarcado) return { ok: true, mensagem: "Data corrigida. Voltou para a fila do GESET." };
+  if (gesetFalhou) {
+    return {
+      ok: true,
+      mensagem:
+        "Data corrigida, mas o exame continua marcado como lançado no GESET. Avise o QSMS para conferir.",
+    };
+  }
   return { ok: true, mensagem: "Data corrigida." };
 }
 

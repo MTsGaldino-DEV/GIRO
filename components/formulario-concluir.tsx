@@ -110,18 +110,24 @@ export function FormularioConcluir({ item, aoConcluir }: { item: ItemAberto; aoC
       )}
 
       <div>
-        <label className="label" htmlFor="documento">Documento do ASO</label>
+        <label className="label" htmlFor="documento">
+          Documento do ASO
+          {resultado === "inapto" && <span className="text-ink-faint"> (opcional)</span>}
+        </label>
         <input
           id="documento"
           name="documento"
           type="file"
           className="field"
           accept="application/pdf,image/jpeg,image/png"
+          required={resultado !== "inapto"}
           aria-describedby="ajuda-documento"
         />
         <p id="ajuda-documento" className="text-caption text-ink-faint mt-1">
-          PDF, JPG ou PNG, até 8 MB. Fica em armazenamento privado — o acesso é
-          por link temporário.
+          {resultado === "inapto"
+            ? "PDF, JPG ou PNG, até 8 MB."
+            : "Obrigatório para apto: sem o ASO o ciclo não fecha. PDF, JPG ou PNG, até 8 MB."}{" "}
+          Fica em armazenamento privado — o acesso é por link temporário.
         </p>
       </div>
 

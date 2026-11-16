@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { informarDataLiberacao, type Acao } from "../../acoes";
+import { informarDataLiberacao, type Acao } from "@/app/(app)/supervisor/acoes";
 import { MensagemErro } from "@/components/aviso";
 import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 import { hojeIso } from "@/lib/dominio";

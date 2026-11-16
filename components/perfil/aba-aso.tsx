@@ -39,11 +39,18 @@ export function AbaAso({
   const [requisitos, setRequisitos] = useState<RequisitoLancavel[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [versao, setVersao] = useState(0);
+  // A tabela é recarregada depois de uma correção e a linha editada remonta;
+  // a mensagem da correção (ex.: "Voltou para a fila do GESET.") fica aqui.
+  const [avisoCorrecao, setAvisoCorrecao] = useState<string | null>(null);
 
-  const aoCorrigir = useCallback(() => {
-    setVersao((v) => v + 1);
-    aoAtualizar?.();
-  }, [aoAtualizar]);
+  const aoCorrigir = useCallback(
+    (mensagem?: string) => {
+      setAvisoCorrecao(mensagem ?? null);
+      setVersao((v) => v + 1);
+      aoAtualizar?.();
+    },
+    [aoAtualizar]
+  );
 
   useEffect(() => {
     let ativo = true;
@@ -97,6 +104,11 @@ export function AbaAso({
         <p className="text-ink-muted text-label mb-3">
           Data errada? Use o lápis. O vencimento é recalculado e a correção fica no histórico.
         </p>
+        {avisoCorrecao && (
+          <p role="status" className="text-label mb-3">
+            {avisoCorrecao}
+          </p>
+        )}
 
         {carregando ? (
           <div className="esqueleto h-24" aria-busy="true" />
