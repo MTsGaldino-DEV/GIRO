@@ -5,6 +5,7 @@ import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { exigirOperador } from "@/lib/perfil";
 import { hojeIso } from "@/lib/dominio";
+import { BUCKET_ASOS, enviarDocumentoAso } from "@/lib/storage";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
 
@@ -151,13 +152,46 @@ const esquemaRetroativo = z.object({
 });
 
 /**
+ * Apaga o ASO recém-enviado quando o lançamento falhou, só com certeza de que
+ * nenhum evento ficou com ele. Mesmo critério de `removerSeNaoUsado` em
+ * qsms/acoes.ts: arquivo órfão custa pouco; evidência apagada, não.
+ *
+ *   - `code` preenchido: o banco recusou, a transação foi desfeita. Falha de
+ *     rede ou tempo esgotado chegam sem `code`, e aí o evento pode existir;
+ *   - nenhum evento aponta para o arquivo (releitura sem erro).
+ * Na dúvida, não apaga.
+ */
+async function removerRetroativoNaoUsado(
+  supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
+  caminho: string,
+  codigoErro: string | undefined
+) {
+  if (!codigoErro) return;
+  try {
+    const { count, error } = await supabase
+      .from("eventos_requisito")
+      .select("id", { count: "exact", head: true })
+      .eq("documento_url", caminho);
+    if (error || count !== 0) return;
+    await supabase.storage.from(BUCKET_ASOS).remove([caminho]);
+  } catch {
+    // Fica o órfão; a mensagem de erro original continua sendo a devolvida.
+  }
+}
+
+/**
  * Registra um exame anterior conhecido de um colaborador (ASO ou AVP).
  *
  * Veio da antiga tela "Conferência da base" (Fase 0) e agora é chamada do
  * perfil. Cria evento retroativo e reposiciona o vencimento do item que
  * existia por falta de registro. Toda a regra (resultado "apto", cálculo do
- * vencimento, item aberto) está em fn_registrar_aso_retroativo; aqui só se
- * valida a entrada e se atualizam as telas.
+ * vencimento, item aberto, ASO obrigatório) está em fn_registrar_aso_retroativo
+ * (0021); aqui se valida a entrada, envia o ASO e atualizam-se as telas.
+ *
+ * O ASO é obrigatório (decisão de Matheus, 16/11): um exame apto sem documento
+ * tiraria a pessoa de "sem registro" por 12 meses sem prova nenhuma. O arquivo
+ * sobe antes da RPC, como em registrarResultado: se o envio falhar, nada é
+ * gravado.
  */
 export async function registrarAsoRetroativo(
   _anterior: Acao | null,
@@ -177,20 +211,33 @@ export async function registrarAsoRetroativo(
     return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
+  const enviado = formData.get("documento");
+  if (!(enviado instanceof File) || enviado.size === 0) {
+    return { ok: false, erro: "Anexe o ASO (PDF, JPG ou PNG, até 8 MB) para lançar o exame anterior." };
+  }
+
   const supabase = await criarClienteServidor();
+
+  const envio = await enviarDocumentoAso(supabase, analise.data.colaborador_id, enviado);
+  if (!envio.ok) return { ok: false, erro: envio.erro };
+
   const { error } = await supabase.rpc("fn_registrar_aso_retroativo", {
     p_colaborador_id: analise.data.colaborador_id,
     p_tipo_requisito_id: analise.data.tipo_requisito_id,
     p_data_documento: analise.data.data_documento,
+    p_documento_url: envio.caminho,
     p_estimado: analise.data.estimado ?? false,
     p_observacoes: analise.data.observacoes || null,
   });
 
-  if (error) return { ok: false, erro: error.message };
+  if (error) {
+    await removerRetroativoNaoUsado(supabase, envio.caminho, error.code);
+    return { ok: false, erro: error.message };
+  }
 
   revalidatePath(`/qsms/colaborador/${analise.data.colaborador_id}`, "layout");
   revalidatePath("/colaboradores");
   revalidatePath("/radar");
 
-  return { ok: true, mensagem: "Registrado." };
+  return { ok: true, mensagem: "Registrado com o ASO anexado." };
 }

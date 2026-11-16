@@ -158,7 +158,7 @@ export function AcoesItem({
           {/* O "Registrar falta" do menu da linha do Radar. Só a falta: quem foi
               ao exame segue por "Enviar à clínica" e "Registrar resultado". */}
           <Cartao titulo="O colaborador faltou?">
-            <FormularioComparecimento itemId={item.item_id} apenasFalta />
+            <FormularioComparecimento itemId={item.item_id} />
           </Cartao>
         </>
       )}

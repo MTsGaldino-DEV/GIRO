@@ -1,42 +1,37 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { registrarComparecimento, type Acao } from "@/app/(app)/supervisor/acoes";
 import { MensagemErro } from "@/components/aviso";
 import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 
-function Botao({ rotulo }: { rotulo: string }) {
+function Botao() {
   const { pending } = useFormStatus();
   return (
     <button type="submit" className="btn btn--primary w-full" disabled={pending} aria-busy={pending}>
-      {pending ? "Registrando…" : rotulo}
+      {pending ? "Registrando…" : "Confirmar falta"}
     </button>
   );
 }
 
 /**
- * Compareceu / faltou.
+ * Registrar falta: o "Registrar falta" do menu da linha do Radar e da ficha do
+ * item (etapa Agendado).
  *
- * Dois botões neutros, não um verde e um vermelho: essas cores pertencem ao
- * semáforo de conformidade. Aqui a distinção é feita pelo texto e pela ordem.
- *
- * `apenasFalta`: o "Registrar falta" do menu da linha do Radar. Abre direto na
- * confirmação da falta e não oferece "Compareceu", que levaria o item para
- * `aguardando_documento` — etapa que saiu do fluxo normal em 13/11. Quem foi ao
- * exame segue por "Enviar à clínica" e "Registrar resultado".
+ * Só a falta. O antigo "Compareceu" levava o item para `aguardando_documento`
+ * sem documento; desde 0021 o banco o recusa (fn_registrar_comparecimento só
+ * aceita a falta). Quem foi ao exame segue por "Enviar à clínica" e
+ * "Registrar resultado", com o ASO anexado.
  */
 export function FormularioComparecimento({
   itemId,
   aoConcluir,
-  apenasFalta = false,
 }: {
   itemId: string;
   aoConcluir?: AoConcluir;
-  apenasFalta?: boolean;
 }) {
   const [estado, acao] = useActionState<Acao | null, FormData>(registrarComparecimento, null);
-  const [escolha, setEscolha] = useState<"sim" | "nao" | null>(apenasFalta ? "nao" : null);
   useAvisarConclusao(estado, aoConcluir);
 
   if (estado?.ok) {
@@ -47,52 +42,27 @@ export function FormularioComparecimento({
     );
   }
 
-  if (escolha === null) {
-    return (
-      <div className="grid gap-2 sm:grid-cols-2">
-        <button type="button" className="btn btn--primary" onClick={() => setEscolha("sim")}>
-          Compareceu
-        </button>
-        <button type="button" className="btn btn--secondary" onClick={() => setEscolha("nao")}>
-          Faltou
-        </button>
-      </div>
-    );
-  }
-
   return (
     <form action={acao} className="grid gap-4">
       <input type="hidden" name="item_id" value={itemId} />
-      <input type="hidden" name="compareceu" value={escolha} />
 
       <p className="text-label m-0">
-        {escolha === "sim"
-          ? "Confirmando que o colaborador fez o exame. O QSMS passa a cobrar o documento da clínica."
-          : apenasFalta
-            ? "O item volta à supervisão para informar uma nova data de liberação."
-            : "Registrando falta. O item volta para você informar uma nova data de liberação."}
+        O item volta à supervisão para informar uma nova data de liberação.
       </p>
 
       <div>
         <label className="label" htmlFor="observacao-presenca">
-          Observação {escolha === "nao" && <span className="text-ink-faint">(o que houve?)</span>}
+          Observação <span className="text-ink-faint">(o que houve?)</span>
         </label>
         <input
           id="observacao-presenca"
           name="observacao"
           className="field"
-          placeholder={escolha === "nao" ? "Ex.: chamado de emergência em Aimorés" : "Opcional"}
+          placeholder="Ex.: chamado de emergência em Aimorés"
         />
       </div>
 
-      <div className={`grid gap-2 ${apenasFalta ? "" : "sm:grid-cols-2"}`}>
-        <Botao rotulo={escolha === "sim" ? "Confirmar presença" : "Confirmar falta"} />
-        {!apenasFalta && (
-          <button type="button" className="btn btn--secondary" onClick={() => setEscolha(null)}>
-            Voltar
-          </button>
-        )}
-      </div>
+      <Botao />
 
       {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
     </form>

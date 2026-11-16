@@ -60,21 +60,24 @@ export async function informarDataLiberacao(
 
 // ---------------------------------------------------------------------------
 
-const esquemaComparecimento = z.object({
+const esquemaFalta = z.object({
   item_id: z.string().uuid(),
-  compareceu: z.enum(["sim", "nao"]),
   observacao: z.string().trim().optional(),
 });
 
+/**
+ * Registra a falta ao exame. Só a falta: o antigo "compareceu" levava o item
+ * para `aguardando_documento` sem documento, e desde 0021 o banco o recusa.
+ * Quem foi ao exame segue por "Registrar resultado", com o ASO.
+ */
 export async function registrarComparecimento(
   _anterior: Acao | null,
   formData: FormData
 ): Promise<Acao> {
   await exigirOperador();
 
-  const analise = esquemaComparecimento.safeParse({
+  const analise = esquemaFalta.safeParse({
     item_id: formData.get("item_id"),
-    compareceu: formData.get("compareceu"),
     observacao: formData.get("observacao") || undefined,
   });
 
@@ -82,12 +85,10 @@ export async function registrarComparecimento(
     return { ok: false, erro: analise.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
-  const compareceu = analise.data.compareceu === "sim";
-
   const supabase = await criarClienteServidor();
   const { error } = await supabase.rpc("fn_registrar_comparecimento", {
     p_item_id: analise.data.item_id,
-    p_compareceu: compareceu,
+    p_compareceu: false,
     p_observacao: analise.data.observacao ?? null,
   });
 
@@ -95,10 +96,5 @@ export async function registrarComparecimento(
 
   revalidar(analise.data.item_id);
 
-  return {
-    ok: true,
-    mensagem: compareceu
-      ? "Presença confirmada. Agora o QSMS busca o documento na clínica — o ASO só conta quando o documento chega."
-      : "Falta registrada. O item voltou para você informar uma nova data.",
-  };
+  return { ok: true, mensagem: "Falta registrada. O item voltou para você informar uma nova data." };
 }

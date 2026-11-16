@@ -268,7 +268,7 @@ function ConteudoAcao({
       );
 
     case "registrar_falta":
-      return <FormularioComparecimento itemId={item.item_id} aoConcluir={aoConcluir} apenasFalta />;
+      return <FormularioComparecimento itemId={item.item_id} aoConcluir={aoConcluir} />;
 
     case "cancelar":
       return (
