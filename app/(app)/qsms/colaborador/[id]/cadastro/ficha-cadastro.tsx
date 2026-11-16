@@ -1,7 +1,7 @@
 "use client";
 
 import { CampoEditavel, type Opcao } from "./campo-editavel";
-import { SITUACAO_ROTULO } from "@/lib/dominio";
+import { SITUACAO_ROTULO, formatarData } from "@/lib/dominio";
 import {
   CAMPOS_FOLHA,
   CAMPOS_LOTACAO,
@@ -86,6 +86,29 @@ export function FichaCadastro({
           {CAMPOS_LOTACAO.map(campo)}
         </div>
       </div>
+
+      {(colaborador.matricula_cemig || colaborador.data_desligamento) && (
+        <div className="card">
+          <h3 className="mb-1">Cadastro da NEO</h3>
+          <p className="text-ink-muted text-label mb-4">
+            Vêm da Central NEO e só podem ser lidos aqui. Para mudar, altere na NEO.
+          </p>
+          <div className="grid gap-x-6 gap-y-3 grid-cols-2 sm:grid-cols-3">
+            {colaborador.matricula_cemig && (
+              <div>
+                <div className="label">Matrícula CEMIG</div>
+                <div className="tabular">{colaborador.matricula_cemig}</div>
+              </div>
+            )}
+            {colaborador.data_desligamento && (
+              <div>
+                <div className="label">Desligamento</div>
+                <div className="tabular">{formatarData(colaborador.data_desligamento)}</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

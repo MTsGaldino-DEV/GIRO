@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { exigirOperador } from "@/lib/perfil";
+import { estadoDaSincronizacao, type TentativaNeo } from "@/lib/estado-neo";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso, Vazio } from "@/components/aviso";
 import { FormularioSupervisor } from "./formulario-supervisor";
 import { VinculoEmMassa } from "./vinculo-massa";
+import { NomesNeoSemVinculo } from "./nomes-neo-sem-vinculo";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { Info } from "@/components/info";
 import type { Supervisor } from "@/lib/tipos";
@@ -25,7 +27,7 @@ export default async function PaginaSupervisores({
 }: {
   searchParams: Promise<{ busca?: string; cargo?: string; equipe?: string }>;
 }) {
-  await exigirOperador();
+  const perfil = await exigirOperador();
   const { busca, cargo, equipe } = await searchParams;
 
   const supabase = await criarClienteServidor();
@@ -35,6 +37,19 @@ export default async function PaginaSupervisores({
     .select("id, nome, email, ativo")
     .order("nome");
   const supervisores = (supervisoresBrutos ?? []) as Supervisor[];
+
+  // Nomes de supervisor da NEO sem vínculo: só QSMS e admin resolvem (supervisor nem vê a seção).
+  // Sem a tabela (0023 não aplicada) a consulta volta vazia e a seção some.
+  const podeVincularNomes = perfil.papel === "qsms" || perfil.papel === "admin";
+  let nomesSemVinculo: ReturnType<typeof estadoDaSincronizacao>["semVinculo"] = [];
+  if (podeVincularNomes) {
+    const { data: tentativas } = await supabase
+      .from("neo_sincronizacoes")
+      .select("iniciado_em, origem, erro, resumo")
+      .order("iniciado_em", { ascending: false })
+      .limit(10);
+    nomesSemVinculo = estadoDaSincronizacao((tentativas ?? []) as TentativaNeo[]).semVinculo;
+  }
 
   let consulta = supabase
     .from("colaboradores")
@@ -84,6 +99,12 @@ export default async function PaginaSupervisores({
             supervisor&rdquo; e não entram em nenhum e-mail semanal — ninguém é
             cobrado por eles.
           </Aviso>
+        </div>
+      )}
+
+      {nomesSemVinculo.length > 0 && (
+        <div className="mb-5">
+          <NomesNeoSemVinculo nomes={nomesSemVinculo} supervisores={supervisores} />
         </div>
       )}
 

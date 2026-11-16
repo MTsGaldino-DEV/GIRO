@@ -22,6 +22,10 @@ export interface ColaboradorCompleto {
   foto_url: string | null;
   ativo: boolean;
   exige_avp: boolean;
+  /** Campos do cadastro da NEO (só leitura no GIRO). */
+  matricula_cemig: string | null;
+  data_desligamento: string | null;
+  neo_id: string | null;
 }
 
 /**
@@ -37,7 +41,7 @@ export async function carregarColaborador(id: string): Promise<ColaboradorComple
   const { data } = await supabase
     .from("colaboradores")
     .select(
-      "id, matricula, nome, cpf, cargo, uen, local, polo, data_admissao, data_nascimento, situacao, supervisor_id, foto_url, ativo, exige_avp"
+      "id, matricula, nome, cpf, cargo, uen, local, polo, data_admissao, data_nascimento, situacao, supervisor_id, foto_url, ativo, exige_avp, matricula_cemig, data_desligamento, neo_id"
     )
     .eq("id", id)
     .maybeSingle();

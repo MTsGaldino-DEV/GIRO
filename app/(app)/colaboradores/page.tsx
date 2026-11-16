@@ -12,6 +12,8 @@ import {
 } from "@/lib/regras-colaboradores";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { ListaColaboradores } from "@/components/colaboradores/lista";
+import { BotaoAtualizarNeo } from "@/components/colaboradores/botao-atualizar-neo";
+import { estadoDaSincronizacao, type TentativaNeo } from "@/lib/estado-neo";
 
 export const metadata: Metadata = { title: "Colaboradores" };
 export const dynamic = "force-dynamic";
@@ -33,11 +35,20 @@ export default async function Colaboradores({
   const filtros = normalizarFiltros(await searchParams, perfil);
 
   const supabase = await criarClienteServidor();
-  const [dados, { data: supervisoresBrutos }, { data: tipos }] = await Promise.all([
+  const [dados, { data: supervisoresBrutos }, { data: tipos }, { data: tentativasBrutas }] = await Promise.all([
     carregarColaboradores(supabase),
     supabase.from("supervisores").select("id, nome").order("nome"),
     supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
+    // Sem a tabela (migration 0023 ainda não aplicada) a consulta só volta vazia: a página abre igual.
+    supabase
+      .from("neo_sincronizacoes")
+      .select("iniciado_em, origem, erro")
+      .order("iniciado_em", { ascending: false })
+      .limit(10),
   ]);
+  const sincronizacao = estadoDaSincronizacao(
+    ((tentativasBrutas ?? []) as Omit<TentativaNeo, "resumo">[]).map((t) => ({ ...t, resumo: null }))
+  );
 
   const primeira = consultarColaboradores(dados, filtros, perfil.supervisor_id);
   const urlPorCaminho = await assinarFotos(primeira.linhas.map((l) => l.foto_url));
@@ -48,7 +59,12 @@ export default async function Colaboradores({
         trilha={[{ rotulo: "Operação" }, { rotulo: "Colaboradores" }]}
         titulo="Colaboradores"
         descricao="Quem trabalha na UEN, com o pior status de cada pessoa. Abra o nome para ver o perfil."
-      />
+      >
+        <BotaoAtualizarNeo
+          ultimaSucessoEm={sincronizacao.ultimaSucessoEm}
+          ultimaFalhou={sincronizacao.ultimaFalhou}
+        />
+      </CabecalhoPagina>
 
       <ListaColaboradores
         dados={dados}
