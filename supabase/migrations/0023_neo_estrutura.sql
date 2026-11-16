@@ -113,8 +113,9 @@ comment on table public.supervisor_apelidos is
 -- -----------------------------------------------------------------------------
 -- 4. neo_sincronizacoes
 --
--- Uma linha por tentativa aplicada (com o resumo, só contagens) ou que falhou
--- (com a mensagem). Nunca guarda nome, CPF nem linhas da NEO.
+-- Uma linha por tentativa aplicada (com o resumo: contagens, matrículas, textos de
+-- supervisor e bases) ou que falhou (com a mensagem). Nunca guarda nome de
+-- colaborador, CPF nem as linhas da NEO.
 -- -----------------------------------------------------------------------------
 
 create table if not exists public.neo_sincronizacoes (
@@ -130,7 +131,7 @@ create index if not exists neo_sincronizacoes_iniciado_em_idx
   on public.neo_sincronizacoes (iniciado_em desc);
 
 comment on table public.neo_sincronizacoes is
-  'Tentativas de sincronização com a NEO: resumo (contagens) ou erro. Sem dados pessoais.';
+  'Tentativas de sincronização com a NEO: resumo (contagens e matrículas) ou erro. Sem CPF nem nome de colaborador.';
 
 -- -----------------------------------------------------------------------------
 -- 5. RLS e grants das duas tabelas: leitura do operador, nenhuma escrita direta
