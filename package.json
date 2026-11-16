@@ -23,6 +23,7 @@
     "teste:geset": "node scripts/teste-geset.mjs",
     "teste:neo-sync": "node scripts/teste-neo-sincronizacao.mjs",
     "teste:neo-cliente": "node --experimental-strip-types scripts/teste-neo-cliente.mjs",
+    "teste:neo-sincronizar": "node --experimental-strip-types scripts/teste-neo-sincronizar.mjs",
     "importar": "node scripts/importar-ativos.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"

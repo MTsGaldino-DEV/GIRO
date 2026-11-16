@@ -3,6 +3,10 @@
   "regions": ["gru1"],
   "crons": [
     {
+      "path": "/api/cron/sincronizar-neo",
+      "schedule": "30 8 * * *"
+    },
+    {
       "path": "/api/cron/gerar-itens",
       "schedule": "0 9 * * *"
     },
