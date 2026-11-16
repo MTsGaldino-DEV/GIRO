@@ -1,5 +1,8 @@
-// Teste de permissões do operador (migration 0016) e do registro de resultado
-// em passo único (migration 0018).
+// Teste de permissões do operador (migration 0016), do registro de resultado
+// em passo único (migration 0018) e do endurecimento do banco (migration 0021:
+// escrita direta restrita por operação e por coluna, documento obrigatório em
+// toda conclusão apta, perfis só pelo admin, delete no bucket asos só do dono
+// ou do QSMS).
 //
 //   npm run teste:permissoes
 //
@@ -34,7 +37,8 @@ let falhou = 0;
 const ok = (d) => { passou++; console.log(`  ok    ${d}`); };
 const erro = (d, x) => { falhou++; console.log(`  FALHA ${d}${x ? `\n        ${x}` : ""}`); };
 
-const MATRICULAS = [999101, 999102];
+// 999103 só aparece na tentativa (barrada) de o supervisor inserir colaborador.
+const MATRICULAS = [999101, 999102, 999103];
 const EMAILS = [
   "perm-sup-a@exemplo.invalido",
   "perm-sup-b@exemplo.invalido",
@@ -43,6 +47,9 @@ const EMAILS = [
   "perm-sem-perfil@exemplo.invalido",
   "perm-forjado@exemplo.invalido",
   "perm-inativo@exemplo.invalido",
+  // 0021: QSMS e admin de teste, para as políticas de perfis e do bucket asos.
+  "perm-qsms@exemplo.invalido",
+  "perm-admin@exemplo.invalido",
 ];
 const CLINICA_TESTE = "Clínica Teste Permissões (exemplo.invalido)";
 const PREFIXO_STORAGE = "teste-permissoes-999102/";
@@ -235,9 +242,34 @@ async function cenario() {
     );
   }
 
+  // 0021: QSMS e admin de teste (perfis e delete no bucket asos).
+  const criarPerfil = async (email, papel) => {
+    const uid = await criarUsuario(email);
+    await client.query(
+      `insert into perfis (id, email, nome, papel) values ($1, $2, 'Teste Permissões', $3)`,
+      [uid, email, papel]
+    );
+    return uid;
+  };
+  const uidQsms = await criarPerfil(EMAILS[7], "qsms");
+  const uidAdmin = await criarPerfil(EMAILS[8], "admin");
+
+  // 0021: dois ASOs no bucket asos, um enviado pelo supervisor A e outro pelo
+  // B. Como os acima, só a linha em storage.objects; `owner` e `owner_id` são
+  // o que a Storage API grava no upload.
+  const asoDoA = `${PREFIXO_STORAGE}aso-do-a.pdf`;
+  const asoDoB = `${PREFIXO_STORAGE}aso-do-b.pdf`;
+  const asoDoInativo = `${PREFIXO_STORAGE}aso-do-inativo.pdf`;
+  for (const [nome, dono] of [[asoDoA, uidA], [asoDoB, uidB], [asoDoInativo, uidInativo]]) {
+    await client.query(
+      `insert into storage.objects (bucket_id, name, owner, owner_id) values ('asos', $1, $2, $3)`,
+      [nome, dono, String(dono)]
+    );
+  }
+
   return {
-    supA, supB, uidA, uidB, uidSemPerfil, uidInativo, colA, colB,
-    itemB: item[0].id, tipoId: tipo[0].id,
+    supA, supB, uidA, uidB, uidSemPerfil, uidInativo, uidQsms, uidAdmin, colA, colB,
+    itemB: item[0].id, tipoId: tipo[0].id, asoDoA, asoDoB, asoDoInativo,
   };
 }
 
@@ -407,9 +439,11 @@ async function main() {
             [c.itemB]
           )) ??
           (await tentar(`select fn_enviar_clinica($1, null)`, [c.itemB])) ??
-          (await tentar(`select fn_registrar_desfecho($1, 'fez_apto', null)`, [c.itemB]));
+          // 0021: "fez e apto" saiu de fn_registrar_desfecho (é de
+          // fn_registrar_resultado, com o ASO); aqui vale qualquer outro desfecho.
+          (await tentar(`select fn_registrar_desfecho($1, 'incompleto', null)`, [c.itemB]));
         const e = await etapa(c.itemB);
-        if (!falha && e === "aguardando_documento") {
+        if (!falha && e === "data_solicitada") {
           ok("supervisor A pode agendar, enviar à clínica e registrar desfecho em item da equipe B");
         } else {
           erro("supervisor A pode agendar, enviar à clínica e registrar desfecho em item da equipe B", falha ?? `etapa ${e}`);
@@ -906,6 +940,445 @@ async function main() {
         }
       },
       paraEnviadoClinica
+    );
+
+    // -----------------------------------------------------------------------
+    console.log("\nEscrita direta restrita (0021)");
+    // -----------------------------------------------------------------------
+    // Revisão final, I-2: o `for all` de 0016 deixava o supervisor, pelo
+    // PostgREST, inserir evento apto sem documento, apagar eventos e itens
+    // (o histórico ia junto em cascata), pular etapas e apagar colaboradores.
+    // A escrita direta fica só no que o app faz; o resto passa pelas RPCs.
+
+    /** Escrita que tem de passar: alterou pelo menos uma linha. Desfeita ao fim. */
+    const alterou = async (sql, params) => {
+      await client.query("savepoint escrita");
+      try {
+        const { rowCount } = await client.query(sql, params);
+        return rowCount >= 1 ? null : `nenhuma linha afetada: ${sql}`;
+      } catch (e) {
+        return `${e.code}: ${e.message}`;
+      } finally {
+        await client.query("rollback to savepoint escrita");
+      }
+    };
+
+    const { rows: evB } = await client.query(
+      `select id from eventos_requisito where colaborador_id = $1 limit 1`,
+      [c.colB]
+    );
+    const eventoB = evB[0].id;
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await barrada(
+          `insert into eventos_requisito (colaborador_id, tipo_requisito_id, data_documento, resultado)
+           values ($1, $2, current_date, 'apto')`,
+          [c.colB, c.tipoId]
+        )) ??
+        (await barrada(`delete from eventos_requisito where id = $1`, [eventoB]));
+      if (!motivo) ok("supervisor A NÃO insere nem apaga eventos_requisito");
+      else erro("supervisor A NÃO insere nem apaga eventos_requisito", motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await barrada(
+          `insert into itens_pendencia (colaborador_id, tipo_requisito_id, data_vencimento)
+           values ($1, $2, current_date + 400)`,
+          [c.colA, c.tipoId]
+        )) ??
+        (await barrada(`delete from itens_pendencia where id = $1`, [c.itemB]));
+      if (!motivo) ok("supervisor A NÃO insere nem apaga itens_pendencia");
+      else erro("supervisor A NÃO insere nem apaga itens_pendencia", motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await barrada(
+          `insert into colaboradores (matricula, nome, situacao) values (999103, 'HACK', 'trabalhando')`
+        )) ??
+        (await barrada(`delete from colaboradores where id = $1`, [c.colB]));
+      if (!motivo) ok("supervisor A NÃO insere nem apaga colaboradores");
+      else erro("supervisor A NÃO insere nem apaga colaboradores", motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await barrada(`update itens_pendencia set etapa = 'cancelado' where id = $1`, [c.itemB])) ??
+        (await barrada(`update itens_pendencia set evento_id = $2 where id = $1`, [c.itemB, eventoB]));
+      if (!motivo) ok("supervisor A NÃO muda etapa (nem outra coluna da máquina) de itens_pendencia");
+      else erro("supervisor A NÃO muda etapa (nem outra coluna da máquina) de itens_pendencia", motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await barrada(`update eventos_requisito set geset_lancado_em = now() where id = $1`, [eventoB])) ??
+        (await barrada(`update eventos_requisito set resultado = 'inapto' where id = $1`, [eventoB])) ??
+        (await barrada(`update eventos_requisito set documento_url = 'x.pdf' where id = $1`, [eventoB]));
+      if (!motivo) ok("supervisor A NÃO muda geset_lancado_em, resultado nem documento_url de eventos_requisito");
+      else erro("supervisor A NÃO muda geset_lancado_em, resultado nem documento_url de eventos_requisito", motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      const falha =
+        (await alterou(`update eventos_requisito set data_documento = current_date - 200 where id = $1`, [eventoB])) ??
+        (await alterou(`update eventos_requisito set data_realizado = current_date - 201 where id = $1`, [eventoB]));
+      if (!falha) ok("supervisor A corrige data_documento e data_realizado de evento (corrigirDataExame)");
+      else erro("supervisor A corrige data_documento e data_realizado de evento (corrigirDataExame)", falha);
+    });
+
+    await sessao(c.uidA, async () => {
+      const falha = await alterou(
+        `update itens_pendencia set data_vencimento = current_date + 45 where id = $1`,
+        [c.itemB]
+      );
+      if (!falha) ok("supervisor A reposiciona data_vencimento de item (corrigirDataExame)");
+      else erro("supervisor A reposiciona data_vencimento de item (corrigirDataExame)", falha);
+    });
+
+    // As colunas que o app edita: salvarCampo (12), salvarFoto (foto_url),
+    // alternarAtivo (ativo); supervisor_id também pelo vínculo em Supervisores.
+    const COLUNAS_COLABORADOR = [
+      "nome", "matricula", "cpf", "uen", "data_admissao", "data_nascimento", "cargo",
+      "polo", "local", "situacao", "supervisor_id", "exige_avp", "foto_url", "ativo",
+    ];
+    await sessao(c.uidA, async () => {
+      const falhas = [];
+      for (const col of COLUNAS_COLABORADOR) {
+        const f = await alterou(`update colaboradores set ${col} = ${col} where id = $1`, [c.colB]);
+        if (f) falhas.push(`${col}: ${f}`);
+      }
+      const desligar = await alterou(`update colaboradores set ativo = false where id = $1`, [c.colB]);
+      if (desligar) falhas.push(`desligar: ${desligar}`);
+      if (falhas.length === 0) ok(`supervisor A edita as ${COLUNAS_COLABORADOR.length} colunas de colaboradores que o app edita (inclui ativo)`);
+      else erro(`supervisor A edita as ${COLUNAS_COLABORADOR.length} colunas de colaboradores que o app edita (inclui ativo)`, falhas.join("; "));
+    });
+
+    await sessao(c.uidA, async () => {
+      const motivo =
+        (await barrada(`update colaboradores set criado_em = now() where id = $1`, [c.colB])) ??
+        (await barrada(`update colaboradores set id = gen_random_uuid() where id = $1`, [c.colB]));
+      if (!motivo) ok("supervisor A NÃO muda id nem criado_em de colaboradores");
+      else erro("supervisor A NÃO muda id nem criado_em de colaboradores", motivo);
+    });
+
+    await sessao(c.uidSemPerfil, async () => {
+      const motivo = await barrada(`update colaboradores set cargo = 'HACK' where id = $1`, [c.colB]);
+      if (!motivo) ok("usuário sem perfil ativo NÃO edita colaboradores");
+      else erro("usuário sem perfil ativo NÃO edita colaboradores", motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      await client.query("savepoint ausencia");
+      let falha = null;
+      try {
+        const { rows } = await client.query(
+          `insert into ausencias (colaborador_id, tipo, data_inicio, data_fim)
+           values ($1, 'atestado', current_date + 100, current_date + 101) returning id`,
+          [c.colB]
+        );
+        const { rowCount } = await client.query(`delete from ausencias where id = $1`, [rows[0].id]);
+        if (rowCount !== 1) falha = `delete alterou ${rowCount} linha(s)`;
+      } catch (e) {
+        falha = `${e.code}: ${e.message}`;
+      } finally {
+        await client.query("rollback to savepoint ausencia");
+      }
+      const motivo = await barrada(
+        `update ausencias set data_fim = current_date where colaborador_id = $1`,
+        [c.colB]
+      );
+      if (!falha && !motivo) ok("supervisor A insere e apaga ausências (e não as edita: o app não edita)");
+      else erro("supervisor A insere e apaga ausências (e não as edita: o app não edita)", falha ?? motivo);
+    });
+
+    await sessao(c.uidA, async () => {
+      await client.query("savepoint documento");
+      let falha = null;
+      try {
+        const { rows } = await client.query(
+          `insert into documentos_colaborador
+             (colaborador_id, nome_arquivo, tipo, storage_path, tamanho_bytes, mime_type,
+              data_documento, data_validade, descricao, criado_por, atualizado_por)
+           values ($1, 'novo.pdf', 'Outro', $2, 10, 'application/pdf', current_date, null, null, $3, $3)
+           returning id`,
+          [c.colB, `${PREFIXO_STORAGE}novo.pdf`, c.uidA]
+        );
+        const { rowCount: editou } = await client.query(
+          `update documentos_colaborador
+              set tipo = 'Certificado', data_documento = current_date - 1, data_validade = current_date + 300,
+                  descricao = 'teste', atualizado_por = $2, atualizado_em = now()
+            where id = $1`,
+          [rows[0].id, c.uidA]
+        );
+        const { rowCount: apagou } = await client.query(
+          `delete from documentos_colaborador where id = $1`, [rows[0].id]
+        );
+        if (editou !== 1 || apagou !== 1) falha = `editou ${editou}, apagou ${apagou}`;
+      } catch (e) {
+        falha = `${e.code}: ${e.message}`;
+      } finally {
+        await client.query("rollback to savepoint documento");
+      }
+      const motivo =
+        (await barrada(
+          `update documentos_colaborador set storage_path = 'outro/arquivo.pdf' where colaborador_id = $1`,
+          [c.colB]
+        )) ??
+        (await barrada(
+          `update documentos_colaborador set colaborador_id = $2 where colaborador_id = $1`,
+          [c.colB, c.colA]
+        ));
+      if (!falha && !motivo) ok("supervisor A insere, edita os metadados e apaga documentos_colaborador (não troca o arquivo nem a pessoa)");
+      else erro("supervisor A insere, edita os metadados e apaga documentos_colaborador (não troca o arquivo nem a pessoa)", falha ?? motivo);
+    });
+
+    {
+      const { rows } = await client.query(
+        `select
+           bool_or(has_table_privilege(r, t, 'INSERT')) filter (where t in ('public.eventos_requisito','public.itens_pendencia','public.colaboradores')) as insere,
+           bool_or(has_table_privilege(r, t, 'DELETE')) filter (where t in ('public.eventos_requisito','public.itens_pendencia','public.colaboradores')) as apaga,
+           bool_or(has_table_privilege(r, t, 'TRUNCATE')) as trunca,
+           bool_or(has_table_privilege(r, t, 'UPDATE')) as update_tabela_inteira,
+           bool_and(has_table_privilege(r, t, 'SELECT')) filter (where r = 'authenticated') as le
+           from unnest(array['anon','authenticated']) r,
+                unnest(array['public.eventos_requisito','public.itens_pendencia','public.colaboradores',
+                             'public.ausencias','public.documentos_colaborador']) t`
+      );
+      const { rows: anon } = await client.query(
+        `select bool_or(has_table_privilege('anon', t, p)) as escreve
+           from unnest(array['public.eventos_requisito','public.itens_pendencia','public.colaboradores',
+                             'public.ausencias','public.documentos_colaborador']) t,
+                unnest(array['INSERT','UPDATE','DELETE','TRUNCATE']) p`
+      );
+      const x = rows[0];
+      if (!x.insere && !x.apaga && !x.trunca && !x.update_tabela_inteira && x.le && !anon[0].escreve) {
+        ok("grants: sem INSERT/DELETE/TRUNCATE nem UPDATE de tabela inteira; SELECT intacto; anon não escreve");
+      } else {
+        erro("grants: sem INSERT/DELETE/TRUNCATE nem UPDATE de tabela inteira; SELECT intacto; anon não escreve",
+          JSON.stringify({ ...x, anon_escreve: anon[0].escreve }));
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    console.log("\nDocumento obrigatório em toda conclusão apta (0021)");
+    // -----------------------------------------------------------------------
+    // Revisão final, I-1: fn_concluir_item concluía apto sem documento, e o
+    // par fn_registrar_desfecho('fez_apto') + fn_concluir_item fazia o mesmo.
+
+    /** Chama uma RPC num savepoint; devolve { falha, codigo, linhas }. */
+    const rpc = async (sql, params) => {
+      await client.query("savepoint chamada");
+      try {
+        const { rows } = await client.query(sql, params);
+        await client.query("release savepoint chamada");
+        return { falha: null, codigo: null, linhas: rows };
+      } catch (e) {
+        await client.query("rollback to savepoint chamada");
+        return { falha: e.message, codigo: e.code, linhas: [] };
+      }
+    };
+    const recusadaPorRegra = (r) => recusada(r) && r.codigo === "23514";
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const semDoc = await rpc(
+          `select fn_concluir_item($1, public.hoje() - 1, 'apto', null, null, null, null)`, [c.itemB]
+        );
+        const docVazio = await rpc(
+          `select fn_concluir_item($1, public.hoje() - 1, 'apto', null, null, '  ', null)`, [c.itemB]
+        );
+        const restricao = await rpc(
+          `select fn_concluir_item($1, public.hoje() - 1, 'apto_com_restricao', null, null, null, null)`, [c.itemB]
+        );
+        const e = await etapa(c.itemB);
+        const n = await eventosDoA();
+        if (recusadaPorRegra(semDoc) && recusadaPorRegra(docVazio) && recusadaPorRegra(restricao)
+            && e === "aguardando_documento" && n === 0) {
+          ok("fn_concluir_item apto / apto_com_restricao sem documento falha e o item não muda");
+        } else {
+          erro("fn_concluir_item apto / apto_com_restricao sem documento falha e o item não muda",
+            JSON.stringify({ semDoc: semDoc.falha, docVazio: docVazio.falha, restricao: restricao.falha, etapa: e, eventos: n }));
+        }
+      },
+      montarEtapa("aguardando_documento")
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const r = await rpc(
+          `select fn_concluir_item($1, public.hoje() - 1, 'inapto', null, null, null, 'teste') as id`, [c.itemB]
+        );
+        const e = await etapa(c.itemB);
+        if (!r.falha && e === "inapto_em_tratativa") ok("fn_concluir_item inapto continua sem exigir documento");
+        else erro("fn_concluir_item inapto continua sem exigir documento", r.falha ?? `etapa ${e}`);
+      },
+      montarEtapa("aguardando_documento")
+    );
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const apto = await rpc(`select fn_registrar_desfecho($1, 'fez_apto', null)`, [c.itemB]);
+        const e1 = await etapa(c.itemB);
+        const faltou = await rpc(`select fn_registrar_desfecho($1, 'faltou', null)`, [c.itemB]);
+        const e2 = await etapa(c.itemB);
+        if (recusadaPorRegra(apto) && e1 === "enviado_clinica" && !faltou.falha && e2 === "data_solicitada") {
+          ok("fn_registrar_desfecho recusa fez_apto; os outros desfechos continuam");
+        } else {
+          erro("fn_registrar_desfecho recusa fez_apto; os outros desfechos continuam",
+            JSON.stringify({ apto: apto.falha, etapa1: e1, faltou: faltou.falha, etapa2: e2 }));
+        }
+      },
+      paraEnviadoClinica
+    );
+
+    for (const etapaInicial of ["agendado", "enviado_clinica"]) {
+      await sessao(
+        c.uidA,
+        async () => {
+          const veio = await rpc(`select fn_registrar_comparecimento($1, true, null)`, [c.itemB]);
+          const nulo = await rpc(`select fn_registrar_comparecimento($1, null, null)`, [c.itemB]);
+          const e1 = await etapa(c.itemB);
+          const faltou = await rpc(`select fn_registrar_comparecimento($1, false, 'teste')`, [c.itemB]);
+          const e2 = await etapa(c.itemB);
+          if (recusadaPorRegra(veio) && recusadaPorRegra(nulo) && e1 === etapaInicial
+              && !faltou.falha && e2 === "data_solicitada") {
+            ok(`fn_registrar_comparecimento em ${etapaInicial}: compareceu (true) falha, faltou (false) passa`);
+          } else {
+            erro(`fn_registrar_comparecimento em ${etapaInicial}: compareceu (true) falha, faltou (false) passa`,
+              JSON.stringify({ veio: veio.falha, nulo: nulo.falha, etapa1: e1, faltou: faltou.falha, etapa2: e2 }));
+          }
+        },
+        montarEtapa(etapaInicial)
+      );
+    }
+
+    /** fn_registrar_aso_retroativo com argumentos nomeados, como o PostgREST chama. */
+    const retroativo = (documento) =>
+      rpc(
+        `select fn_registrar_aso_retroativo(
+                  p_colaborador_id => $1, p_tipo_requisito_id => $2,
+                  p_data_documento => public.hoje() - 20, p_documento_url => $3) as id`,
+        [c.colB, c.tipoId, documento]
+      );
+
+    await sessao(c.uidA, async () => {
+      const semDoc = await retroativo(null);
+      const vazio = await retroativo("   ");
+      const n = await eventosDoA();
+      if (recusadaPorRegra(semDoc) && recusadaPorRegra(vazio) && n === 0) {
+        ok("fn_registrar_aso_retroativo sem documento falha");
+      } else {
+        erro("fn_registrar_aso_retroativo sem documento falha",
+          JSON.stringify({ semDoc: semDoc.falha, vazio: vazio.falha, eventos: n }));
+      }
+    });
+
+    await sessao(c.uidA, async () => {
+      const r = await retroativo(`${PREFIXO_STORAGE}retroativo.pdf`);
+      const id = r.linhas[0]?.id;
+      const { rows } = id
+        ? await client.query(
+            `select documento_url, resultado, registrado_por from eventos_requisito where id = $1`, [id]
+          )
+        : { rows: [] };
+      if (!r.falha && rows[0]?.documento_url === `${PREFIXO_STORAGE}retroativo.pdf`
+          && rows[0].resultado === "apto" && rows[0].registrado_por === c.uidA) {
+        ok("fn_registrar_aso_retroativo com documento grava o evento com documento_url");
+      } else {
+        erro("fn_registrar_aso_retroativo com documento grava o evento com documento_url",
+          r.falha ?? JSON.stringify(rows[0]));
+      }
+    });
+
+    await sessao(c.uidA, async () => {
+      const r = await rpc(`select fn_registrar_aso_retroativo($1, $2, public.hoje() - 20, true, null)`,
+        [c.colB, c.tipoId]);
+      const { rows } = await client.query(
+        `select to_regprocedure('public.fn_registrar_aso_retroativo(uuid,uuid,date,boolean,text)') is null as sumiu`
+      );
+      if (r.falha && rows[0].sumiu) ok("a assinatura antiga de fn_registrar_aso_retroativo (sem documento) não existe mais");
+      else erro("a assinatura antiga de fn_registrar_aso_retroativo (sem documento) não existe mais",
+        r.falha ?? "a chamada antiga foi aceita");
+    });
+
+    // -----------------------------------------------------------------------
+    console.log("\nPerfis só pelo admin (0021)");
+    // -----------------------------------------------------------------------
+    // Revisão final, I-4: `perfis_escrita_qsms` deixava o QSMS se promover a
+    // admin e abrir a Gestão de usuários, que roda com a service role.
+
+    await sessao(c.uidQsms, async () => {
+      const motivo =
+        (await barrada(`update perfis set papel = 'admin' where id = $1`, [c.uidQsms])) ??
+        (await barrada(`update perfis set papel = 'admin' where id = $1`, [c.uidA])) ??
+        (await barrada(`update perfis set ativo = false where id = $1`, [c.uidAdmin])) ??
+        (await barrada(`delete from perfis where id = $1`, [c.uidA])) ??
+        (await barrada(
+          `insert into perfis (id, email, nome, papel) values ($1, $2, 'HACK', 'admin')`,
+          [c.uidSemPerfil, EMAILS[4]]
+        ));
+      if (!motivo) ok("QSMS (não admin) NÃO escreve em perfis (nem se promove a admin)");
+      else erro("QSMS (não admin) NÃO escreve em perfis (nem se promove a admin)", motivo);
+    });
+
+    await sessao(c.uidQsms, async () => {
+      const { rows } = await client.query(`select count(*)::int n from perfis where id = any($1)`,
+        [[c.uidA, c.uidB, c.uidQsms]]);
+      if (rows[0].n === 3) ok("QSMS continua lendo perfis");
+      else erro("QSMS continua lendo perfis", `viu ${rows[0].n} de 3`);
+    });
+
+    await sessao(c.uidAdmin, async () => {
+      const falha = await alterou(`update perfis set papel = 'admin' where id = $1`, [c.uidQsms]);
+      if (!falha) ok("admin altera o papel de um perfil");
+      else erro("admin altera o papel de um perfil", falha);
+    });
+
+    // -----------------------------------------------------------------------
+    console.log("\nBucket asos: apagar só o próprio envio, ou QSMS (0021)");
+    // -----------------------------------------------------------------------
+    // A Storage API apaga pelo papel do usuário, sob RLS. O trigger
+    // storage.protect_delete barra o DELETE direto; o teste o libera só dentro
+    // do savepoint, como a própria Storage API faz.
+    const liberarDelete = () =>
+      client.query(`select set_config('storage.allow_delete_query', 'true', true)`);
+    const apagarObjeto = (nome) =>
+      client.query(`delete from storage.objects where bucket_id = 'asos' and name = $1`, [nome]);
+
+    await sessao(
+      c.uidA,
+      async () => {
+        const proprio = (await apagarObjeto(c.asoDoA)).rowCount;
+        const alheio = (await apagarObjeto(c.asoDoB)).rowCount;
+        if (proprio === 1 && alheio === 0) ok("supervisor A apaga o ASO que enviou e NÃO o enviado por outro");
+        else erro("supervisor A apaga o ASO que enviou e NÃO o enviado por outro", JSON.stringify({ proprio, alheio }));
+      },
+      liberarDelete
+    );
+
+    await sessao(
+      c.uidQsms,
+      async () => {
+        const n = (await apagarObjeto(c.asoDoB)).rowCount;
+        if (n === 1) ok("QSMS apaga ASO enviado por outro");
+        else erro("QSMS apaga ASO enviado por outro", `apagou ${n}`);
+      },
+      liberarDelete
+    );
+
+    await sessao(
+      c.uidInativo,
+      async () => {
+        const n = (await apagarObjeto(c.asoDoInativo)).rowCount;
+        if (n === 0) ok("perfil desativado NÃO apaga ASO, nem o que ele mesmo enviou");
+        else erro("perfil desativado NÃO apaga ASO, nem o que ele mesmo enviou", `apagou ${n}`);
+      },
+      liberarDelete
     );
 
     // -----------------------------------------------------------------------
