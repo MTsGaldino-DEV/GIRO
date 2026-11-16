@@ -131,8 +131,11 @@ async function executar(request: NextRequest) {
       {
         chave: "acao",
         titulo: "Precisa de você",
+        // Entram aqui as etapas do supervisor: pedir/informar a data de
+        // liberação e, depois da clínica (`enviado_clinica`), registrar o
+        // resultado com o ASO. O texto cobre os dois casos.
         explicacao:
-          "Vencem nos próximos 90 dias e ainda não têm data de liberação. Informe quando o colaborador pode sair da equipe.",
+          "Vencem nos próximos 90 dias e dependem de você: informe quando o colaborador pode sair da equipe ou, se ele já foi à clínica, registre o resultado e anexe o ASO.",
         itens: precisamDeData,
       },
       {
@@ -145,7 +148,7 @@ async function executar(request: NextRequest) {
         chave: "irregulares",
         titulo: "Não podem trabalhar",
         explicacao:
-          "ASO vencido ou sem nenhuma data de referência, e ainda sem exame marcado. Nos dois casos o colaborador está irregular hoje.",
+          "ASO vencido ou sem nenhuma data de referência. Nos dois casos o colaborador está irregular hoje.",
         itens: naoPodemTrabalhar,
       },
     ];

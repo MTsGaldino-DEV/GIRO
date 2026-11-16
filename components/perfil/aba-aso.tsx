@@ -9,6 +9,7 @@ import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO, ehExameLancavel } from "@
 import { carregarExames, type EventoColaborador } from "@/lib/consulta-colaborador";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
 import { DataExameEditavel } from "./data-exame-editavel";
+import { usePerfilColaborador } from "./contexto";
 import { LancarExameAnterior, type RequisitoLancavel } from "./lancar-exame-anterior";
 
 /**
@@ -33,6 +34,7 @@ export function AbaAso({
   /** Recarrega o cabeçalho do painel: corrigir uma data move o vencimento. */
   aoAtualizar?: () => void;
 }) {
+  const { papel } = usePerfilColaborador();
   const [eventos, setEventos] = useState<EventoColaborador[]>([]);
   const [links, setLinks] = useState<Record<string, string>>({});
   const [clinicas, setClinicas] = useState<Clinica[]>([]);
@@ -79,7 +81,7 @@ export function AbaAso({
     <div className="grid gap-4">
       {item ? (
         <>
-          <AcoesItem item={item} clinicas={clinicas} />
+          <AcoesItem item={item} clinicas={clinicas} papel={papel} />
           <p className="text-caption text-ink-faint m-0">
             Etapa atual: {ETAPA_ROTULO[item.etapa]}. A visão focada deste ciclo,
             com a linha do tempo, está em{" "}

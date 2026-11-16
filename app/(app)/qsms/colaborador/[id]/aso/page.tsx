@@ -29,7 +29,7 @@ interface EventoLinha {
 }
 
 export default async function AbaAso({ params }: { params: Promise<{ id: string }> }) {
-  await exigirOperador();
+  const perfil = await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
@@ -66,7 +66,7 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
     <div className="grid gap-5 max-w-[900px]">
       {item ? (
         <>
-          <AcoesItem item={item} clinicas={(clinicas ?? []) as Clinica[]} />
+          <AcoesItem item={item} clinicas={(clinicas ?? []) as Clinica[]} papel={perfil.papel} />
 
           <p className="text-caption text-ink-faint m-0">
             Etapa atual: {ETAPA_ROTULO[item.etapa]}. A visão focada deste ciclo,

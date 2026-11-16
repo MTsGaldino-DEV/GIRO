@@ -13,7 +13,7 @@ export const metadata: Metadata = { title: "Item" };
 export const dynamic = "force-dynamic";
 
 export default async function ItemQsms({ params }: { params: Promise<{ id: string }> }) {
-  await exigirOperador();
+  const perfil = await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
@@ -85,7 +85,7 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
       <div className="mt-3 grid gap-5">
         <FichaItem item={item} />
 
-        <AcoesItem item={item} clinicas={(clinicas ?? []) as Clinica[]} />
+        <AcoesItem item={item} clinicas={(clinicas ?? []) as Clinica[]} papel={perfil.papel} />
 
         <div className="card">
           <h2 className="text-[1.0625rem] mb-3">Histórico</h2>

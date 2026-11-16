@@ -12,9 +12,11 @@ import {
   FormularioCancelar,
 } from "@/components/formularios-item";
 import { FormularioResultado } from "@/components/radar/formulario-resultado";
+import { FormularioLiberacao } from "@/components/formulario-liberacao";
+import { FormularioComparecimento } from "@/components/formulario-comparecimento";
 import { acoesDaEtapa } from "@/lib/acoes-etapa";
 import { DESFECHO_ROTULO, formatarData, formatarDataHora } from "@/lib/dominio";
-import type { Clinica, ItemAberto } from "@/lib/tipos";
+import type { Clinica, ItemAberto, Papel } from "@/lib/tipos";
 
 /**
  * As ações permitidas pelo estado atual (plano da Fase 1, seção 10).
@@ -45,9 +47,16 @@ function Cartao({
 export function AcoesItem({
   item,
   clinicas = [],
+  papel,
 }: {
   item: ItemAberto;
   clinicas?: Clinica[];
+  /**
+   * Só escolhe o formulário de "Informar data", como no Radar: o supervisor
+   * informa a própria data; QSMS e admin lançam em nome dele. Quem pode o quê
+   * continua decidido no banco.
+   */
+  papel?: Papel;
 }) {
   return (
     <>
@@ -74,20 +83,27 @@ export function AcoesItem({
         </Cartao>
       )}
 
-      {item.etapa === "data_solicitada" && (
-        <Cartao
-          titulo="Registrar a data proposta"
-          descricao={
-            <>
-              O item está com {item.supervisor_nome ?? "a supervisão"}. Quando ele
-              responder, lance a data aqui — na Fase 1 o supervisor não tem login,
-              então quem digita é o QSMS, em nome dele.
-            </>
-          }
-        >
-          <FormularioDataSupervisor item={item} />
-        </Cartao>
-      )}
+      {item.etapa === "data_solicitada" &&
+        (papel === "supervisor" ? (
+          <Cartao
+            titulo="Quando pode liberar?"
+            descricao="Escolha um dia em que o colaborador pode sair da equipe para o exame. O QSMS agenda com a clínica a partir daí."
+          >
+            <FormularioLiberacao item={item} />
+          </Cartao>
+        ) : (
+          <Cartao
+            titulo="Registrar a data proposta"
+            descricao={
+              <>
+                O item está com {item.supervisor_nome ?? "a supervisão"}. Se a
+                data chegou por fora do GIRO, lance aqui em nome dela.
+              </>
+            }
+          >
+            <FormularioDataSupervisor item={item} />
+          </Cartao>
+        ))}
 
       {item.etapa === "data_proposta" && (
         <>
@@ -139,6 +155,11 @@ export function AcoesItem({
               <FormularioInformarDados item={item} />
             </Cartao>
           )}
+          {/* O "Registrar falta" do menu da linha do Radar. Só a falta: quem foi
+              ao exame segue por "Enviar à clínica" e "Registrar resultado". */}
+          <Cartao titulo="O colaborador faltou?">
+            <FormularioComparecimento itemId={item.item_id} apenasFalta />
+          </Cartao>
         </>
       )}
 
@@ -155,8 +176,8 @@ export function AcoesItem({
 
       {item.etapa === "aguardando_documento" && (
         <Cartao
-          titulo="Receber o documento e lançar no GESET"
-          descricao="O que zera a pendência é o ASO com resultado apto, e o relógio de 12 meses parte da data de realização do exame."
+          titulo={acoesDaEtapa(item.etapa).principal?.rotulo ?? "Anexar ASO e concluir"}
+          descricao="O ASO é obrigatório: sem o documento anexado, o resultado apto não conclui o item. O relógio de 12 meses parte da data de realização do exame."
         >
           <FormularioConcluir item={item} />
         </Cartao>
