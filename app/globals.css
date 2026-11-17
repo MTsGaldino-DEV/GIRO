@@ -708,14 +708,17 @@ a {
 }
 
 /* --------------------------------------------------------------------------
-   Sidebar (Task 6 de 13/11/2026)
+   Sidebar recolhível (redesign de 17/11/2026)
 
-   Substitui a barra no topo de 03/11. Coluna fixa de 16rem no desktop; abaixo
-   de 1024px vira barra compacta com botão de menu e a coluna abre como gaveta.
-   A cor é a da antiga sidebar (#132523), deliberadamente diferente do preto
+   Desktop: coluna fixa que nasce recolhida (4.25rem, só ícones) e abre para
+   15.5rem pelo botão do cabeçalho ou por Ctrl+B. O estado vem de um cookie
+   lido no servidor (`data-recolhida`), então não há salto na primeira pintura.
+   Abaixo de 1024px vira barra compacta e a coluna abre como gaveta — sempre a
+   versão aberta, com as mesmas classes `sidebar__*`.
+
+   Os rótulos continuam no DOM quando recolhida (só opacity 0): leitores de tela
+   seguem lendo cada item. A cor é #132523, deliberadamente diferente do preto
    reservado do semáforo; o destaque é petróleo, nunca verde/âmbar/coral/vermelho.
-   A coluna de conteúdo é clara (névoa fria); o cabeçalho de cada tela assenta
-   direto no fundo, sem faixa escura.
    -------------------------------------------------------------------------- */
 
 .app-grade { min-height: 100dvh; }
@@ -723,7 +726,7 @@ a {
 @media (min-width: 1024px) {
   .app-grade {
     display: grid;
-    grid-template-columns: 16rem minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
   }
 }
 
@@ -732,12 +735,16 @@ a {
   .sidebar {
     position: sticky;
     top: 0;
+    z-index: 20;
     height: 100dvh;
+    width: 15.5rem;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
     background: var(--color-sidebar-bg);
-    border-right: 1px solid var(--color-sidebar-line);
+    transition: width var(--duracao-lenta) var(--ease-giro);
   }
+  .sidebar[data-recolhida="true"] { width: 4.25rem; }
 }
 
 /* O anel de foco padrão é petróleo; sobre #132523 ele some. */
@@ -747,6 +754,7 @@ a {
   outline-color: var(--color-brand-light);
 }
 
+/* Cabeçalho: marca + botão de recolher. */
 .sidebar__cabeca {
   flex-shrink: 0;
   display: flex;
@@ -754,9 +762,9 @@ a {
   justify-content: space-between;
   gap: 0.75rem;
   height: 4rem;
-  padding: 0 1rem 0 1.25rem;
-  border-bottom: 1px solid var(--color-sidebar-line);
+  padding: 0 0.75rem 0 1.25rem;
 }
+.sidebar[data-recolhida="true"] .sidebar__cabeca { padding: 0; justify-content: center; }
 
 .sidebar__logo {
   display: flex;
@@ -767,17 +775,66 @@ a {
   font-weight: 500;
   letter-spacing: 0.06em;
   font-size: var(--text-body);
+  white-space: nowrap;
 }
 .sidebar__logo-ponto { color: var(--color-brand-light); }
+/* Recolhida a marca some: o trilho é estreito demais para ela e o botão centraliza. */
+.sidebar[data-recolhida="true"] .sidebar__logo { display: none; }
 
+.sidebar__alternar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-sidebar-text);
+  cursor: pointer;
+  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro);
+}
+.sidebar__alternar:hover { background: rgb(255 255 255 / 0.08); color: var(--color-sidebar-text-active); }
+.sidebar__alternar svg { transition: rotate var(--duracao-lenta) var(--ease-giro); }
+.sidebar:not([data-recolhida="true"]) .sidebar__alternar svg { rotate: 180deg; }
+
+/* Navegação. */
 .sidebar__nav {
   flex: 1;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem 0.75rem;
+  padding: 0.25rem 0.75rem;
+}
+
+.sidebar__secao {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: 1.75rem;
+  margin: 0.875rem 0 0;
+  padding: 0 0.75rem 0.375rem;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgb(143 166 162 / 0.7);
+}
+.sidebar__bloco:first-child .sidebar__secao { margin-top: 0.25rem; }
+.sidebar__secao span { transition: opacity var(--duracao-rapida) var(--ease-giro); }
+.sidebar[data-recolhida="true"] .sidebar__secao span { opacity: 0; }
+/* Recolhida, o título vira um fio pontilhado separando as seções (menos a primeira). */
+.sidebar[data-recolhida="true"] .sidebar__bloco:not(:first-child) .sidebar__secao::after {
+  content: "";
+  position: absolute;
+  left: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.625rem;
+  height: 1px;
+  background-image: linear-gradient(90deg, rgb(255 255 255 / 0.18) 50%, transparent 0);
+  background-size: 4px 1px;
 }
 
 .sidebar__item {
@@ -786,7 +843,8 @@ a {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  min-height: 2.75rem;
+  height: 2.625rem;
+  margin: 2px 0;
   padding: 0 0.75rem;
   border: 0;
   border-radius: var(--radius-md);
@@ -796,39 +854,84 @@ a {
   font-size: var(--text-label);
   text-align: left;
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   transition: color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro);
 }
-.sidebar__item:hover {
+.sidebar__item:hover,
+.sidebar__item[data-state="open"] {
   color: var(--color-sidebar-text-active);
   background: rgb(255 255 255 / 0.06);
 }
 .sidebar__item[data-contem-ativo="true"] { color: var(--color-sidebar-text-active); }
 .sidebar__item[data-ativo="true"] {
   color: var(--color-sidebar-text-active);
-  background: var(--color-sidebar-active);
+  background: linear-gradient(90deg, rgb(79 179 166 / 0.24), rgb(79 179 166 / 0.07));
+  box-shadow: inset 0 0 0 1px rgb(79 179 166 / 0.2);
   font-weight: 500;
 }
-/* Marca à esquerda do item ativo: o destaque não depende só de cor. */
+.sidebar__item[data-ativo="true"] .sidebar__icone { color: var(--color-brand-light); }
+/* Barra à esquerda do item ativo: o destaque não depende só de cor. Encosta na
+   borda da coluna (o padding do nav é 0.75rem); nos subitens, na linha-guia. */
 .sidebar__item[data-ativo="true"]::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: 0.5rem;
-  bottom: 0.5rem;
+  left: -0.75rem;
+  top: 0.625rem;
+  bottom: 0.625rem;
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--color-brand-light);
 }
-.sidebar__rotulo { flex: 1; min-width: 0; }
+.sidebar__item[data-subitem="true"][data-ativo="true"]::before { left: calc(-0.5rem - 1px); }
 
+/* O ícone fica no mesmo x nos dois estados: só a largura da coluna muda. */
+.sidebar__icone { width: 20px; height: 20px; flex-shrink: 0; }
+
+.sidebar__rotulo {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity var(--duracao-rapida) var(--ease-giro);
+}
 .sidebar__seta {
   width: 14px;
   height: 14px;
-  opacity: 0.7;
-  transition: rotate var(--duracao-media) var(--ease-giro);
+  opacity: 0.6;
+  transition: rotate var(--duracao-media) var(--ease-giro), opacity var(--duracao-rapida) var(--ease-giro);
 }
 .sidebar__item[aria-expanded="true"] .sidebar__seta { rotate: 90deg; }
+.sidebar[data-recolhida="true"] .sidebar__rotulo,
+.sidebar[data-recolhida="true"] .sidebar__seta,
+.sidebar[data-recolhida="true"] .sidebar__badge { opacity: 0; }
+
+/* Contador de pendências: número no item; recolhida, só um ponto no ícone do grupo. */
+.sidebar__badge {
+  margin-left: auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--color-brand-light);
+  color: var(--color-sidebar-bg);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  transition: opacity var(--duracao-rapida) var(--ease-giro);
+}
+.sidebar__ponto {
+  position: absolute;
+  left: 1.625rem;
+  top: 0.5625rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brand-light);
+  box-shadow: 0 0 0 2px var(--color-sidebar-bg);
+}
 
 /* Grupo: abre e fecha por altura (0fr -> 1fr). Fechado, o conteúdo sai da
    ordem de tabulação (visibility) depois que a animação termina. */
@@ -847,68 +950,111 @@ a {
 }
 .sidebar__sub-interno { min-height: 0; overflow: hidden; }
 .sidebar__sub-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin: 0.25rem 0 0.25rem 1.375rem;
+  margin: 2px 0 4px 1.375rem;
   padding-left: 0.5rem;
   border-left: 1px solid var(--color-sidebar-line);
 }
+.sidebar__sub-lista .sidebar__item { height: 2.375rem; }
 
-.sidebar__usuario {
+/* Rodapé: cartão do usuário (abre o menu com Trocar senha e Sair). */
+.sidebar__rodape {
   flex-shrink: 0;
-  margin: 0.75rem;
   padding: 0.75rem;
-  border: 1px solid var(--color-sidebar-line);
-  border-radius: var(--radius-lg);
-  background: rgb(255 255 255 / 0.04);
+  border-top: 1px solid var(--color-sidebar-line);
 }
-.sidebar__usuario-id { display: flex; align-items: center; gap: 0.625rem; min-width: 0; }
+.sidebar__usuario {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duracao-rapida) var(--ease-giro);
+}
+.sidebar__usuario:hover,
+.sidebar__usuario[data-state="open"] { background: rgb(255 255 255 / 0.06); }
 .sidebar__avatar {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--color-brand);
   color: #FFFFFF;
-  font-size: var(--text-label);
+  font-size: 12px;
   font-weight: 500;
+  box-shadow: 0 0 0 2px var(--color-sidebar-bg), 0 0 0 3px rgb(79 179 166 / 0.5);
 }
-.sidebar__identidade { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.sidebar__identidade {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+  transition: opacity var(--duracao-rapida) var(--ease-giro);
+}
 .sidebar__nome {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: var(--text-label);
   font-weight: 500;
   color: var(--color-sidebar-text-active);
 }
 .sidebar__papel { font-size: var(--text-caption); color: var(--color-sidebar-text); }
-.sidebar__usuario-acoes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+.sidebar__usuario-seta {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  rotate: -90deg;
+  color: var(--color-sidebar-text);
+  opacity: 0.6;
+  transition: opacity var(--duracao-rapida) var(--ease-giro);
 }
-.sidebar__acao {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 2.625rem;
-  padding: 0 0.5rem;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-sidebar-text-active);
-  font: inherit;
-  font-size: var(--text-label);
-  cursor: pointer;
-  transition: background-color var(--duracao-rapida) var(--ease-giro);
+.sidebar[data-recolhida="true"] .sidebar__identidade,
+.sidebar[data-recolhida="true"] .sidebar__usuario-seta { opacity: 0; }
+
+/* Dica das opções recolhidas: uma só, fixa fora da coluna (dentro dela a rolagem
+   do nav a cortaria). O texto vem de `data-dica`; é decorativa, o nome acessível
+   continua no próprio item. */
+.sidebar__dica {
+  position: fixed;
+  left: calc(4.25rem + 0.625rem);
+  translate: 0 -50%;
+  z-index: 50;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--color-sidebar-bg);
+  color: #FFFFFF;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow-media);
 }
-.sidebar__acao:hover { background: rgb(255 255 255 / 0.08); }
+.sidebar__dica::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 50%;
+  translate: 0 -50%;
+  rotate: 45deg;
+  width: 8px;
+  height: 8px;
+  background: var(--color-sidebar-bg);
+}
+@media (max-width: 1023.98px) {
+  .sidebar__dica { display: none; }
+}
+
+/* Item de menu suspenso (grupo recolhido) com o contador ao lado. */
+.menu-suspenso .sidebar__badge { background: var(--color-brand); color: #FFFFFF; }
+.menu-suspenso [data-ativo="true"] { color: var(--color-brand); font-weight: 500; }
 
 /* Barra compacta e gaveta (< 1024px). */
 .sidebar-topo {

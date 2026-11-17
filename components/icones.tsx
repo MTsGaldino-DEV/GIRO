@@ -201,3 +201,14 @@ export function IconeMenu({ className }: Props) {
     </svg>
   );
 }
+
+/** Painel lateral com seta: alterna a sidebar entre trilho e coluna aberta. */
+export function IconeExpandir({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M9 4v16" />
+      <path d="m13.5 10 2 2-2 2" />
+    </svg>
+  );
+}
