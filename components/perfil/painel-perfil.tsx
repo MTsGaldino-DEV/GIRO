@@ -117,7 +117,6 @@ export function PainelPerfilColaborador() {
                   <DialogDescription className="truncate">
                     <span className="tabular">{resumo.colaborador.matricula}</span>
                     {resumo.colaborador.cargo && ` · ${resumo.colaborador.cargo}`}
-                    {resumo.colaborador.polo && ` · ${resumo.colaborador.polo}`}
                   </DialogDescription>
                 )}
               </div>

@@ -186,7 +186,6 @@ const ESQUEMAS: Record<CampoColaborador, z.ZodType> = {
   data_admissao: dataOpcional,
   data_nascimento: dataOpcional,
   cargo: opcional(120),
-  polo: opcional(120),
   local: opcional(160),
   situacao: z.enum([
     "trabalhando",

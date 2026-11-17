@@ -129,12 +129,13 @@ export async function vincularColaborador(
 
   revalidatePath("/qsms/supervisores");
   revalidatePath("/radar");
+  revalidatePath("/admin/tratamento");
   return { ok: true, mensagem: "Vinculado." };
 }
 
 // ---------------------------------------------------------------------------
 
-/** Vincula em massa por cargo, polo ou busca de nome. 261 um a um é inviável. */
+/** Vincula em massa por cargo ou busca de nome. 261 um a um é inviável. */
 const esquemaMassa = z.object({
   supervisor_id: z.string().uuid("Escolha o supervisor."),
   ids: z.string().min(1, "Selecione ao menos um colaborador."),

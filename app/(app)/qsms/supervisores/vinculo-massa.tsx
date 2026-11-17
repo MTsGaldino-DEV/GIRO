@@ -11,7 +11,6 @@ interface ColaboradorSimples {
   matricula: number;
   nome: string;
   cargo: string | null;
-  polo: string | null;
   supervisor_id: string | null;
 }
 
@@ -28,7 +27,7 @@ function Botao({ quantidade }: { quantidade: number }) {
  * Seleção múltipla + um supervisor.
  *
  * São 261 colaboradores para distribuir entre 7 equipes. Um a um seriam 261
- * interações; por filtro de cargo ou polo, são algumas dezenas.
+ * interações; por filtro de cargo, são algumas dezenas.
  */
 export function VinculoEmMassa({
   colaboradores,

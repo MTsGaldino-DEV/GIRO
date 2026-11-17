@@ -85,7 +85,6 @@ export default async function LayoutColaborador({
             <p className="text-ink-muted text-label mt-0.5">
               <span className="tabular">{colaborador.matricula}</span>
               {colaborador.cargo && ` · ${colaborador.cargo}`}
-              {colaborador.polo && ` · ${colaborador.polo}`}
             </p>
             <p className="text-caption text-ink-faint mt-0.5">
               {supervisor?.nome ?? "Sem supervisor"}

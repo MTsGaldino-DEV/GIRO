@@ -95,7 +95,7 @@ export function AbaVisaoGeral({ resumo }: { resumo: ResumoColaborador }) {
         <dl className="grid gap-x-6 gap-y-3 grid-cols-2 sm:grid-cols-3 m-0">
           <Campo rotulo="Matrícula">{colaborador.matricula}</Campo>
           <Campo rotulo="Cargo">{colaborador.cargo ?? "—"}</Campo>
-          <Campo rotulo="Polo/UEN">{colaborador.polo ?? colaborador.uen ?? "—"}</Campo>
+          <Campo rotulo="UEN">{colaborador.uen ?? "—"}</Campo>
           <Campo rotulo="Setor">{colaborador.local ?? "—"}</Campo>
           <Campo rotulo="Supervisor">{resumo.supervisorNome ?? "Sem supervisor"}</Campo>
           <Campo rotulo="Situação">

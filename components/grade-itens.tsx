@@ -72,7 +72,6 @@ export function GradeItens({
   filtrosIniciais,
   fotosIniciais,
   supervisores,
-  polos,
   requisitos,
   contagensIniciais,
   escopo,
@@ -81,7 +80,6 @@ export function GradeItens({
   filtrosIniciais: FiltrosPainel;
   fotosIniciais: Record<string, string>;
   supervisores: Supervisor[];
-  polos: string[];
   requisitos: string[];
   /** Contagens da faixa "Para você agir" por etapa, calculadas no servidor. */
   contagensIniciais: Record<string, number>;
@@ -266,7 +264,6 @@ export function GradeItens({
         filtros={filtros}
         escopo={escopo}
         supervisores={supervisores}
-        polos={polos}
         requisitos={requisitos}
         aoMudar={mudarFiltro}
         aoLimpar={() => setFiltros({ equipe: filtros.equipe })}
@@ -514,7 +511,6 @@ function Filtros({
   filtros,
   escopo,
   supervisores,
-  polos,
   requisitos,
   aoMudar,
   aoLimpar,
@@ -522,7 +518,6 @@ function Filtros({
   filtros: FiltrosPainel;
   escopo: EscopoRadar;
   supervisores: Supervisor[];
-  polos: string[];
   requisitos: string[];
   aoMudar: (campo: keyof FiltrosPainel, valor: string) => void;
   aoLimpar: () => void;
@@ -615,14 +610,6 @@ function Filtros({
           ]}
           aoMudar={(v) => aoMudar("supervisor", v)}
         />
-        {polos.length > 1 && (
-          <FiltroSuspenso
-            rotulo="Polo"
-            valor={filtros.polo ?? ""}
-            opcoes={polos.map((p) => ({ valor: p, rotulo: p }))}
-            aoMudar={(v) => aoMudar("polo", v)}
-          />
-        )}
         <span className="inline-flex items-center gap-1">
           <button
             type="button"

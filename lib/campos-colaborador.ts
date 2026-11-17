@@ -20,7 +20,6 @@ export type CampoColaborador =
   | "data_admissao"
   | "data_nascimento"
   | "cargo"
-  | "polo"
   | "local"
   | "situacao"
   | "supervisor_id"
@@ -48,7 +47,6 @@ export const CAMPOS_COLABORADOR: Record<CampoColaborador, DefinicaoCampo> = {
   data_admissao: { rotulo: "Admissão", auditoria: "admissão", tipo: "data" },
   data_nascimento: { rotulo: "Nascimento", auditoria: "nascimento", tipo: "data" },
   cargo: { rotulo: "Cargo", auditoria: "cargo", tipo: "texto" },
-  polo: { rotulo: "Polo", auditoria: "polo", tipo: "texto" },
   local: { rotulo: "Local", auditoria: "local", tipo: "texto" },
   situacao: {
     rotulo: "Situação",
@@ -82,7 +80,6 @@ export const CAMPOS_FOLHA: CampoColaborador[] = [
 
 export const CAMPOS_LOTACAO: CampoColaborador[] = [
   "cargo",
-  "polo",
   "local",
   "situacao",
   "supervisor_id",

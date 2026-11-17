@@ -41,7 +41,6 @@ export interface FiltrosPainel {
   status?: string;
   etapa?: string;
   supervisor?: string;
-  polo?: string;
   parados?: string;
   ordem?: string;
   dir?: string;
@@ -118,7 +117,6 @@ export function montarConsultaItens(
   if (filtros.requisito) consulta = consulta.eq("requisito", filtros.requisito);
   if (filtros.status) consulta = consulta.eq("status", filtros.status);
   if (filtros.etapa) consulta = consulta.eq("etapa", filtros.etapa);
-  if (filtros.polo) consulta = consulta.eq("polo", filtros.polo);
   if (filtros.parados === "1") consulta = consulta.eq("sla_estourado", true);
   if (filtros.supervisor === SEM_SUPERVISOR) consulta = consulta.is("supervisor_id", null);
   else if (filtros.supervisor) consulta = consulta.eq("supervisor_id", filtros.supervisor);
