@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { exigirOperador } from "@/lib/perfil";
 import { estadoDaSincronizacao, type TentativaNeo } from "@/lib/estado-neo";
 import { criarClienteServidor } from "@/lib/supabase/server";
@@ -108,48 +109,65 @@ export default async function PaginaSupervisores({
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
-        <div className="grid gap-5">
-          <div className="card">
-            <h2 className="text-[1.0625rem] mb-3">Cadastrar supervisor</h2>
-            <FormularioSupervisor />
-          </div>
-
-          <div className="card">
-            <h2 className="text-[1.0625rem] mb-3">Equipes</h2>
-            {supervisores.length === 0 ? (
-              <p className="text-ink-faint text-label m-0">Nenhum supervisor cadastrado ainda.</p>
-            ) : (
-              <ul className="list-none p-0 m-0 grid gap-2">
-                {supervisores.map((s) => (
-                  <li key={s.id} className="flex items-baseline justify-between gap-3">
-                    <span>
-                      <span className="block">{s.nome}</span>
-                      <span className="block text-caption text-ink-faint">{s.email}</span>
-                    </span>
-                    <span className="text-label text-ink-muted tabular whitespace-nowrap">
-                      {porSupervisor.get(s.id) ?? 0}
-                    </span>
-                  </li>
-                ))}
-                <li className="flex items-baseline justify-between gap-3 pt-2 border-t border-line">
-                  <span className="text-ink-faint">Sem supervisor</span>
-                  <span className="text-label tabular">{semSupervisor}</span>
-                </li>
-              </ul>
-            )}
-          </div>
+      {/* Como na lista de Colaboradores da NEO: os dois cartões de cadastro em
+          cima e a lista na largura toda, que é onde o trabalho acontece. */}
+      <div className="grid gap-5 md:grid-cols-2 items-start mb-5">
+        <div className="card">
+          <h2 className="text-[1.0625rem] mb-3">Cadastrar supervisor</h2>
+          <FormularioSupervisor />
         </div>
 
         <div className="card">
+          <div className="flex items-baseline justify-between gap-3 mb-3">
+            <h2 className="text-[1.0625rem] m-0">Equipes</h2>
+            <span className="text-caption text-ink-faint tabular">{(todos ?? []).length} ativos</span>
+          </div>
+          {supervisores.length === 0 ? (
+            <p className="text-ink-faint text-label m-0">Nenhum supervisor cadastrado ainda.</p>
+          ) : (
+            <ul className="list-none p-0 m-0 grid">
+              {supervisores.map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href={`/qsms/supervisores?equipe=${s.id}`}
+                    className="flex items-center justify-between gap-3 py-2 px-2 -mx-2 rounded-[var(--radius)] no-underline text-ink hover:bg-brand-wash"
+                    aria-current={equipe === s.id ? "true" : undefined}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate">{s.nome}</span>
+                      <span className="block text-caption text-ink-faint truncate">{s.email}</span>
+                    </span>
+                    <span className="etiqueta etiqueta--neutra tabular">{porSupervisor.get(s.id) ?? 0}</span>
+                  </Link>
+                </li>
+              ))}
+              <li className="mt-1 pt-1 border-t border-line">
+                <Link
+                  href="/qsms/supervisores?equipe=sem"
+                  className="flex items-center justify-between gap-3 py-2 px-2 -mx-2 rounded-[var(--radius)] no-underline text-ink-muted hover:bg-brand-wash"
+                >
+                  <span>Sem supervisor</span>
+                  <span className="etiqueta etiqueta--marca tabular">{semSupervisor}</span>
+                </Link>
+              </li>
+            </ul>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <div className="card">
           <h2 className="text-[1.0625rem] mb-3">Vincular colaboradores</h2>
 
-          <form method="get" className="flex flex-wrap items-end gap-3 mb-4">
-            <div className="min-w-[180px]">
+          <form
+            method="get"
+            className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)_auto] items-end mb-4"
+          >
+            <div className="min-w-0">
               <label className="label" htmlFor="busca">Buscar</label>
-              <input id="busca" name="busca" className="field" defaultValue={busca ?? ""} />
+              <input id="busca" name="busca" type="search" className="field" placeholder="Nome do colaborador" defaultValue={busca ?? ""} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="label" htmlFor="equipe">Equipe</label>
               <select id="equipe" name="equipe" className="field" defaultValue={equipe ?? "sem"}>
                 <option value="sem">Sem supervisor</option>
@@ -159,18 +177,16 @@ export default async function PaginaSupervisores({
                 ))}
               </select>
             </div>
-            {cargos.length > 0 && (
-              <div>
-                <label className="label" htmlFor="cargo">Cargo</label>
-                <select id="cargo" name="cargo" className="field" defaultValue={cargo ?? ""}>
-                  <option value="">Todos</option>
-                  {cargos.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <button type="submit" className="btn btn--secondary">Filtrar</button>
+            <div className="min-w-0">
+              <label className="label" htmlFor="cargo">Cargo</label>
+              <select id="cargo" name="cargo" className="field" defaultValue={cargo ?? ""}>
+                <option value="">Todos</option>
+                {cargos.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <button type="submit" className="btn btn--secondary w-full lg:w-auto">Filtrar</button>
           </form>
 
           {supervisores.length === 0 ? (

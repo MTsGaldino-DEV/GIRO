@@ -20,7 +20,8 @@ export function FormularioUsuario({ supervisores }: { supervisores: Supervisor[]
   const [papel, setPapel] = useState<"qsms" | "supervisor" | "admin">("supervisor");
 
   return (
-    <form action={acao} className="grid gap-3">
+    // Tablet: duas colunas (o cartão ocupa a largura toda). Desktop largo: uma, ao lado da lista.
+    <form action={acao} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
       <div>
         <label className="label" htmlFor="nome-usuario">Nome</label>
         <input id="nome-usuario" name="nome" className="field" required minLength={3} />
@@ -83,10 +84,12 @@ export function FormularioUsuario({ supervisores }: { supervisores: Supervisor[]
         </div>
       )}
 
-      <Botao />
+      <div className="sm:col-span-2 xl:col-span-1 grid gap-3">
+        <Botao />
 
-      {estado?.ok && <p role="status" className="text-label text-ink-muted m-0">{estado.mensagem}</p>}
-      {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+        {estado?.ok && <p role="status" className="text-label text-ink-muted m-0">{estado.mensagem}</p>}
+        {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+      </div>
     </form>
   );
 }

@@ -22,8 +22,12 @@ export default async function PaginaUsuarios() {
     supabase.from("supervisores").select("id, nome, email, ativo").eq("ativo", true).order("nome"),
   ]);
 
+  const lista = (usuarios ?? []) as Perfil[];
+  const nomeSupervisor = new Map(((supervisores ?? []) as Supervisor[]).map((s) => [s.id, s.nome]));
+  const ativos = lista.filter((u) => u.ativo).length;
+
   return (
-    <div className="max-w-[900px]">
+    <div className="max-w-[1280px]">
       <CabecalhoPagina
         trilha={[{ rotulo: "Administração" }, { rotulo: "Gestão de usuários" }]}
         titulo="Gestão de usuários"
@@ -35,38 +39,72 @@ export default async function PaginaUsuarios() {
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start">
+      <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)] items-start">
         <div className="card">
           <h2 className="text-[1.0625rem] mb-3">Novo acesso</h2>
           <FormularioUsuario supervisores={(supervisores ?? []) as Supervisor[]} />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="tabela">
-            <caption className="sr-only">Usuários cadastrados</caption>
-            <thead>
-              <tr>
-                <th scope="col">Nome</th>
-                <th scope="col">E-mail</th>
-                <th scope="col">Papel</th>
-                <th scope="col">Status</th>
-                <th scope="col"><span className="sr-only">Ações</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {((usuarios ?? []) as Perfil[]).map((u) => (
-                <tr key={u.id}>
-                  <td>{u.nome ?? "—"}</td>
-                  <td className="text-label">{u.email}</td>
-                  <td className="text-label">{PAPEL_ROTULO[u.papel] ?? u.papel}</td>
-                  <td className="text-label">{u.ativo ? "Ativo" : "Desativado"}</td>
-                  <td><BotaoAtivo id={u.id} ativo={u.ativo} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="card min-w-0">
+          <div className="flex items-baseline justify-between gap-3 mb-2">
+            <h2 className="text-[1.0625rem] m-0">Acessos</h2>
+            <span className="text-caption text-ink-faint tabular">
+              {ativos} ativo{ativos === 1 ? "" : "s"} de {lista.length}
+            </span>
+          </div>
 
-          {(usuarios ?? []).length === 0 && <Vazio>Nenhum usuário cadastrado.</Vazio>}
+          {lista.length === 0 ? (
+            <Vazio>Nenhum usuário cadastrado.</Vazio>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="tabela tabela--compacta">
+                <caption className="sr-only">Usuários cadastrados</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Usuário</th>
+                    <th scope="col" className="hidden sm:table-cell">Papel</th>
+                    <th scope="col" className="hidden sm:table-cell">Situação</th>
+                    <th scope="col"><span className="sr-only">Ações</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lista.map((u) => {
+                    const papel = PAPEL_ROTULO[u.papel] ?? u.papel;
+                    const equipe = u.papel === "supervisor" && u.supervisor_id ? nomeSupervisor.get(u.supervisor_id) : null;
+                    return (
+                      <tr key={u.id} className={u.ativo ? undefined : "opacity-60"}>
+                        <td className="min-w-0">
+                          <span className="block font-medium">{u.nome ?? "—"}</span>
+                          <span className="block text-caption text-ink-faint [overflow-wrap:anywhere]">{u.email}</span>
+                          {equipe && (
+                            <span className="block text-caption text-ink-muted">Equipe de {equipe}</span>
+                          )}
+                          {/* No celular, papel e situação vêm aqui. */}
+                          <span className="flex flex-wrap gap-1.5 mt-1.5 sm:hidden">
+                            <span className={`etiqueta ${u.papel === "admin" ? "etiqueta--solida" : "etiqueta--marca"}`}>{papel}</span>
+                            <span className={`etiqueta ${u.ativo ? "etiqueta--contorno" : "etiqueta--neutra"}`}>
+                              {u.ativo ? "Ativo" : "Desativado"}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell">
+                          <span className={`etiqueta ${u.papel === "admin" ? "etiqueta--solida" : "etiqueta--marca"}`}>{papel}</span>
+                        </td>
+                        <td className="hidden sm:table-cell">
+                          <span className={`etiqueta ${u.ativo ? "etiqueta--contorno" : "etiqueta--neutra"}`}>
+                            {u.ativo ? "Ativo" : "Desativado"}
+                          </span>
+                        </td>
+                        <td className="text-right">
+                          <BotaoAtivo id={u.id} ativo={u.ativo} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

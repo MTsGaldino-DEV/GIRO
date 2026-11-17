@@ -449,6 +449,29 @@ a {
   filter: drop-shadow(0 1px 2px rgb(19 37 35 / 0.07)) drop-shadow(0 8px 18px rgb(19 37 35 / 0.10));
 }
 
+/* Tabela de cadastro (Supervisores, Ausências, Usuários): poucas colunas, ao
+   lado de um formulário. Sem os 1000px do Radar nem os 310px da primeira
+   coluna — ali a primeira coluna pode ser só um checkbox. No celular, as
+   colunas secundárias somem (`hidden sm:table-cell`) e o resumo delas aparece
+   embaixo do nome. */
+.tabela.tabela--compacta { min-width: 0; border-spacing: 0 0.375rem; }
+.tabela--compacta td:first-child,
+.tabela--compacta th:first-child { min-width: 0; }
+.tabela--compacta th { padding: 0.25rem 0.75rem 0.25rem; }
+.tabela--compacta td { padding: 0.625rem 0.75rem; }
+.tabela--compacta .col-selecao { width: 2.75rem; padding-right: 0; }
+.tabela--compacta thead th { background: var(--color-surface); }
+
+/* Lista de Colaboradores: no desktop é a `.tabela` normal; abaixo de 1024px as
+   colunas secundárias somem e vão para baixo do nome, para o status caber na tela
+   sem rolar de lado. */
+@media (max-width: 1023px) {
+  .tabela.tabela--responsiva { min-width: 0; }
+  .tabela--responsiva td:first-child,
+  .tabela--responsiva th:first-child { min-width: 0; }
+  .tabela--responsiva td { padding: 0.625rem 0.75rem; }
+}
+
 /* Miniatura do colaborador na lista e no cabeçalho da página dele */
 .avatar-colaborador {
   display: grid;
@@ -1367,6 +1390,23 @@ a {
 .faixa-app {
   background:
     linear-gradient(var(--color-sidebar-bg), var(--color-sidebar-bg)) top / 100% 10.5rem no-repeat;
+}
+
+/* A faixa tem altura fixa; no celular o cabeçalho quebra em mais linhas (título,
+   descrição, ações) e passaria dela — o botão "Atualizar agora" ficava branco
+   sobre claro. O próprio cabeçalho estende a faixa por trás dele. Pseudo-elemento
+   e não clip-path para não cortar as dicas (.info) que abrem para baixo. */
+.cabecalho-pagina { position: relative; isolation: isolate; }
+.cabecalho-pagina::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -1.5rem -1rem 0 -1rem;
+  background: var(--color-sidebar-bg);
+  pointer-events: none;
+}
+@media (min-width: 640px) {
+  .cabecalho-pagina::before { inset: -1.5rem -1.5rem 0 -1.5rem; }
 }
 
 /* O cabeçalho de cada tela fica sobre a faixa, então inverte as cores. */

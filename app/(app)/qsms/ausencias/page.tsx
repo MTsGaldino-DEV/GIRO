@@ -39,7 +39,7 @@ export default async function PaginaAusencias() {
   const ausencias = (ausenciasBrutas ?? []) as unknown as AusenciaComNome[];
 
   return (
-    <div className="max-w-[900px]">
+    <div className="max-w-[1280px]">
       <CabecalhoPagina
         trilha={[{ rotulo: "Cadastros" }, { rotulo: "Ausências" }]}
         titulo="Ausências"
@@ -60,53 +60,71 @@ export default async function PaginaAusencias() {
         </Aviso>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] items-start">
+      <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)] items-start">
         <div className="card">
-          <h2 className="text-[1.0625rem] mb-3">Registrar</h2>
+          <h2 className="text-[1.0625rem] mb-3">Registrar ausência</h2>
           <FormularioAusencia colaboradores={colaboradores ?? []} />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="tabela">
-            <caption className="sr-only">Ausências registradas</caption>
-            <thead>
-              <tr>
-                <th scope="col">Colaborador</th>
-                <th scope="col">Tipo</th>
-                <th scope="col">Início</th>
-                <th scope="col">Retorno</th>
-                <th scope="col"><span className="sr-only">Ações</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {ausencias.map((a) => (
-                <tr key={a.id}>
-                  <td>
-                    {a.colaboradores?.nome ?? "—"}
-                    <span className="block text-caption text-ink-faint tabular">
-                      {a.colaboradores?.matricula}
-                    </span>
-                  </td>
-                  <td className="text-label">
-                    {TIPO_AUSENCIA_ROTULO[a.tipo] ?? a.tipo}
-                  </td>
-                  <td className="tabular">{formatarData(a.data_inicio)}</td>
-                  <td className="tabular">
-                    {a.data_fim ? (
-                      formatarData(a.data_fim)
-                    ) : (
-                      <span className="text-ink-faint text-label">sem previsão</span>
-                    )}
-                  </td>
-                  <td>
-                    <BotaoRemover id={a.id} nome={a.colaboradores?.nome ?? "colaborador"} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="card min-w-0">
+          <div className="flex items-baseline justify-between gap-3 mb-2">
+            <h2 className="text-[1.0625rem] m-0">Registradas</h2>
+            <span className="text-caption text-ink-faint tabular">{ausencias.length}</span>
+          </div>
 
-          {ausencias.length === 0 && <Vazio>Nenhuma ausência registrada.</Vazio>}
+          {ausencias.length === 0 ? (
+            <Vazio>Nenhuma ausência registrada.</Vazio>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="tabela tabela--compacta">
+                <caption className="sr-only">Ausências registradas</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Colaborador</th>
+                    <th scope="col" className="hidden sm:table-cell">Tipo</th>
+                    <th scope="col" className="hidden sm:table-cell">Início</th>
+                    <th scope="col" className="hidden sm:table-cell">Retorno</th>
+                    <th scope="col"><span className="sr-only">Ações</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ausencias.map((a) => {
+                    const tipo = TIPO_AUSENCIA_ROTULO[a.tipo] ?? a.tipo;
+                    const retorno = a.data_fim ? formatarData(a.data_fim) : "sem previsão";
+                    return (
+                      <tr key={a.id}>
+                        <td className="min-w-0">
+                          <span className="block">{a.colaboradores?.nome ?? "—"}</span>
+                          <span className="block text-caption text-ink-faint tabular">
+                            {a.colaboradores?.matricula}
+                          </span>
+                          {/* No celular as colunas somem; o resumo vem aqui. */}
+                          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 sm:hidden text-caption text-ink-muted tabular">
+                            <span className="etiqueta etiqueta--neutra">{tipo}</span>
+                            {formatarData(a.data_inicio)} → {retorno}
+                          </span>
+                        </td>
+                        <td className="hidden sm:table-cell">
+                          <span className="etiqueta etiqueta--neutra">{tipo}</span>
+                        </td>
+                        <td className="hidden sm:table-cell tabular whitespace-nowrap">{formatarData(a.data_inicio)}</td>
+                        <td className="hidden sm:table-cell tabular whitespace-nowrap">
+                          {a.data_fim ? (
+                            formatarData(a.data_fim)
+                          ) : (
+                            <span className="text-ink-faint text-label">sem previsão</span>
+                          )}
+                        </td>
+                        <td className="text-right">
+                          <BotaoRemover id={a.id} nome={a.colaboradores?.nome ?? "colaborador"} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

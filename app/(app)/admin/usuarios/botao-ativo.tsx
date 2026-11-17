@@ -9,7 +9,7 @@ function Botao({ ativo }: { ativo: boolean }) {
   return (
     <button
       type="submit"
-      className="text-label text-ink-muted underline underline-offset-2 bg-transparent border-0 cursor-pointer p-2 -m-2"
+      className="btn btn--secondary btn--sm whitespace-nowrap"
       disabled={pending} aria-busy={pending}
     >
       {pending ? "Salvando…" : ativo ? "Desativar" : "Reativar"}

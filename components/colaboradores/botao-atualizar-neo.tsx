@@ -30,7 +30,7 @@ export function BotaoAtualizarNeo({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1 text-right">
+    <div className="flex flex-col items-start sm:items-end gap-1 sm:text-right">
       <button
         type="button"
         className="btn btn--secondary"

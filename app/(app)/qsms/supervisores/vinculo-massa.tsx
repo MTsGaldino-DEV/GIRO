@@ -18,7 +18,7 @@ interface ColaboradorSimples {
 function Botao({ quantidade }: { quantidade: number }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className="btn btn--primary" disabled={pending || quantidade === 0} aria-busy={pending}>
+    <button type="submit" className="btn btn--primary w-full sm:w-auto" disabled={pending || quantidade === 0} aria-busy={pending}>
       {pending ? "Vinculando…" : `Vincular ${quantidade || ""}`.trim()}
     </button>
   );
@@ -59,8 +59,9 @@ export function VinculoEmMassa({
 
   return (
     <form action={acao}>
-      <div className="flex flex-wrap items-end gap-3 mb-3">
-        <div className="min-w-[200px]">
+      {/* Barra de ação: no celular empilha (select e botão na largura toda). */}
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,320px)_auto_minmax(0,1fr)] sm:items-end mb-3">
+        <div className="min-w-0">
           <label className="label" htmlFor="supervisor-destino">Vincular a</label>
           <select id="supervisor-destino" name="supervisor_id" className="field" required>
             <option value="">Escolha o supervisor</option>
@@ -70,61 +71,80 @@ export function VinculoEmMassa({
           </select>
         </div>
         <Botao quantidade={selecionados.size} />
-        {estado?.ok && (
-          <span role="status" className="text-label text-ink-muted">{estado.mensagem}</span>
-        )}
+        <p className="text-label text-ink-muted m-0 tabular sm:text-right sm:self-center">
+          {selecionados.size > 0
+            ? `${selecionados.size} de ${colaboradores.length} selecionado${selecionados.size > 1 ? "s" : ""}`
+            : `${colaboradores.length} colaborador${colaboradores.length > 1 ? "es" : ""} no filtro`}
+        </p>
       </div>
 
+      {estado?.ok && (
+        <p role="status" className="text-label text-ink-muted mb-3">{estado.mensagem}</p>
+      )}
       {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
 
       {[...selecionados].map((id) => (
         <input key={id} type="hidden" name="ids" value={id} />
       ))}
 
-      <div className="overflow-x-auto max-h-[520px] overflow-y-auto border border-line rounded-[var(--radius)]">
-        <table className="tabela">
+      <div className="overflow-auto max-h-[min(560px,65vh)] rounded-[var(--radius)] border border-line px-2">
+        <table className="tabela tabela--compacta">
           <caption className="sr-only">Colaboradores para vincular a um supervisor</caption>
-          <thead className="sticky top-0 bg-surface">
+          <thead className="sticky top-0 z-[1]">
             <tr>
-              <th scope="col" className="w-10">
+              <th scope="col" className="col-selecao">
                 <input
                   type="checkbox"
-                  className="size-4"
+                  className="size-5 align-middle"
                   checked={todosMarcados}
                   onChange={alternarTodos}
                   aria-label="Selecionar todos"
                 />
               </th>
-              <th scope="col">Matrícula</th>
               <th scope="col">Colaborador</th>
-              <th scope="col">Cargo</th>
-              <th scope="col">Supervisor atual</th>
+              <th scope="col" className="hidden sm:table-cell">Matrícula</th>
+              <th scope="col" className="hidden md:table-cell">Cargo</th>
+              <th scope="col" className="hidden sm:table-cell">Supervisor atual</th>
             </tr>
           </thead>
           <tbody>
-            {colaboradores.map((c) => (
-              <tr key={c.id}>
-                <td>
-                  <input
-                    type="checkbox"
-                    className="size-4"
-                    checked={selecionados.has(c.id)}
-                    onChange={() => alternar(c.id)}
-                    aria-label={`Selecionar ${c.nome}`}
-                  />
-                </td>
-                <td className="tabular text-ink-muted">{c.matricula}</td>
-                <td>{c.nome}</td>
-                <td className="text-label text-ink-muted">{c.cargo ?? "—"}</td>
-                <td className="text-label">
-                  {c.supervisor_id ? (
-                    porId.get(c.supervisor_id) ?? "—"
-                  ) : (
-                    <span className="text-ink-faint">Sem supervisor</span>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {colaboradores.map((c) => {
+              const marcado = selecionados.has(c.id);
+              const supervisorAtual = c.supervisor_id ? porId.get(c.supervisor_id) ?? "—" : null;
+              return (
+                <tr key={c.id}>
+                  <td className="col-selecao">
+                    <input
+                      id={`sel-${c.id}`}
+                      type="checkbox"
+                      className="size-5 align-middle"
+                      checked={marcado}
+                      onChange={() => alternar(c.id)}
+                    />
+                  </td>
+                  <td>
+                    {/* O nome também marca a linha: alvo de toque maior no celular. */}
+                    <label htmlFor={`sel-${c.id}`} className="block cursor-pointer min-w-0">
+                      <span className="block">{c.nome}</span>
+                      <span className="block md:hidden text-caption text-ink-faint">
+                        <span className="sm:hidden tabular">{c.matricula}</span>
+                        {c.cargo && <span className="sm:hidden"> · </span>}
+                        {c.cargo}
+                        <span className="sm:hidden">
+                          {" · "}
+                          {supervisorAtual ?? "Sem supervisor"}
+                        </span>
+                      </span>
+                    </label>
+                  </td>
+                  <td className="hidden sm:table-cell tabular text-ink-muted">{c.matricula}</td>
+                  <td className="hidden md:table-cell text-label text-ink-muted">{c.cargo ?? "—"}</td>
+                  <td className="hidden sm:table-cell text-label">
+                    {supervisorAtual ?? <span className="text-ink-faint">Sem supervisor</span>}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

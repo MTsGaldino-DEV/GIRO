@@ -51,8 +51,11 @@ export function NomesNeoSemVinculo({
       </p>
       <ul className="list-none p-0 m-0 grid gap-3">
         {nomes.map((n, i) => (
-          <li key={n.texto} className="flex flex-wrap items-center gap-3">
-            <span className="min-w-[180px]">
+          <li
+            key={n.texto}
+            className="grid gap-2 sm:gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,300px)_auto] sm:items-center pb-3 border-b border-line last:border-0 last:pb-0"
+          >
+            <span className="min-w-0">
               <span className="block font-medium break-words">{n.texto}</span>
               <span className="block text-caption text-ink-faint tabular">
                 {n.quantidade} {n.quantidade === 1 ? "pessoa" : "pessoas"}
@@ -76,7 +79,7 @@ export function NomesNeoSemVinculo({
             </select>
             <button
               type="button"
-              className="btn btn--secondary"
+              className="btn btn--secondary w-full sm:w-auto"
               onClick={() => vincular(n.texto)}
               disabled={pendente}
               aria-busy={pendente && emAcao === n.texto}

@@ -22,8 +22,9 @@ export function FormularioAusencia({
   const [estado, acao] = useActionState<Acao | null, FormData>(registrarAusencia, null);
 
   return (
-    <form action={acao} className="grid gap-3">
-      <div>
+    // Tablet: duas colunas (o cartão ocupa a largura toda). Desktop largo: uma, ao lado da lista.
+    <form action={acao} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+      <div className="sm:col-span-2 xl:col-span-1">
         <label className="label" htmlFor="colaborador">Colaborador</label>
         <select id="colaborador" name="colaborador_id" className="field" required>
           <option value="">Escolha</option>
@@ -56,12 +57,14 @@ export function FormularioAusencia({
         <input id="data_fim" name="data_fim" type="date" className="field" />
       </div>
 
-      <Botao />
+      <div className="sm:col-span-2 xl:col-span-1 grid gap-3">
+        <Botao />
 
-      {estado?.ok && (
-        <p role="status" className="text-label text-ink-muted m-0">{estado.mensagem}</p>
-      )}
-      {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+        {estado?.ok && (
+          <p role="status" className="text-label text-ink-muted m-0">{estado.mensagem}</p>
+        )}
+        {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
+      </div>
     </form>
   );
 }

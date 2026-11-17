@@ -228,16 +228,16 @@ export function ListaColaboradores({
         <h2 className="sr-only">{desligados ? "Colaboradores desligados" : "Colaboradores ativos"}</h2>
         {linhas.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="tabela">
+            <table className="tabela tabela--responsiva">
               <caption className="sr-only">
                 {desligados ? "Colaboradores desligados" : "Colaboradores ativos, do pior status ao melhor"}
               </caption>
               <thead>
                 <tr>
                   <th scope="col">Colaborador</th>
-                  <th scope="col">Matrícula</th>
-                  <th scope="col">Cargo</th>
-                  <th scope="col">Supervisor</th>
+                  <th scope="col" className="hidden md:table-cell">Matrícula</th>
+                  <th scope="col" className="hidden lg:table-cell">Cargo</th>
+                  <th scope="col" className="hidden lg:table-cell">Supervisor</th>
                   <th scope="col">{desligados ? "Situação" : "Status"}</th>
                   {desligados && (
                     <th scope="col" className="text-right">
@@ -352,16 +352,23 @@ function LinhaColaborador({
       <td>
         <div className="flex items-center gap-2.5 min-w-0">
           <AvatarColaborador nome={pessoa.nome} fotoUrl={fotoUrl} />
-          <BotaoNomeColaborador
-            colaboradorId={pessoa.colaborador_id}
-            nome={pessoa.nome}
-            aba={pessoa.ativo ? undefined : "cadastro"}
-          />
+          <div className="min-w-0">
+            <BotaoNomeColaborador
+              colaboradorId={pessoa.colaborador_id}
+              nome={pessoa.nome}
+              aba={pessoa.ativo ? undefined : "cadastro"}
+            />
+            {/* Abaixo de 1024px as colunas secundárias vêm aqui. */}
+            <span className="block lg:hidden text-caption text-ink-faint">
+              <span className="md:hidden tabular">{pessoa.matricula} · </span>
+              {pessoa.cargo ?? "—"} · {pessoa.supervisor_nome ?? "Sem supervisor"}
+            </span>
+          </div>
         </div>
       </td>
-      <td className="tabular">{pessoa.matricula}</td>
-      <td className="text-label">{pessoa.cargo ?? <span className="text-ink-faint">—</span>}</td>
-      <td className="text-label">
+      <td className="hidden md:table-cell tabular">{pessoa.matricula}</td>
+      <td className="hidden lg:table-cell text-label">{pessoa.cargo ?? <span className="text-ink-faint">—</span>}</td>
+      <td className="hidden lg:table-cell text-label">
         {pessoa.supervisor_nome ?? <span className="text-ink-faint">Sem supervisor</span>}
       </td>
       <td>
