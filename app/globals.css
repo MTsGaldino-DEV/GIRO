@@ -1308,6 +1308,81 @@ a {
 .kpi[data-vazio="true"] .kpi__numero { color: var(--color-ink-faint); }
 .kpi__nota--sua-vez { color: var(--color-brand); font-weight: 500; }
 
+/* Abas de etapa do Radar (components/radar/abas-etapa.tsx): filtros em barra,
+   rolável na horizontal sem barra visível. Aba ativa: texto e sublinhado de 2px
+   em petróleo; contagem em petróleo cheio. "Sua vez": contagem em petróleo suave. */
+.abas-etapa {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--color-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.abas-etapa::-webkit-scrollbar { display: none; }
+.abas-etapa__aba {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 52px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.abas-etapa__aba:hover { color: var(--color-ink); }
+.abas-etapa__aba:focus-visible { outline: 2px solid var(--color-brand); outline-offset: -2px; border-radius: 6px; }
+.abas-etapa__aba[aria-pressed="true"] { color: var(--color-brand); font-weight: 500; }
+.abas-etapa__aba[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-brand);
+}
+.abas-etapa__contagem {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--color-surface-2);
+  color: var(--color-ink-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.abas-etapa__aba[data-sua-vez="true"] .abas-etapa__contagem { background: var(--color-brand-wash); color: var(--color-brand); }
+.abas-etapa__aba[aria-pressed="true"] .abas-etapa__contagem { background: var(--color-brand); color: #fff; }
+.abas-etapa__vez {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-brand);
+  flex: none;
+}
+.abas-etapa__legenda {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 0 12px 0 24px;
+  align-self: center;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--color-ink-faint);
+}
+
 /* Filtro em pílula (components/filtro-suspenso.tsx), no lugar do <select>. */
 .filtro-suspenso {
   display: inline-flex;

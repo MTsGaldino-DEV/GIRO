@@ -14,6 +14,7 @@
     "teste:consulta": "node --experimental-strip-types scripts/teste-consulta-itens.mjs",
     "teste:acoes": "node --experimental-strip-types scripts/teste-acoes-etapa.mjs",
     "teste:faixa": "node --experimental-strip-types scripts/teste-faixa.mjs",
+    "teste:abas": "node --experimental-strip-types scripts/teste-abas-etapa.mjs",
     "teste:sidebar": "node --experimental-strip-types scripts/teste-sidebar.mjs",
     "teste:geset-ui": "node --experimental-strip-types scripts/teste-consulta-geset.mjs",
     "teste:tratamento": "node --experimental-strip-types scripts/teste-tratamento.mjs",

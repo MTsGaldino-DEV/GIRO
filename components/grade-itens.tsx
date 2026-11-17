@@ -33,7 +33,7 @@ import { Info } from "@/components/info";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { IconeBusca } from "@/components/icones";
 import { AcoesLinha } from "@/components/radar/botao-acao-linha";
-import { CartoesEtapa } from "@/components/radar/cartoes-etapa";
+import { AbasEtapa } from "@/components/radar/abas-etapa";
 import { FiltroSuspenso } from "@/components/filtro-suspenso";
 import type { AoConcluir } from "@/components/formularios-item";
 import type { Etapa, ItemAberto, Papel, StatusConformidade, Supervisor } from "@/lib/tipos";
@@ -251,7 +251,7 @@ export function GradeItens({
 
   return (
     <>
-      <CartoesEtapa
+      <AbasEtapa
         papel={escopo.papel}
         contagens={contagens}
         etapaAtiva={filtros.etapa}
