@@ -476,7 +476,14 @@ export function Sidebar({
 
   useEffect(() => {
     function aoTeclar(evento: KeyboardEvent) {
+      // Escape dispensa a dica (WCAG 1.4.13) sem interferir nos menus do Radix.
+      if (evento.key === "Escape") {
+        setDica(null);
+        return;
+      }
       if (!ehAtalhoAlternar(evento)) return;
+      // Abaixo de 1024px a coluna é gaveta: não há trilho para recolher.
+      if (window.matchMedia("(max-width: 1023.98px)").matches) return;
       evento.preventDefault();
       alternar();
     }

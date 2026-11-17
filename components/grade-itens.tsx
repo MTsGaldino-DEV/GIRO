@@ -42,7 +42,7 @@ import type { Etapa, ItemAberto, Papel, StatusConformidade, Supervisor } from "@
 
 /** O que `GradeItens` precisa saber de quem está olhando, já resolvido no servidor. */
 export interface EscopoRadar {
-  /** Papel de quem olha: decide quais filas a faixa "Para você agir" mostra. */
+  /** Papel de quem olha: decide quais abas de etapa são "sua vez". */
   papel: Papel;
   equipePadrao: Equipe;
   /** `supervisor_id` do perfil logado; null = sem equipe vinculada. */
@@ -83,7 +83,7 @@ export function GradeItens({
   fotosIniciais: Record<string, string>;
   supervisores: Supervisor[];
   requisitos: string[];
-  /** Contagens da faixa "Para você agir" por etapa, calculadas no servidor. */
+  /** Contagens das abas de etapa, calculadas no servidor. */
   contagensIniciais: Record<string, number>;
   escopo: EscopoRadar;
 }) {
@@ -123,7 +123,7 @@ export function GradeItens({
     setFotos(mapa);
   }, [escopo.supervisorId]);
 
-  // Contagens da faixa: mesma regra e mesmo escopo da lista (ver
+  // Contagens das abas de etapa: mesma regra e mesmo escopo da lista (ver
   // `contarItensPorEtapa`). Roda quando o escopo muda e depois de cada ação.
   const requisicaoContagem = useRef(0);
   const atualizarContagens = useCallback(
@@ -214,7 +214,7 @@ export function GradeItens({
   // Depois de uma ação da linha: a mensagem do servidor fica acima da lista,
   // a página atual é consultada de novo (o item mudou de etapa ou saiu) e o
   // `router.refresh()` atualiza o que vem do servidor — contagens do topo e a
-  // faixa da base; as contagens da faixa "Para você agir" são refeitas junto.
+  // faixa da base; as contagens das abas de etapa são refeitas junto.
   // Os filtros vão por ref para o callback ser estável: ele
   // desce até os formulários, que avisam a conclusão num efeito.
   const router = useRouter();

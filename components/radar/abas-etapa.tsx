@@ -26,25 +26,27 @@ export function AbasEtapa({
   const temSuaVez = abas.some((a) => a.suaVez);
 
   return (
-    <div className="abas-etapa" role="group" aria-label="Etapas">
-      {abas.map((aba) => {
-        const ativa = aba.etapa === etapaAtiva;
-        return (
-          <button
-            key={aba.etapa ?? "todos"}
-            type="button"
-            className="abas-etapa__aba"
-            aria-pressed={ativa}
-            data-sua-vez={aba.suaVez ? "true" : undefined}
-            onClick={() => aoEscolher(ativa && aba.etapa !== undefined ? undefined : aba.etapa)}
-          >
-            {aba.suaVez && <span className="abas-etapa__vez" aria-hidden="true" />}
-            {aba.rotulo}
-            <span className="abas-etapa__contagem">{aba.quantidade}</span>
-            {aba.suaVez && <span className="sr-only"> — sua vez de agir</span>}
-          </button>
-        );
-      })}
+    <div className="abas-etapa-bloco">
+      <div className="abas-etapa" role="group" aria-label="Etapas">
+        {abas.map((aba) => {
+          const ativa = aba.etapa === etapaAtiva;
+          return (
+            <button
+              key={aba.etapa ?? "todos"}
+              type="button"
+              className="abas-etapa__aba"
+              aria-pressed={ativa}
+              data-sua-vez={aba.suaVez ? "true" : undefined}
+              onClick={() => aoEscolher(ativa && aba.etapa !== undefined ? undefined : aba.etapa)}
+            >
+              {aba.suaVez && <span className="abas-etapa__vez" aria-hidden="true" />}
+              {aba.rotulo}
+              <span className="abas-etapa__contagem">{aba.quantidade}</span>
+              {aba.suaVez && <span className="sr-only"> — sua vez de agir</span>}
+            </button>
+          );
+        })}
+      </div>
       {temSuaVez && (
         <span className="abas-etapa__legenda">
           <span className="abas-etapa__vez" aria-hidden="true" />

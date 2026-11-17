@@ -820,7 +820,7 @@ a {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
-  color: rgb(143 166 162 / 0.7);
+  color: rgb(143 166 162);
 }
 .sidebar__bloco:first-child .sidebar__secao { margin-top: 0.25rem; }
 .sidebar__secao span { transition: opacity var(--duracao-rapida) var(--ease-giro); }
@@ -1295,17 +1295,28 @@ a {
 .legenda-status__cor.kpi--ok        { background: var(--color-status-regular-fg); }
 
 /* Abas de etapa do Radar (components/radar/abas-etapa.tsx): filtros em barra,
-   rolável na horizontal sem barra visível. Aba ativa: texto e sublinhado de 2px
-   em petróleo; contagem em petróleo cheio. "Sua vez": contagem em petróleo suave. */
+   rolável na horizontal com barra fina visível (em telas de ~1366px as abas
+   passam da largura). Aba ativa: texto e sublinhado de 2px em petróleo;
+   contagem em petróleo cheio. "Sua vez": contagem em petróleo suave.
+   A legenda "Sua vez de agir" fica fora da faixa rolável: abaixo das abas até
+   1439px e à direita delas a partir de 1440px, para não roubar largura. */
+.abas-etapa-bloco {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--color-line);
+}
 .abas-etapa {
   display: flex;
   gap: 4px;
+  min-width: 0;
   padding: 0 12px;
-  border-bottom: 1px solid var(--color-line);
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
 }
-.abas-etapa::-webkit-scrollbar { display: none; }
+.abas-etapa::-webkit-scrollbar { height: 6px; }
+.abas-etapa::-webkit-scrollbar-track { background: transparent; }
+.abas-etapa::-webkit-scrollbar-thumb { background: var(--color-line-strong); border-radius: 3px; }
 .abas-etapa__aba {
   position: relative;
   display: inline-flex;
@@ -1361,12 +1372,15 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-left: auto;
-  padding: 0 12px 0 24px;
-  align-self: center;
+  padding: 4px 24px 10px;
   white-space: nowrap;
   font-size: 0.75rem;
-  color: var(--color-ink-faint);
+  color: var(--color-ink-muted);
+}
+@media (min-width: 1440px) {
+  .abas-etapa-bloco { flex-direction: row; align-items: center; }
+  .abas-etapa { flex: 1 1 auto; }
+  .abas-etapa__legenda { flex: none; padding: 0 12px 0 24px; }
 }
 
 /* --------------------------------------------------------------------------
@@ -1437,7 +1451,8 @@ a {
   background: var(--color-surface);
   border-color: var(--color-brand);
   box-shadow: 0 0 0 3px var(--color-brand-wash);
-  outline: none;
+  outline: 2px solid var(--color-brand);
+  outline-offset: 1px;
 }
 
 .quadro-lista {
@@ -1498,7 +1513,7 @@ a {
   padding: 14px 24px;
   border-top: 1px solid var(--color-line);
   font-size: 0.75rem;
-  color: var(--color-ink-faint);
+  color: var(--color-ink-muted);
 }
 .paginacao-lista__paginas {
   display: flex;
@@ -1822,9 +1837,9 @@ button.filtro-suspenso[aria-pressed="true"] { border-color: var(--color-brand); 
   border-radius: var(--radius-lg);
   background: linear-gradient(
     90deg,
-    var(--color-mist) 25%,
-    var(--color-line) 37%,
-    var(--color-mist) 63%
+    rgb(19 37 35 / 0.06) 25%,
+    rgb(19 37 35 / 0.12) 37%,
+    rgb(19 37 35 / 0.06) 63%
   );
   background-size: 400% 100%;
   animation: esqueleto-brilho 1.4s ease infinite;

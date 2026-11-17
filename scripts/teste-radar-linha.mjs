@@ -29,6 +29,9 @@ caso("regular com 0 dias", () =>
 caso("sem registro e sem dias vira traço", () =>
   assert.deepEqual(textoFaltam("sem_registro", null), { texto: "—", vencido: false }));
 
+caso("vencido sem dias vira traço e não é marcado como vencido", () =>
+  assert.deepEqual(textoFaltam("vencido", null), { texto: "—", vencido: false }));
+
 caso("atenção sem dias vira traço", () =>
   assert.deepEqual(textoFaltam("atencao", null), { texto: "—", vencido: false }));
 
@@ -37,6 +40,7 @@ caso("admin conta como qsms", () => assert.equal(ehVezDe("admin", "qsms"), true)
 caso("supervisor é a vez do supervisor", () => assert.equal(ehVezDe("supervisor", "supervisor"), true));
 caso("supervisor não age em etapa do qsms", () => assert.equal(ehVezDe("supervisor", "qsms"), false));
 caso("qsms não age em etapa do supervisor", () => assert.equal(ehVezDe("qsms", "supervisor"), false));
+caso("admin não age em etapa do supervisor", () => assert.equal(ehVezDe("admin", "supervisor"), false));
 caso("ninguém nunca é a vez", () => assert.equal(ehVezDe("qsms", "ninguem"), false));
 caso("papel desconhecido nunca é a vez", () => assert.equal(ehVezDe("outro", "qsms"), false));
 

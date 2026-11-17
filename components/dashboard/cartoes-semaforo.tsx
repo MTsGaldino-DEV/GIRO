@@ -42,8 +42,8 @@ export function CartoesSemaforo({
 
   return (
     <section aria-labelledby="titulo-semaforo">
-      {/* Título só para leitor de tela: visualmente os cartões encostam na faixa
-          escura, e o total de pessoas já está no subtítulo do cabeçalho. */}
+      {/* Título só para leitor de tela: visualmente os cartões abrem a página logo
+          abaixo do cabeçalho, e o total de pessoas já está no subtítulo dele. */}
       <h2 id="titulo-semaforo" className="sr-only">
         {contagem ? `Situação das ${contagem.total} pessoas, no pior status entre ASO e AVP` : "Situação das pessoas"}
       </h2>

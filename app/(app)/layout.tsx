@@ -14,7 +14,8 @@ async function contarTratamento(): Promise<number | undefined> {
   try {
     const supabase = await criarClienteServidor();
     return (await carregarTratamento(supabase)).length;
-  } catch {
+  } catch (erro) {
+    console.error("Layout: falha ao contar tarefas de tratamento", erro);
     return undefined;
   }
 }

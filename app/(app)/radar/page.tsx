@@ -53,8 +53,8 @@ export default async function Radar({
     return paginaGeset(supabase, pedidos);
   }
 
-  // Consultas independentes entre si, disparadas juntas. As contagens dos
-  // cartões de etapa entram aqui: o HTML já chega com os números.
+  // Consultas independentes entre si, disparadas juntas. As contagens das
+  // abas de etapa entram aqui: o HTML já chega com os números.
   const [contagensIniciais, { data: supervisoresBrutos }, { data: tipos }, pendentesGeset] = await Promise.all([
     contarItensPorEtapa(
       supabase,

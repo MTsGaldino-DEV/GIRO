@@ -953,8 +953,8 @@ exigem `fn_e_qsms()`.
   Faltam: variáveis na Vercel; cadastrar os 7 supervisores.
 - **17/11/2026 — feito:** Matheus cadastrou os 7 supervisores e atualizou; equipes
   preenchidas pela NEO (Pedro 75, Elton 41, Kesia 38, Vinicius 38, Victor 31,
-  Daniel 12, Elen 6; 11 sem supervisor). `matheus.galdino@engelmig.com.br`
-  promovido a `admin` (pedido de Matheus, update direto em `perfis`).
+  Daniel 12, Elen 6; 11 sem supervisor). A conta de Matheus
+  promovida a `admin` (pedido de Matheus, update direto em `perfis`).
 - **17/11/2026 — variáveis NEO_INTEGRACAO_* postas na Vercel por Matheus.** Falta
   confirmar em produção: redeploy (variável nova só vale em deploy novo) e um
   "Atualizar agora" — conferir em `neo_sincronizacoes` uma linha `manual` sem
@@ -1104,8 +1104,11 @@ Matheus; ele aprovou o desenho abaixo. **Aplicado ao sistema em 17/11/2026**
   `vw_itens_abertos.dono` e `FAIXA_PARA_AGIR`):** Pendente QSMS; Data solicitada
   Supervisão; Data proposta QSMS (agenda); **Agendado Supervisão** (marca enviado
   à clínica); Enviado à clínica Supervisão; **Aguardando documento QSMS** (anexa o
-  ASO); Inapto QSMS. Corrigir o banco (Pendente → qsms) e o app (Agendado →
-  supervisor; incluir Aguardando documento no QSMS).
+  ASO); Inapto QSMS. Banco (Pendente → qsms) e app (Agendado → supervisor;
+  Aguardando documento no QSMS) corrigidos na Tarefa 3.
+- **Pendente de decisão:** e-mail semanal — itens Pendente (dono qsms desde 0025)
+  saíram do bloco "Precisa de você" do supervisor e não entram no digest do
+  QSMS; decidir antes de segunda 23/11 10:00 UTC.
 - **Decisão expressa (17/11):** quem não tem registro de ASO usa a **data de
   admissão** como ASO admissional: vencimento = admissão + 12 meses. Mexe no
   banco e em quem aparece como "Sem registro"; tarefa separada, **depois** do
