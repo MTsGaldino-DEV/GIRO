@@ -21,7 +21,6 @@ interface ColaboradorSimples {
   matricula: number;
   nome: string;
   cargo: string | null;
-  polo: string | null;
   supervisor_id: string | null;
 }
 
@@ -56,7 +55,7 @@ export default async function PaginaSupervisores({
 
   let consulta = supabase
     .from("colaboradores")
-    .select("id, matricula, nome, cargo, polo, supervisor_id")
+    .select("id, matricula, nome, cargo, supervisor_id")
     .eq("ativo", true)
     .order("nome");
 
@@ -84,7 +83,6 @@ export default async function PaginaSupervisores({
   return (
     <div>
       <CabecalhoPagina
-        trilha={[{ rotulo: "Cadastros" }, { rotulo: "Supervisores" }]}
         titulo="Supervisores e equipes"
         descricao={
           <span className="inline-flex items-center gap-2">

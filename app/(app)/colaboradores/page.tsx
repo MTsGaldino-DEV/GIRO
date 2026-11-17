@@ -56,7 +56,6 @@ export default async function Colaboradores({
   return (
     <div>
       <CabecalhoPagina
-        trilha={[{ rotulo: "Operação" }, { rotulo: "Colaboradores" }]}
         titulo="Colaboradores"
         descricao="Quem trabalha na UEN, com o pior status de cada pessoa. Abra o nome para ver o perfil."
       >

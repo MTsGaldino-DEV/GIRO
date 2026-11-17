@@ -19,11 +19,11 @@ export interface DegrauTrilha {
 /**
  * Trilha de navegação da tela.
  *
- * Usada solta pelas telas de detalhe que montam o próprio cabeçalho — a do
- * colaborador tem foto ao lado do nome, a do item tem selo de etapa — e por
- * dentro de `CabecalhoPagina` no resto. Substitui o link "← Voltar ao painel"
- * que essas páginas tinham: a trilha diz a mesma coisa e uma a mais, de onde se
- * veio E onde se está.
+ * Usada pelas telas de detalhe que montam o próprio cabeçalho — a do
+ * colaborador tem foto ao lado do nome, a do item tem selo de etapa — como
+ * "voltar". As telas de lista não têm trilha (`CabecalhoPagina` não a
+ * renderiza). Substitui o link "← Voltar ao painel" que essas páginas tinham:
+ * diz de onde se veio E onde se está.
  *
  * O separador é `<li>` irmão do degrau, nunca aninhado dentro dele: <li> dentro
  * de <li> é HTML inválido e alguns leitores de tela recontam a lista.

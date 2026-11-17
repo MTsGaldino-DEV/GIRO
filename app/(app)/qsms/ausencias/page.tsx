@@ -39,9 +39,8 @@ export default async function PaginaAusencias() {
   const ausencias = (ausenciasBrutas ?? []) as unknown as AusenciaComNome[];
 
   return (
-    <div className="max-w-[1280px]">
+    <div className="max-w-[1280px] mx-auto">
       <CabecalhoPagina
-        trilha={[{ rotulo: "Cadastros" }, { rotulo: "Ausências" }]}
         titulo="Ausências"
         descricao={
           <span className="inline-flex items-center gap-2">

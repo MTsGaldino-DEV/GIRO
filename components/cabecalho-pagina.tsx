@@ -1,38 +1,28 @@
-import { Trilha, type DegrauTrilha } from "@/components/trilha";
-
-export type { DegrauTrilha };
-
 /**
- * Cabeçalho padrão de página: trilha, título, subtítulo e as ações da tela.
+ * Cabeçalho padrão de página: título, descrição e as ações da tela.
  *
- * A trilha vem por prop em vez de ser deduzida do pathname porque metade dos
- * níveis do GIRO não está na URL: `/qsms/colaborador/3f2a…/aso` viraria
- * "qsms › colaborador › 3f2a…", que não é navegação, é o caminho do arquivo. O
- * nome do colaborador só a página que já o carregou conhece.
+ * Sem trilha: a navegação lateral já diz onde o usuário está. As telas de
+ * detalhe (colaborador, item) mantêm o `Trilha` como "voltar", fora daqui.
  *
- * Assenta sobre a faixa escura abaixo da navegação; `.cabecalho-pagina` em
- * globals.css inverte as cores do título, da trilha e do subtítulo.
+ * Assenta direto no fundo claro da aplicação; `.cabecalho-pagina` em
+ * globals.css só fixa o tamanho e o peso do título.
  *
  * É Server Component: nenhum estado, nenhum evento. Colocar "use client" aqui
  * arrastaria todas as páginas que o usam para o bundle do navegador.
  */
 export function CabecalhoPagina({
-  trilha,
   titulo,
   descricao,
   children,
 }: {
-  trilha?: DegrauTrilha[];
   titulo: React.ReactNode;
   descricao?: React.ReactNode;
-  /** Ações da tela — botões, atalhos. Alinhadas à direita do título. */
+  /** Ações da tela — botões, atalhos. Alinhadas ao fim, à direita do título. */
   children?: React.ReactNode;
 }) {
   return (
     <header className="cabecalho-pagina mb-5">
-      {trilha && trilha.length > 0 && <Trilha degraus={trilha} className="mb-2" />}
-
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
           <h1>{titulo}</h1>
           {descricao && <p className="text-ink-muted text-label mt-1 mb-0">{descricao}</p>}

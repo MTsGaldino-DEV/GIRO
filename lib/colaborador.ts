@@ -1,8 +1,7 @@
-import { cache } from "react";
 import { notFound } from "next/navigation";
 import { criarClienteServidor } from "./supabase/server";
 import { BUCKET_FOTOS } from "./storage";
-import type { ItemAberto, LinhaStatus, ResumoStatus } from "./tipos";
+import type { ItemAberto, LinhaStatus } from "./tipos";
 
 export { BUCKET_FOTOS } from "./storage";
 
@@ -105,34 +104,3 @@ export async function assinarFoto(caminho: string | null): Promise<string | null
   return mapa.get(caminho) ?? null;
 }
 
-/**
- * Contagem por status para o banner e para os cartões do painel.
- *
- * Em `cache()` porque o layout (banner global) e o painel do QSMS pedem os
- * mesmos números no mesmo request. Medido: era uma RPC de ~43 ms repetida a
- * cada carregamento de página, devolvendo por definição o mesmo resultado.
- */
-export const obterResumoStatus = cache(async function obterResumoStatus(): Promise<ResumoStatus | null> {
-  const supabase = await criarClienteServidor();
-  const { data } = await supabase.rpc("fn_resumo_status");
-  return (data?.[0] ?? null) as ResumoStatus | null;
-});
-
-/**
- * Polos distintos, para o filtro do painel.
- *
- * Não depende de nenhuma outra consulta — existe como função própria para
- * poder ser disparada junto das outras num `Promise.all` em vez de esperar a
- * fila inteira, que era o que acontecia antes (~38 ms no fim do caminho
- * crítico, sem motivo).
- */
-export async function obterPolos(): Promise<string[]> {
-  const supabase = await criarClienteServidor();
-  const { data } = await supabase
-    .from("colaboradores")
-    .select("polo")
-    .eq("ativo", true)
-    .not("polo", "is", null);
-
-  return [...new Set((data ?? []).map((p) => p.polo as string))].sort();
-}

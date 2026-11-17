@@ -34,14 +34,32 @@ C:\APPWEB\GIRO
 
 ## Fonte
 
-Adicione o Inter em `app/layout.tsx`:
+> **Atualização de 17/11/2026 (Matheus).** A casca do app passou de névoa
+> bege + Inter para cinza frio + IBM Plex Sans, sem a faixa escura no topo das
+> telas, sem trilha no cabeçalho de página e com o selo de status sem bolinha.
+> Esta seção e a de neutros abaixo substituem o registro anterior.
+
+IBM Plex Sans em `app/layout.tsx`, pesos 400, 500 e 600:
 
 ```tsx
-import { Inter } from "next/font/google";
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+import { IBM_Plex_Sans } from "next/font/google";
+const plex = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-plex", display: "swap" });
 ```
 
-E aplique `inter.variable` na tag `<html>`. O `globals.css` já declara `--font-sans` com fallback para Segoe UI, então funciona mesmo antes disso.
+A `variable` vai na tag `<html>`. O `globals.css` declara `--font-sans` começando por `var(--font-plex)`, com fallback para Segoe UI.
+
+## Neutros (frios)
+
+| Token | Valor | Uso |
+| --- | --- | --- |
+| `--color-mist` | `#E4E7EA` | fundo da aplicação |
+| `--color-surface` | `#FFFFFF` | cartões, tabelas |
+| `--color-surface-2` | `#F3F5F6` | superfície secundária |
+| `--color-ink` | `#1E2226` | texto primário |
+| `--color-ink-muted` | `#565D64` | texto secundário |
+| `--color-ink-faint` | `#858C93` | legendas, placeholders |
+| `--color-line` | `#E1E4E8` | divisórias |
+| `--color-line-strong` | `#C5CBD1` | bordas de campo |
 
 ## A regra que não pode ser quebrada
 
@@ -66,7 +84,7 @@ Semáforo, alinhado com os valores da view `vw_status_colaborador`:
 
 `sem-registro` usa o mesmo tratamento de `vencido` de propósito. Ausência de informação tem o mesmo peso operacional que ASO vencido — nos dois casos o colaborador não sobe em poste amanhã.
 
-Outras classes disponíveis: `.card`, `.banner-base`, `.btn` (`--primary`, `--secondary`), `.field`, `.label`, `.tabela`, `.dias-parados`, `.tabular`, `.sr-only`.
+Outras classes disponíveis: `.card`, `.btn` (`--primary`, `--secondary`), `.field`, `.label`, `.tabela`, `.dias-parados`, `.tabular`, `.sr-only`.
 
 ## Detalhes que já vieram resolvidos
 
@@ -74,7 +92,7 @@ Outras classes disponíveis: `.card`, `.banner-base`, `.btn` (`--primary`, `--se
 - `tabular-nums` nas células de tabela, matrículas e datas, para os dígitos não dançarem entre linhas.
 - `prefers-reduced-motion` respeitado.
 - Foco visível por teclado em todos os controles.
-- Apenas dois pesos de fonte, 400 e 500. Peso 600 ou 700 pesa demais numa tela de tabela densa.
+- Pesos 400 e 500 no painel; 600 só no título da página (`.cabecalho-pagina h1`). Peso 700 pesa demais numa tela de tabela densa.
 
 ## Limite do símbolo
 

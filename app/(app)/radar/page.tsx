@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { GradeItens } from "@/components/grade-itens";
-import { assinarFotos, obterPolos } from "@/lib/colaborador";
+import { assinarFotos } from "@/lib/colaborador";
 import {
   buscarPaginaItens,
   contarItensPorEtapa,
@@ -53,11 +53,9 @@ export default async function Radar({
     return paginaGeset(supabase, pedidos);
   }
 
-  // Consultas independentes entre si, disparadas juntas. Os polos ficavam por
-  // último, no fim da fila, esperando itens e fotos que não têm nada a ver com
-  // eles — 38 ms de espera pura, medidos. As contagens da faixa "Para você
-  // agir" entram aqui pelo mesmo motivo: o HTML já chega com os números.
-  const [contagensIniciais, { data: supervisoresBrutos }, polos, { data: tipos }, pendentesGeset] = await Promise.all([
+  // Consultas independentes entre si, disparadas juntas. As contagens dos
+  // cartões de etapa entram aqui: o HTML já chega com os números.
+  const [contagensIniciais, { data: supervisoresBrutos }, { data: tipos }, pendentesGeset] = await Promise.all([
     contarItensPorEtapa(
       supabase,
       ETAPAS_ABERTAS,
@@ -65,7 +63,6 @@ export default async function Radar({
       perfil.supervisor_id
     ),
     supabase.from("supervisores").select("id, nome, email, ativo").order("nome"),
-    obterPolos(),
     supabase.from("tipos_requisito").select("nome").eq("ativo", true).order("nome"),
     contarPendenciasGeset(supabase),
   ]);
@@ -81,7 +78,6 @@ export default async function Radar({
   return (
     <div>
       <CabecalhoPagina
-        trilha={[{ rotulo: "Operação" }, { rotulo: "Radar" }]}
         titulo="Radar"
         descricao="Vencidos, sem registro e quem vence em até 90 dias."
       >
@@ -95,7 +91,6 @@ export default async function Radar({
         filtrosIniciais={filtros}
         fotosIniciais={fotosIniciais}
         supervisores={supervisores}
-        polos={polos}
         requisitos={(tipos ?? []).map((t) => t.nome as string)}
         contagensIniciais={contagensIniciais}
         escopo={{
@@ -132,7 +127,6 @@ async function paginaGeset(
   return (
     <div>
       <CabecalhoPagina
-        trilha={[{ rotulo: "Operação" }, { rotulo: "Radar" }]}
         titulo="Radar"
         descricao="ASO e AVP concluídos que faltam lançar no GESET."
       >

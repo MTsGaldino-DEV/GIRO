@@ -22,13 +22,14 @@
   --color-brand-wash: #E3F1EF;     /* fundo de destaque suave */
 
   /* Neutros */
-  --color-ink: #23262B;            /* grafite — texto primário */
-  --color-ink-muted: #5F5E5A;      /* texto secundário */
-  --color-ink-faint: #8A8983;      /* legendas, placeholders */
-  --color-mist: #F2F1EC;           /* névoa — fundo da aplicação */
+  --color-ink: #1E2226;            /* grafite frio — texto primário */
+  --color-ink-muted: #565D64;      /* texto secundário */
+  --color-ink-faint: #858C93;      /* legendas, placeholders */
+  --color-mist: #E4E7EA;           /* névoa fria — fundo da aplicação */
   --color-surface: #FFFFFF;        /* cartões, tabelas */
-  --color-line: #E2E0D8;           /* divisórias */
-  --color-line-strong: #C9C7BE;
+  --color-surface-2: #F3F5F6;      /* superfície secundária — cabeçalho de tabela, blocos */
+  --color-line: #E1E4E8;           /* divisórias */
+  --color-line-strong: #C5CBD1;
 
   /* Status — uso exclusivo em indicador de conformidade */
   --color-status-regular-bg: #EAF3DE;
@@ -43,7 +44,7 @@
   --color-status-vencido-fg: #F2F1EC;
 
   /* Tipografia */
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-plex), "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", "Consolas", ui-monospace, monospace;
 
   --text-display: 2rem;
@@ -71,7 +72,7 @@
 
   /* Elevação
      A sombra é tingida de petróleo escuro (#132523), não de preto puro. Sombra
-     preta sobre a névoa quente do fundo (--color-mist, #F2F1EC) fica cinza-sujo
+     preta sobre a névoa fria do fundo (--color-mist, #E4E7EA) fica cinza-sujo
      e faz o cartão parecer descolado; o tom da própria marca mantém o conjunto
      coeso.
 
@@ -154,7 +155,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dois pesos apenas: 400 e 500. 600 e 700 pesam demais no painel. */
+/* Pesos 400 e 500 no painel; 600 só no título da página (.cabecalho-pagina h1). */
 h1, h2, h3, h4 {
   font-weight: 500;
   letter-spacing: -0.011em;
@@ -224,22 +225,12 @@ a {
 .status {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
+  padding: 0.25rem 0.75rem;
   border-radius: 999px;
   font-size: var(--text-label);
   font-weight: 500;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-}
-
-.status::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
 }
 
 .status--regular    { background: var(--color-status-regular-bg);    color: var(--color-status-regular-fg); }
@@ -272,20 +263,6 @@ a {
 .card--interativo:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-media);
-}
-
-/* Faixa fixa no topo enquanto houver colaborador sem data de referência.
-   Sai do ar sozinha quando a Fase 0 zerar. */
-.banner-base {
-  background: var(--color-status-vencido-bg);
-  color: var(--color-status-vencido-fg);
-  /* O texto alinha com a coluna de 1680px da barra e do conteúdo. */
-  padding: 0.75rem max(1.5rem, calc((100% - 1680px) / 2 + 1.5rem));
-  font-size: var(--text-label);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -737,8 +714,8 @@ a {
    de 1024px vira barra compacta com botão de menu e a coluna abre como gaveta.
    A cor é a da antiga sidebar (#132523), deliberadamente diferente do preto
    reservado do semáforo; o destaque é petróleo, nunca verde/âmbar/coral/vermelho.
-   A faixa escura (.faixa-app) continua no topo da coluna de conteúdo, onde o
-   cabeçalho de cada tela assenta.
+   A coluna de conteúdo é clara (névoa fria); o cabeçalho de cada tela assenta
+   direto no fundo, sem faixa escura.
    -------------------------------------------------------------------------- */
 
 .app-grade { min-height: 100dvh; }
@@ -1451,50 +1428,13 @@ button.filtro-suspenso[aria-pressed="true"] { border-color: var(--color-brand); 
   .info:focus-visible .info__dica { opacity: 0; translate: -50% -4px; }
 }
 
-/* Faixa escura abaixo da navegação. Fundo da área, não elemento próprio: não
-   anima na troca de página e não depende de qual tela está aberta. */
-@media (max-width: 639px) {
-  .banner-base { padding-inline: 1rem; }
+/* Gancho do cabeçalho de cada tela. Sem cor própria: o título assenta no
+   fundo claro da aplicação. Pesos: 600 só no título da página. */
+.cabecalho-pagina h1 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
-
-.faixa-app {
-  background:
-    linear-gradient(var(--color-sidebar-bg), var(--color-sidebar-bg)) top / 100% 10.5rem no-repeat;
-}
-
-/* A faixa tem altura fixa; no celular o cabeçalho quebra em mais linhas (título,
-   descrição, ações) e passaria dela — o botão "Atualizar agora" ficava branco
-   sobre claro. O próprio cabeçalho estende a faixa por trás dele. Pseudo-elemento
-   e não clip-path para não cortar as dicas (.info) que abrem para baixo. */
-.cabecalho-pagina { position: relative; isolation: isolate; }
-.cabecalho-pagina::before {
-  content: "";
-  position: absolute;
-  z-index: -1;
-  inset: -1.5rem -1rem 0 -1rem;
-  background: var(--color-sidebar-bg);
-  pointer-events: none;
-}
-@media (min-width: 640px) {
-  .cabecalho-pagina::before { inset: -1.5rem -1.5rem 0 -1.5rem; }
-}
-
-/* O cabeçalho de cada tela fica sobre a faixa, então inverte as cores. */
-.cabecalho-pagina h1 { color: #FFFFFF; }
-.cabecalho-pagina .text-ink-muted { color: rgb(255 255 255 / 0.68); }
-.cabecalho-pagina .text-ink-faint { color: rgb(255 255 255 / 0.5); }
-.cabecalho-pagina a { color: var(--color-brand-light); }
-.cabecalho-pagina [data-slot="breadcrumb"],
-.cabecalho-pagina [data-slot="breadcrumb"] a,
-.cabecalho-pagina [data-slot="breadcrumb-page"] { color: rgb(255 255 255 / 0.55); }
-.cabecalho-pagina [data-slot="breadcrumb"] a:hover { color: #FFFFFF; }
-.cabecalho-pagina .esqueleto { opacity: 0.12; }
-.cabecalho-pagina .btn--secondary {
-  background: rgb(255 255 255 / 0.08);
-  border-color: rgb(255 255 255 / 0.18);
-  color: #FFFFFF;
-}
-.cabecalho-pagina .btn--secondary:hover { background: rgb(255 255 255 / 0.14); }
 
 /* --------------------------------------------------------------------------
    Esqueleto de carregamento

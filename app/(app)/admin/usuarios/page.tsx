@@ -29,9 +29,8 @@ export default async function PaginaUsuarios() {
   const ativos = lista.filter((u) => u.ativo).length;
 
   return (
-    <div className="max-w-[1280px]">
+    <div className="max-w-[1280px] mx-auto">
       <CabecalhoPagina
-        trilha={[{ rotulo: "Administração" }, { rotulo: "Gestão de usuários" }]}
         titulo="Gestão de usuários"
         descricao={
           <span className="inline-flex items-center gap-2">
