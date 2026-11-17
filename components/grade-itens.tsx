@@ -16,7 +16,7 @@ import {
   type FiltrosPainel,
   type PaginaItens,
 } from "@/lib/consulta-itens";
-import { entradasDaFaixa } from "@/lib/acoes-etapa";
+import { ETAPAS_ABERTAS } from "@/lib/regras-dashboard";
 import { BUCKET_FOTOS } from "@/lib/storage";
 import {
   ETAPA_ROTULO,
@@ -33,7 +33,8 @@ import { Info } from "@/components/info";
 import { BotaoNomeColaborador } from "@/components/perfil/botao-nome";
 import { IconeBusca } from "@/components/icones";
 import { AcoesLinha } from "@/components/radar/botao-acao-linha";
-import { FaixaParaVoce } from "@/components/radar/faixa-para-voce";
+import { CartoesEtapa } from "@/components/radar/cartoes-etapa";
+import { FiltroSuspenso } from "@/components/filtro-suspenso";
 import type { AoConcluir } from "@/components/formularios-item";
 import type { Etapa, ItemAberto, Papel, StatusConformidade, Supervisor } from "@/lib/tipos";
 
@@ -128,16 +129,15 @@ export function GradeItens({
   const atualizarContagens = useCallback(
     async (equipe: Equipe) => {
       const meu = ++requisicaoContagem.current;
-      const etapas = entradasDaFaixa(escopo.papel).map((e) => e.etapa);
       const novas = await contarItensPorEtapa(
         criarClienteNavegador(),
-        etapas,
+        ETAPAS_ABERTAS,
         equipe,
         escopo.supervisorId
       );
       if (meu === requisicaoContagem.current) setContagens(novas);
     },
-    [escopo.papel, escopo.supervisorId]
+    [escopo.supervisorId]
   );
 
   const equipeAtual = filtros.equipe ?? escopo.equipePadrao;
@@ -253,12 +253,12 @@ export function GradeItens({
 
   return (
     <>
-      <FaixaParaVoce
+      <CartoesEtapa
         papel={escopo.papel}
         contagens={contagens}
         etapaAtiva={filtros.etapa}
-        // Mesmo caminho do seletor "Etapa": o filtro vai para o estado, a URL
-        // acompanha e a lista é consultada de novo, sem recarregar a página.
+        // O filtro vai para o estado, a URL acompanha e a lista é consultada de
+        // novo, sem recarregar a página.
         aoEscolher={(etapa) => mudarFiltro("etapa", etapa ?? "")}
       />
 
@@ -548,7 +548,7 @@ function Filtros({
     <div className="card mb-4 grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
         <div role="group" aria-labelledby="f-equipe-rotulo">
-          <span id="f-equipe-rotulo" className="label">Equipe</span>
+          <span id="f-equipe-rotulo" className="sr-only">Equipe</span>
           <div className="flex gap-1.5">
             {escopo.podeEscolherMinha && (
               <button
@@ -572,7 +572,7 @@ function Filtros({
         </div>
 
         <div className="grow basis-[280px]">
-          <label className="label" htmlFor="f-busca">Buscar colaborador</label>
+          <label className="sr-only" htmlFor="f-busca">Buscar colaborador</label>
           <div className="relative">
             <IconeBusca className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
             <input
@@ -589,101 +589,54 @@ function Filtros({
           </div>
         </div>
 
-        <div>
-          <label className="label" htmlFor="f-requisito">Requisito</label>
-          <select
-            id="f-requisito"
-            className="field"
-            value={filtros.requisito ?? ""}
-            onChange={(e) => aoMudar("requisito", e.target.value)}
-          >
-            <option value="">Todos</option>
-            {requisitos.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="label" htmlFor="f-status">Status</label>
-          <select
-            id="f-status"
-            className="field"
-            value={filtros.status ?? ""}
-            onChange={(e) => aoMudar("status", e.target.value)}
-          >
-            <option value="">Todos</option>
-            {ORDEM_STATUS.map((s) => (
-              <option key={s} value={s}>{STATUS_ROTULO[s]}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="label" htmlFor="f-etapa">Etapa</label>
-          <select
-            id="f-etapa"
-            className="field"
-            value={filtros.etapa ?? ""}
-            onChange={(e) => aoMudar("etapa", e.target.value)}
-          >
-            <option value="">Todas</option>
-            {(Object.keys(ETAPA_ROTULO) as Etapa[])
-              .filter((e) => e !== "concluido" && e !== "cancelado")
-              .map((e) => (
-                <option key={e} value={e}>{ETAPA_ROTULO[e]}</option>
-              ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="label" htmlFor="f-supervisor">Supervisor</label>
-          <select
-            id="f-supervisor"
-            className="field"
-            value={filtros.supervisor ?? ""}
-            onChange={(e) => aoMudar("supervisor", e.target.value)}
-          >
-            <option value="">Todos</option>
-            <option value={SEM_SUPERVISOR}>Sem supervisor</option>
-            {supervisores.map((s) => (
-              <option key={s.id} value={s.id}>{s.nome}</option>
-            ))}
-          </select>
-        </div>
-
-        {polos.length > 1 && (
-          <div>
-            <label className="label" htmlFor="f-polo">Polo</label>
-            <select
-              id="f-polo"
-              className="field"
-              value={filtros.polo ?? ""}
-              onChange={(e) => aoMudar("polo", e.target.value)}
-            >
-              <option value="">Todos</option>
-              {polos.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-label">
-          <input
-            type="checkbox"
-            className="size-4"
-            checked={filtros.parados === "1"}
-            onChange={(e) => aoMudar("parados", e.target.checked ? "1" : "")}
+      {/* Pílulas no lugar dos <select>: o valor aparece no próprio botão e o
+          filtro aplicado fica petróleo. A etapa saiu daqui: está nos cartões. */}
+      <div className="flex flex-wrap items-center gap-2">
+        <FiltroSuspenso
+          rotulo="Requisito"
+          valor={filtros.requisito ?? ""}
+          opcoes={requisitos.map((r) => ({ valor: r, rotulo: r }))}
+          aoMudar={(v) => aoMudar("requisito", v)}
+        />
+        <FiltroSuspenso
+          rotulo="Status"
+          valor={filtros.status ?? ""}
+          opcoes={ORDEM_STATUS.map((s) => ({ valor: s, rotulo: STATUS_ROTULO[s] }))}
+          aoMudar={(v) => aoMudar("status", v)}
+        />
+        <FiltroSuspenso
+          rotulo="Supervisor"
+          valor={filtros.supervisor ?? ""}
+          opcoes={[
+            { valor: SEM_SUPERVISOR, rotulo: "Sem supervisor" },
+            ...supervisores.map((s) => ({ valor: s.id, rotulo: s.nome })),
+          ]}
+          aoMudar={(v) => aoMudar("supervisor", v)}
+        />
+        {polos.length > 1 && (
+          <FiltroSuspenso
+            rotulo="Polo"
+            valor={filtros.polo ?? ""}
+            opcoes={polos.map((p) => ({ valor: p, rotulo: p }))}
+            aoMudar={(v) => aoMudar("polo", v)}
           />
-          Só parados além do prazo da etapa
+        )}
+        <span className="inline-flex items-center gap-1">
+          <button
+            type="button"
+            className="filtro-suspenso"
+            aria-pressed={filtros.parados === "1"}
+            onClick={() => aoMudar("parados", filtros.parados === "1" ? "" : "1")}
+          >
+            Só parados além do prazo
+          </button>
           <Info>{EXPLICACAO_SLA}</Info>
-        </label>
+        </span>
 
         {temFiltro && (
-          <button type="button" className="btn btn--secondary btn--sm" onClick={aoLimpar}>
+          <button type="button" className="btn btn--fantasma btn--sm ml-auto" onClick={aoLimpar}>
             Limpar filtros
           </button>
         )}

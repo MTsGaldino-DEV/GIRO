@@ -1142,6 +1142,76 @@ a {
 .kpi__rotulo { font-size: var(--text-label); }
 .kpi__nota { font-size: var(--text-caption); color: var(--color-ink-faint); }
 
+/* Mini legenda do semáforo, sob os seis cartões do Dashboard. */
+.legenda-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.25rem;
+  list-style: none;
+  margin: -0.5rem 0 1.25rem;
+  padding: 0;
+  font-size: var(--text-caption);
+  color: var(--color-ink-muted);
+}
+.legenda-status li { display: inline-flex; align-items: center; gap: 0.375rem; }
+.legenda-status strong { font-weight: 500; color: var(--color-ink); }
+.legenda-status__cor {
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+/* Os fundos claros (crítico a em dia) somem num quadrado de 10px: ali vai a cor
+   do texto do status; vencido e sem registro já são escuros no fundo. */
+.legenda-status__cor.kpi--critico   { background: var(--color-status-critico-fg); }
+.legenda-status__cor.kpi--atencao   { background: var(--color-status-atencao-fg); }
+.legenda-status__cor.kpi--programar { background: var(--color-status-programar-fg); }
+.legenda-status__cor.kpi--ok        { background: var(--color-status-regular-fg); }
+
+/* Cartões de etapa do Radar (components/radar/cartoes-etapa.tsx): botões com o
+   desenho do .kpi. Sete etapas: 2 colunas no celular, 4 no tablet, 7 no largo. */
+@media (min-width: 768px) {
+  .kpis--etapas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .kpis--etapas { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+}
+.kpi--botao { font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.kpi--botao:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+.kpi[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--color-brand), var(--shadow-media); background: var(--color-brand-wash); }
+.kpi[data-vazio="true"] .kpi__numero { color: var(--color-ink-faint); }
+.kpi__nota--sua-vez { color: var(--color-brand); font-weight: 500; }
+
+/* Filtro em pílula (components/filtro-suspenso.tsx), no lugar do <select>. */
+.filtro-suspenso {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  min-height: 42px;
+  padding: 0.375rem 0.625rem 0.375rem 0.875rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-label);
+  cursor: pointer;
+  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), box-shadow var(--duracao-rapida) var(--ease-giro);
+}
+.filtro-suspenso:hover { border-color: var(--color-ink-muted); }
+.filtro-suspenso:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 30%, transparent); border-color: var(--color-brand); }
+.filtro-suspenso[data-state="open"] { border-color: var(--color-brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 18%, transparent); }
+.filtro-suspenso__rotulo { color: var(--color-ink-faint); white-space: nowrap; }
+.filtro-suspenso__valor { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16rem; }
+.filtro-suspenso__seta { width: 0.875rem; height: 0.875rem; flex-shrink: 0; rotate: 90deg; color: var(--color-ink-faint); transition: rotate var(--duracao-media) var(--ease-giro); }
+.filtro-suspenso[data-state="open"] .filtro-suspenso__seta { rotate: -90deg; color: var(--color-brand); }
+.filtro-suspenso[data-ativo="true"] { border-color: var(--color-brand); background: var(--color-brand-wash); color: var(--color-brand); }
+.filtro-suspenso[data-ativo="true"] .filtro-suspenso__rotulo { color: var(--color-brand); opacity: 0.75; }
+.filtro-suspenso__menu { max-width: min(26rem, calc(100vw - 24px)); }
+/* "Só parados": mesmo desenho, mas é interruptor (aria-pressed), não menu. */
+button.filtro-suspenso[aria-pressed="true"] { border-color: var(--color-brand); background: var(--color-brand-wash); color: var(--color-brand); }
+
 /* Semáforo: os seis cartões são a única superfície do Dashboard com as cores
    reservadas — o que eles contam é exatamente conformidade. */
 .kpi--vencido,
@@ -1251,7 +1321,7 @@ a {
   background: linear-gradient(to top, rgb(12 24 23 / 0.92) 0%, rgb(12 24 23 / 0.55) 28%, transparent 50%);
   pointer-events: none;
 }
-.login-painel__logo { position: absolute; left: 3rem; top: 2.75rem; width: 210px; height: auto; }
+.login-painel__logo { position: absolute; left: 3rem; top: 2.75rem; width: 225px; height: auto; }
 .login-painel__texto { position: absolute; left: 3rem; right: 3rem; bottom: 3.5rem; max-width: 30rem; }
 .login-painel__chamada,
 .login-chamada {

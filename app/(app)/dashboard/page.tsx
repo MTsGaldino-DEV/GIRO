@@ -194,22 +194,35 @@ export default async function Dashboard({
         }}
       />
 
-      <div className="grid grid-cols-1 gap-5 mb-5 lg:grid-cols-2 items-start">
-        <PorEtapa etapas={etapas} medias={semItens ? null : mediaDiasPorEtapa(itens.linhas)} escopo={escopo} ativo={ativo} />
-        <PorResponsavel donos={etapas ? totalPorDono(etapas) : null} linhas={responsaveis} escopo={escopo} ativo={ativo} />
-      </div>
-
-      <div className="grid grid-cols-1 gap-5 mb-5 lg:grid-cols-2 items-start">
-        <MaisProximos linhas={proximos} />
-        <OutrasMetricas
-          emDia={contagem ? percentual(contagem.ok, contagem.total) : null}
-          semPessoas={contagem?.total === 0}
-          mediaDias={semItens ? null : mediaDiasParados(itens.linhas)}
-          semItensAbertos={!semItens && itens.linhas.length === 0}
-          curva={curva}
-          escopo={escopo}
-          ativo={ativo}
-        />
+      {/* Duas colunas independentes (não linhas de grade): cada cartão sobe até o
+          de cima, sem o buraco que a linha deixava quando um lado era curto (ex.:
+          uma etapa só ao lado de oito responsáveis). No celular, `contents` desfaz
+          as colunas e `order` mantém a sequência de leitura de antes. */}
+      <div className="flex flex-col gap-5 mb-5 lg:flex-row lg:items-start">
+        <div className="contents lg:flex lg:flex-col lg:gap-5 lg:flex-1 lg:min-w-0">
+          <div className="order-1 lg:order-none min-w-0">
+            <PorEtapa etapas={etapas} medias={semItens ? null : mediaDiasPorEtapa(itens.linhas)} escopo={escopo} ativo={ativo} />
+          </div>
+          <div className="order-3 lg:order-none min-w-0">
+            <MaisProximos linhas={proximos} />
+          </div>
+        </div>
+        <div className="contents lg:flex lg:flex-col lg:gap-5 lg:flex-1 lg:min-w-0">
+          <div className="order-2 lg:order-none min-w-0">
+            <PorResponsavel donos={etapas ? totalPorDono(etapas) : null} linhas={responsaveis} escopo={escopo} ativo={ativo} />
+          </div>
+          <div className="order-4 lg:order-none min-w-0">
+            <OutrasMetricas
+              emDia={contagem ? percentual(contagem.ok, contagem.total) : null}
+              semPessoas={contagem?.total === 0}
+              mediaDias={semItens ? null : mediaDiasParados(itens.linhas)}
+              semItensAbertos={!semItens && itens.linhas.length === 0}
+              curva={curva}
+              escopo={escopo}
+              ativo={ativo}
+            />
+          </div>
+        </div>
       </div>
 
       <DetalheDashboard

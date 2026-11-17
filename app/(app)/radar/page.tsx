@@ -10,7 +10,7 @@ import {
   resolverEquipe,
   type FiltrosPainel,
 } from "@/lib/consulta-itens";
-import { entradasDaFaixa } from "@/lib/acoes-etapa";
+import { ETAPAS_ABERTAS } from "@/lib/regras-dashboard";
 import { BotaoGerarItens } from "./gerar-itens";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { ListaGeset } from "@/components/geset/lista-geset";
@@ -60,7 +60,7 @@ export default async function Radar({
   const [contagensIniciais, { data: supervisoresBrutos }, polos, { data: tipos }, pendentesGeset] = await Promise.all([
     contarItensPorEtapa(
       supabase,
-      entradasDaFaixa(perfil.papel).map((e) => e.etapa),
+      ETAPAS_ABERTAS,
       filtros.equipe ?? padrao,
       perfil.supervisor_id
     ),

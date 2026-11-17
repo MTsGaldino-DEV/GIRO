@@ -6,6 +6,8 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso, Vazio } from "@/components/aviso";
 import { FormularioSupervisor } from "./formulario-supervisor";
 import { VinculoEmMassa } from "./vinculo-massa";
+import { excluirSupervisor } from "./acoes";
+import { BotaoExcluir } from "@/components/botao-excluir";
 import { NomesNeoSemVinculo } from "./nomes-neo-sem-vinculo";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { Info } from "@/components/info";
@@ -127,10 +129,10 @@ export default async function PaginaSupervisores({
           ) : (
             <ul className="list-none p-0 m-0 grid">
               {supervisores.map((s) => (
-                <li key={s.id}>
+                <li key={s.id} className="flex items-center gap-2">
                   <Link
                     href={`/qsms/supervisores?equipe=${s.id}`}
-                    className="flex items-center justify-between gap-3 py-2 px-2 -mx-2 rounded-[var(--radius)] no-underline text-ink hover:bg-brand-wash"
+                    className="flex-1 min-w-0 flex items-center justify-between gap-3 py-2 px-2 -ml-2 rounded-[var(--radius)] no-underline text-ink hover:bg-brand-wash"
                     aria-current={equipe === s.id ? "true" : undefined}
                   >
                     <span className="min-w-0">
@@ -139,6 +141,14 @@ export default async function PaginaSupervisores({
                     </span>
                     <span className="etiqueta etiqueta--neutra tabular">{porSupervisor.get(s.id) ?? 0}</span>
                   </Link>
+                  {podeVincularNomes && (
+                    <BotaoExcluir
+                      acao={excluirSupervisor}
+                      id={s.id}
+                      nome={s.nome}
+                      confirmacao={`Excluir o supervisor ${s.nome}? As ${porSupervisor.get(s.id) ?? 0} pessoas da equipe dele ficam sem supervisor.`}
+                    />
+                  )}
                 </li>
               ))}
               <li className="mt-1 pt-1 border-t border-line">

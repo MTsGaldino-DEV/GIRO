@@ -17,7 +17,7 @@ export function CascaLogin({ children }: { children: React.ReactNode }) {
       <aside className="login-painel" aria-hidden>
         <FundoEletro />
         <div className="login-painel__veu" />
-        <img src="/logo-giro-negativo.svg" alt="" width={210} height={60} className="login-painel__logo" />
+        <img src="/logo-giro-negativo.svg" alt="" width={225} height={60} className="login-painel__logo" />
         <div className="login-painel__texto">
           <p className="login-painel__chamada">Requisitos ocupacionais · UEN 211</p>
           <p className="login-painel__titulo">
@@ -31,7 +31,7 @@ export function CascaLogin({ children }: { children: React.ReactNode }) {
       <div className="login-lado">
         <div className="login-lado__conteudo">
           {/* No celular o painel escuro some; o logo vem para cá. */}
-          <img src="/logo-giro.svg" alt="GIRO" width={168} height={48} className="lg:hidden mb-8" />
+          <img src="/logo-giro.svg" alt="GIRO" width={180} height={48} className="lg:hidden mb-8" />
           {children}
         </div>
       </div>

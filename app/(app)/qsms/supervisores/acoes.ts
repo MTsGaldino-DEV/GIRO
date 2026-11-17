@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
 import { exigirOperador } from "@/lib/perfil";
 
 export type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -51,6 +52,49 @@ export async function cadastrarSupervisor(
     ok: true,
     mensagem: `${nome} cadastrado. Libere o login em Gestão de usuários, se ele precisar entrar no painel.`,
   };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Exclui um supervisor (só QSMS e admin).
+ *
+ * A equipe dele volta para "Sem supervisor"; os apelidos da NEO e os registros de
+ * e-mail enviados saem em cascata. Se houver login de supervisor ligado a ele, a
+ * exclusão é recusada: o acesso sai primeiro em Gestão de usuários (o perfil de
+ * supervisor exige vínculo).
+ */
+export async function excluirSupervisor(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  const perfil = await exigirOperador();
+  if (perfil.papel !== "qsms" && perfil.papel !== "admin") {
+    return { ok: false, erro: "Apenas QSMS ou administrador pode excluir supervisores." };
+  }
+
+  const analise = z.object({ id: z.string().uuid() }).safeParse({ id: formData.get("id") });
+  if (!analise.success) return { ok: false, erro: "Dados inválidos." };
+  const { id } = analise.data;
+
+  const admin = criarClienteAdmin();
+  const { data: logins, error: erroLogins } = await admin.from("perfis").select("nome").eq("supervisor_id", id);
+  if (erroLogins) return { ok: false, erro: "Não foi possível excluir agora." };
+  if ((logins ?? []).length > 0) {
+    const nomes = logins!.map((l) => l.nome ?? "sem nome").join(", ");
+    return {
+      ok: false,
+      erro: `Há acesso de login ligado a este supervisor (${nomes}). Exclua esse acesso em Gestão de usuários e tente de novo.`,
+    };
+  }
+
+  const { error: erroEquipe } = await admin.from("colaboradores").update({ supervisor_id: null }).eq("supervisor_id", id);
+  if (erroEquipe) return { ok: false, erro: "Não foi possível liberar a equipe deste supervisor." };
+
+  const { error } = await admin.from("supervisores").delete().eq("id", id);
+  if (error) return { ok: false, erro: "Não foi possível excluir o supervisor." };
+
+  revalidatePath("/qsms/supervisores");
+  revalidatePath("/radar");
+  revalidatePath("/admin/usuarios");
+  return { ok: true, mensagem: "Supervisor excluído; a equipe dele ficou sem supervisor." };
 }
 
 // ---------------------------------------------------------------------------

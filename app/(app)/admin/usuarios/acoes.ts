@@ -90,6 +90,37 @@ const esquemaAtivo = z.object({
   ativo: z.enum(["true", "false"]),
 });
 
+/**
+ * Exclui o acesso (conta no Supabase Auth; o perfil vai junto em cascata).
+ *
+ * Quem já registrou algo (eventos, histórico, auditoria, documentos) não pode ser
+ * apagado: o banco recusa para não perder a autoria. Para esses, "Desativar".
+ * Ninguém exclui a própria conta.
+ */
+export async function excluirUsuario(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  const eu = await exigirAdmin();
+
+  const analise = z.object({ id: z.string().uuid() }).safeParse({ id: formData.get("id") });
+  if (!analise.success) return { ok: false, erro: "Dados inválidos." };
+  const { id } = analise.data;
+  if (id === eu.id) return { ok: false, erro: "Você não pode excluir a própria conta." };
+
+  const admin = criarClienteAdmin();
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) {
+    return {
+      ok: false,
+      erro: "Este acesso já registrou ações no sistema e não pode ser excluído sem perder esse histórico. Use Desativar.",
+    };
+  }
+
+  revalidatePath("/admin/usuarios");
+  revalidatePath("/qsms/supervisores");
+  return { ok: true, mensagem: "Acesso excluído." };
+}
+
+// ---------------------------------------------------------------------------
+
 export async function alternarAtivoUsuario(_anterior: Acao | null, formData: FormData): Promise<Acao> {
   await exigirAdmin();
 

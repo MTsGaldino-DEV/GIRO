@@ -4,6 +4,8 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { Vazio } from "@/components/aviso";
 import { FormularioUsuario } from "./formulario-usuario";
 import { BotaoAtivo } from "./botao-ativo";
+import { excluirUsuario } from "./acoes";
+import { BotaoExcluir } from "@/components/botao-excluir";
 import { CabecalhoPagina } from "@/components/cabecalho-pagina";
 import { Info } from "@/components/info";
 import type { Perfil, Supervisor } from "@/lib/tipos";
@@ -14,7 +16,7 @@ export const dynamic = "force-dynamic";
 const PAPEL_ROTULO: Record<string, string> = { qsms: "QSMS", supervisor: "Supervisor", admin: "Admin" };
 
 export default async function PaginaUsuarios() {
-  await exigirAdmin();
+  const eu = await exigirAdmin();
   const supabase = await criarClienteServidor();
 
   const [{ data: usuarios }, { data: supervisores }] = await Promise.all([
@@ -96,7 +98,19 @@ export default async function PaginaUsuarios() {
                           </span>
                         </td>
                         <td className="text-right">
-                          <BotaoAtivo id={u.id} ativo={u.ativo} />
+                          {u.id === eu.id ? (
+                            <span className="text-caption text-ink-faint">Você</span>
+                          ) : (
+                            <div className="inline-flex flex-wrap justify-end items-start gap-2">
+                              <BotaoAtivo id={u.id} ativo={u.ativo} />
+                              <BotaoExcluir
+                                acao={excluirUsuario}
+                                id={u.id}
+                                nome={u.nome ?? u.email}
+                                confirmacao={`Excluir o acesso de ${u.nome ?? u.email}? A pessoa não consegue mais entrar. Isso não pode ser desfeito.`}
+                              />
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );

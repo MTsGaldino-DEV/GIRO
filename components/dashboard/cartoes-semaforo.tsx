@@ -15,6 +15,16 @@ export const ROTULO_SEMAFORO: Record<StatusConformidade, string> = {
 
 const ORDEM: StatusConformidade[] = ["vencido", "sem_registro", "critico", "atencao", "programar", "ok"];
 
+/** Mini legenda sob os cartões: o que cada cor quer dizer, em poucas palavras. */
+const LEGENDA: Record<StatusConformidade, string> = {
+  vencido: "prazo passou; não pode trabalhar",
+  sem_registro: "sem data de referência; tratar como vencido",
+  critico: "vence em menos de 15 dias",
+  atencao: "vence entre 15 e 30 dias",
+  programar: "vence entre 31 e 90 dias",
+  ok: "vence em mais de 90 dias",
+};
+
 /**
  * Os seis cartões do semáforo: cada pessoa conta uma vez, no pior status
  * entre ASO e AVP. Única superfície do Dashboard com as cores reservadas.
@@ -50,6 +60,14 @@ export function CartoesSemaforo({
           />
         ))}
       </div>
+      <ul className="legenda-status" aria-label="O que significa cada status (pior entre ASO e AVP)">
+        {ORDEM.map((status) => (
+          <li key={status}>
+            <span className={`legenda-status__cor kpi--${status}`} aria-hidden />
+            <strong>{ROTULO_SEMAFORO[status]}:</strong> {LEGENDA[status]}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
