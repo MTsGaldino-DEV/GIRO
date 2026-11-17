@@ -272,10 +272,15 @@ function Grupo({
         data-contem-ativo={contemAtivo ? "true" : undefined}
         aria-expanded={aberto}
         aria-controls={idLista}
+        aria-label={
+          pendenciasDoGrupo > 0 && !aberto ? `${entrada.rotulo}, ${textoPendencias(pendenciasDoGrupo)}` : undefined
+        }
         onClick={() => setAberto((atual) => !atual)}
       >
         <entrada.Icone className="sidebar__icone" />
         <span className="sidebar__rotulo">{entrada.rotulo}</span>
+        {/* Grupo fechado esconderia o contador do item: o número sobe para o grupo. */}
+        {pendenciasDoGrupo > 0 && !aberto && <Contador quantidade={pendenciasDoGrupo} />}
         <IconeChevron className="sidebar__seta shrink-0" />
       </button>
       <div id={idLista} className="sidebar__sub" data-aberto={aberto ? "true" : "false"}>
