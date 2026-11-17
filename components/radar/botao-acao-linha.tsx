@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { acoesDaEtapa, type AcaoLinha, type IdAcao } from "@/lib/acoes-etapa";
-import { formatarData } from "@/lib/dominio";
+import { formatarData, ehVezDe } from "@/lib/dominio";
 import { usePerfilColaborador } from "@/components/perfil/contexto";
 import { IconeFechar, IconeReticencias } from "@/components/icones";
 import {
@@ -103,7 +103,8 @@ export function AcoesLinha({ item, aoConcluir }: { item: ItemAberto; aoConcluir:
         <button
           ref={botaoPrincipal}
           type="button"
-          className="btn btn--primary btn--sm whitespace-nowrap"
+          // Cheio só na linha que é a vez de quem olha; contornado nas demais.
+          className={`btn ${ehVezDe(papel, item.dono) ? "btn--primary" : "btn--secondary"} btn--sm whitespace-nowrap`}
           onClick={() => escolher(principal, false)}
           aria-label={`${principal.rotulo} — ${item.nome}`}
         >

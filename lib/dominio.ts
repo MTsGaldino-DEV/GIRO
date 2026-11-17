@@ -221,3 +221,29 @@ export function avisoJanelaUtil(item: {
     item.proxima_ausencia_inicio
   )} — janela útil de ${Math.max(0, util)} ${util === 1 ? "dia" : "dias"}.`;
 }
+
+/**
+ * Coluna "Faltam" do Radar: dias até o vencimento, em número curto.
+ *
+ * `dias_restantes` chega negativo para vencido (vencimento − hoje); o texto
+ * mostra "-31d" nos dois sinais para não depender de quem chamou. Sem dias,
+ * traço. `vencido` liga o vermelho de conformidade na célula.
+ */
+export function textoFaltam(
+  status: StatusConformidade,
+  dias: number | null
+): { texto: string; vencido: boolean } {
+  if (dias === null || dias === undefined) return { texto: "—", vencido: false };
+  if (status === "vencido") return { texto: `-${Math.abs(dias)}d`, vencido: true };
+  return { texto: `${dias}d`, vencido: false };
+}
+
+/**
+ * A etapa está na mão de quem olha? Admin age como QSMS. É o que acende a
+ * etiqueta do responsável e o botão cheio na linha do Radar.
+ */
+export function ehVezDe(papel: string, dono: Dono): boolean {
+  if (dono === "ninguem") return false;
+  if (papel === "admin") return dono === "qsms";
+  return papel === dono;
+}

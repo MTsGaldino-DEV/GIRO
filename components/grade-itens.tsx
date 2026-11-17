@@ -25,6 +25,8 @@ import {
   ORDEM_STATUS,
   formatarData,
   avisoJanelaUtil,
+  textoFaltam,
+  ehVezDe,
 } from "@/lib/dominio";
 import { SeloStatus } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
@@ -251,15 +253,6 @@ export function GradeItens({
 
   return (
     <>
-      <AbasEtapa
-        papel={escopo.papel}
-        contagens={contagens}
-        etapaAtiva={filtros.etapa}
-        // O filtro vai para o estado, a URL acompanha e a lista é consultada de
-        // novo, sem recarregar a página.
-        aoEscolher={(etapa) => mudarFiltro("etapa", etapa ?? "")}
-      />
-
       <Filtros
         filtros={filtros}
         escopo={escopo}
@@ -293,99 +286,112 @@ export function GradeItens({
         </p>
       )}
 
-      <div aria-busy={carregando} data-carregando={carregando}>
-        <h2 className="sr-only">Itens de pendência em aberto</h2>
-        {pagina.itens.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="tabela">
-              <caption className="sr-only">Itens de pendência em aberto</caption>
-              <thead>
-                <tr>
-                  {cabecalho("nome", "Colaborador")}
-                  <th scope="col">Requisito</th>
-                  <th scope="col">Supervisor</th>
-                  {cabecalho("vencimento", "Vencimento")}
-                  {cabecalho("status", "Status")}
-                  <th scope="col">Etapa</th>
-                  <th scope="col" className="text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagina.itens.map((item) => (
-                  <LinhaItem
-                    key={item.item_id}
-                    item={item}
-                    fotoUrl={fotos[item.foto_url ?? ""]}
-                    aoConcluirAcao={aoConcluirAcao}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="quadro-lista">
+        <AbasEtapa
+          papel={escopo.papel}
+          contagens={contagens}
+          etapaAtiva={filtros.etapa}
+          // O filtro vai para o estado, a URL acompanha e a lista é consultada de
+          // novo, sem recarregar a página.
+          aoEscolher={(etapa) => mudarFiltro("etapa", etapa ?? "")}
+        />
 
-        {pagina.itens.length === 0 && !carregando && (
-          <Vazio>
-            {semEquipe
-              ? "Você ainda não tem equipe vinculada. Escolha “Todos” para ver a UEN."
-              : temFiltro
-                ? "Nenhum item nesse filtro."
-                : equipe === "minha"
-                  ? "Nenhum item da sua equipe no Radar."
-                  : "Nenhum item no Radar. Use “Gerar itens” para criar as pendências dos próximos 90 dias."}
-          </Vazio>
-        )}
-      </div>
+        <div aria-busy={carregando} data-carregando={carregando}>
+          <h2 className="sr-only">Itens de pendência em aberto</h2>
+          {pagina.itens.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="tabela tabela--lista">
+                <caption className="sr-only">Itens de pendência em aberto</caption>
+                <thead>
+                  <tr>
+                    {cabecalho("nome", "Colaborador")}
+                    <th scope="col">Requisito</th>
+                    <th scope="col">Supervisor</th>
+                    {cabecalho("vencimento", "Vencimento")}
+                    {cabecalho("status", "Status")}
+                    <th scope="col">Faltam</th>
+                    <th scope="col">Etapa</th>
+                    <th scope="col" className="text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagina.itens.map((item) => (
+                    <LinhaItem
+                      key={item.item_id}
+                      item={item}
+                      papel={escopo.papel}
+                      fotoUrl={fotos[item.foto_url ?? ""]}
+                      aoConcluirAcao={aoConcluirAcao}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-      {pagina.total > 0 && (
-        <nav aria-label="Paginação" className="flex flex-wrap items-center justify-between gap-3 mt-4">
-          <p className="text-label text-ink-muted m-0 tabular">
-            Mostrando {(paginaAtual - 1) * POR_PAGINA + 1}–
-            {Math.min(paginaAtual * POR_PAGINA, pagina.total)} de {pagina.total}
-          </p>
+          {pagina.itens.length === 0 && !carregando && (
+            <Vazio>
+              {semEquipe
+                ? "Você ainda não tem equipe vinculada. Escolha “Todos” para ver a UEN."
+                : temFiltro
+                  ? "Nenhum item nesse filtro."
+                  : equipe === "minha"
+                    ? "Nenhum item da sua equipe no Radar."
+                    : "Nenhum item no Radar. Use “Gerar itens” para criar as pendências dos próximos 90 dias."}
+            </Vazio>
+          )}
+        </div>
 
-          {ultimaPagina > 1 && (
-            <ul className="flex items-center gap-1 list-none m-0 p-0">
-              <li>
-                <button
-                  type="button"
-                  className="paginacao__item"
-                  onClick={() => irPara(paginaAtual - 1)}
-                  disabled={paginaAtual === 1}
-                >
-                  <span aria-hidden>‹</span>
-                  <span className="sr-only">Página anterior</span>
-                </button>
-              </li>
+        {pagina.total > 0 && (
+          <nav aria-label="Paginação" className="paginacao-lista">
+            <p className="m-0 tabular">
+              Mostrando {(paginaAtual - 1) * POR_PAGINA + 1}–
+              {Math.min(paginaAtual * POR_PAGINA, pagina.total)} de {pagina.total}
+            </p>
 
-              {janelaDePaginas(paginaAtual, ultimaPagina).map((p) => (
-                <li key={p}>
+            {ultimaPagina > 1 && (
+              <ul className="paginacao-lista__paginas">
+                <li>
                   <button
                     type="button"
                     className="paginacao__item"
-                    aria-current={p === paginaAtual ? "page" : undefined}
-                    onClick={() => irPara(p)}
+                    onClick={() => irPara(paginaAtual - 1)}
+                    disabled={paginaAtual === 1}
                   >
-                    {p}
+                    <span aria-hidden>‹</span>
+                    <span className="sr-only">Página anterior</span>
                   </button>
                 </li>
-              ))}
 
-              <li>
-                <button
-                  type="button"
-                  className="paginacao__item"
-                  onClick={() => irPara(paginaAtual + 1)}
-                  disabled={paginaAtual === ultimaPagina}
-                >
-                  <span aria-hidden>›</span>
-                  <span className="sr-only">Próxima página</span>
-                </button>
-              </li>
-            </ul>
-          )}
-        </nav>
-      )}
+                {janelaDePaginas(paginaAtual, ultimaPagina).map((p) => (
+                  <li key={p}>
+                    <button
+                      type="button"
+                      className="paginacao__item"
+                      aria-current={p === paginaAtual ? "page" : undefined}
+                      onClick={() => irPara(p)}
+                    >
+                      {p}
+                    </button>
+                  </li>
+                ))}
+
+                <li>
+                  <button
+                    type="button"
+                    className="paginacao__item"
+                    onClick={() => irPara(paginaAtual + 1)}
+                    disabled={paginaAtual === ultimaPagina}
+                  >
+                    <span aria-hidden>›</span>
+                    <span className="sr-only">Próxima página</span>
+                  </button>
+                </li>
+              </ul>
+            )}
+          </nav>
+        )}
+      </div>
     </>
   );
 }
@@ -414,14 +420,20 @@ function janelaDePaginas(atual: number, ultima: number): number[] {
  */
 function LinhaItem({
   item,
+  papel,
   fotoUrl,
   aoConcluirAcao,
 }: {
   item: ItemAberto;
+  papel: Papel;
   fotoUrl?: string;
   aoConcluirAcao: AoConcluir;
 }) {
   const janela = avisoJanelaUtil(item);
+  const status = item.status as StatusConformidade;
+  const faltam = textoFaltam(status, item.dias_restantes);
+  // A etiqueta do responsável acende (petróleo cheio) quando a vez é de quem olha.
+  const minha = ehVezDe(papel, item.dono);
   return (
     <tr>
       <td>
@@ -444,13 +456,17 @@ function LinhaItem({
       </td>
       <td className="tabular">{formatarData(item.data_vencimento)}</td>
       <td>
-        <SeloStatus status={item.status as StatusConformidade} dias={item.dias_restantes} titulo />
+        <SeloStatus status={status} dias={null} titulo />
       </td>
+      <td className={`tabular faltam${faltam.vencido ? " faltam--vencido" : ""}`}>{faltam.texto}</td>
       <td className="text-label">
-        {ETAPA_ROTULO[item.etapa]}
+        <span className="block font-medium">{ETAPA_ROTULO[item.etapa]}</span>
         {item.dono !== "ninguem" && (
           <span className="block mt-0.5">
-            <span className="etiqueta etiqueta--neutra" title="Quem faz o próximo passo">
+            <span
+              className={`etiqueta ${minha ? "etiqueta--minha" : "etiqueta--neutra"}`}
+              title="Quem faz o próximo passo"
+            >
               <span className="sr-only">Responsável: </span>
               {DONO_ROTULO[item.dono]}
             </span>
@@ -540,55 +556,48 @@ function Filtros({
   }, [texto, filtros.busca, aoMudar]);
 
   return (
-    <div className="card mb-4 grid gap-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <div role="group" aria-labelledby="f-equipe-rotulo">
-          <span id="f-equipe-rotulo" className="sr-only">Equipe</span>
-          <div className="flex gap-1.5">
-            {escopo.podeEscolherMinha && (
-              <button
-                type="button"
-                className={`btn ${equipe === "minha" ? "btn--primary" : "btn--secondary"}`}
-                aria-pressed={equipe === "minha"}
-                onClick={() => aoMudar("equipe", "minha")}
-              >
-                Minha equipe
-              </button>
-            )}
+    <div className="barra-filtros">
+      <div role="group" aria-labelledby="f-equipe-rotulo">
+        <span id="f-equipe-rotulo" className="sr-only">Equipe</span>
+        <div className="segmento">
+          {escopo.podeEscolherMinha && (
             <button
               type="button"
-              className={`btn ${equipe === "todas" ? "btn--primary" : "btn--secondary"}`}
-              aria-pressed={equipe === "todas"}
-              onClick={() => aoMudar("equipe", "todas")}
+              className="segmento__opcao"
+              aria-pressed={equipe === "minha"}
+              onClick={() => aoMudar("equipe", "minha")}
             >
-              Todos
+              Minha equipe
             </button>
-          </div>
+          )}
+          <button
+            type="button"
+            className="segmento__opcao"
+            aria-pressed={equipe === "todas"}
+            onClick={() => aoMudar("equipe", "todas")}
+          >
+            Todos
+          </button>
         </div>
+      </div>
 
-        <div className="grow basis-[280px]">
-          <label className="sr-only" htmlFor="f-busca">Buscar colaborador</label>
-          <div className="relative">
-            <IconeBusca className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
-            <input
-              id="f-busca"
-              type="search"
-              className="field w-full"
-              // Inline: o `padding` de `.field` vence a utilitária `pl-10`.
-              style={{ paddingLeft: "2.5rem" }}
-              placeholder="Nome ou matrícula"
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
-        </div>
-
+      <div className="busca">
+        <label className="sr-only" htmlFor="f-busca">Buscar colaborador</label>
+        <IconeBusca className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint pointer-events-none" />
+        <input
+          id="f-busca"
+          type="search"
+          className="field"
+          placeholder="Nome ou matrícula"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          autoComplete="off"
+        />
       </div>
 
       {/* Pílulas no lugar dos <select>: o valor aparece no próprio botão e o
-          filtro aplicado fica petróleo. A etapa saiu daqui: está nos cartões. */}
-      <div className="flex flex-wrap items-center gap-2">
+          filtro aplicado fica petróleo. A etapa saiu daqui: está nas abas. */}
+      <div className="barra-filtros__pilulas">
         <FiltroSuspenso
           rotulo="Requisito"
           valor={filtros.requisito ?? ""}
@@ -623,7 +632,7 @@ function Filtros({
         </span>
 
         {temFiltro && (
-          <button type="button" className="btn btn--fantasma btn--sm ml-auto" onClick={aoLimpar}>
+          <button type="button" className="btn btn--fantasma btn--sm" onClick={aoLimpar}>
             Limpar filtros
           </button>
         )}

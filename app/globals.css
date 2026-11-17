@@ -1294,20 +1294,6 @@ a {
 .legenda-status__cor.kpi--programar { background: var(--color-status-programar-fg); }
 .legenda-status__cor.kpi--ok        { background: var(--color-status-regular-fg); }
 
-/* Cartões de etapa do Radar (components/radar/cartoes-etapa.tsx): botões com o
-   desenho do .kpi. Sete etapas: 2 colunas no celular, 4 no tablet, 7 no largo. */
-@media (min-width: 768px) {
-  .kpis--etapas { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (min-width: 1280px) {
-  .kpis--etapas { grid-template-columns: repeat(7, minmax(0, 1fr)); }
-}
-.kpi--botao { font: inherit; text-align: left; cursor: pointer; width: 100%; }
-.kpi--botao:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
-.kpi[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--color-brand), var(--shadow-media); background: var(--color-brand-wash); }
-.kpi[data-vazio="true"] .kpi__numero { color: var(--color-ink-faint); }
-.kpi__nota--sua-vez { color: var(--color-brand); font-weight: 500; }
-
 /* Abas de etapa do Radar (components/radar/abas-etapa.tsx): filtros em barra,
    rolável na horizontal sem barra visível. Aba ativa: texto e sublinhado de 2px
    em petróleo; contagem em petróleo cheio. "Sua vez": contagem em petróleo suave. */
@@ -1381,6 +1367,167 @@ a {
   white-space: nowrap;
   font-size: 0.75rem;
   color: var(--color-ink-faint);
+}
+
+/* --------------------------------------------------------------------------
+   Lista do Radar (components/grade-itens.tsx)
+
+   Barra de filtros e quadro da lista são dois painéis brancos de 16px, sombra
+   plana. O quadro leva as abas de etapa no topo, a tabela no meio e a
+   paginação no rodapé. A tabela `.tabela--lista` desfaz o desenho de "linhas
+   como cartões" da `.tabela` base: faixa de cabeçalho, fio entre linhas.
+   -------------------------------------------------------------------------- */
+
+.barra-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+  background: var(--color-surface);
+  border: 1px solid rgb(19 37 35 / 0.06);
+  border-radius: 16px;
+  box-shadow: var(--shadow-plano);
+}
+.barra-filtros__pilulas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.segmento {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+}
+.segmento__opcao {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--color-ink-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.segmento__opcao:hover { color: var(--color-ink); }
+.segmento__opcao[aria-pressed="true"] { background: var(--color-brand); color: #fff; font-weight: 500; }
+.segmento__opcao:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+
+.busca {
+  position: relative;
+  flex: 1 1 280px;
+  max-width: 380px;
+}
+.busca .field {
+  background: var(--color-surface-2);
+  border-color: var(--color-line);
+  border-radius: 12px;
+  padding-left: 2.5rem;
+  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.busca .field:focus {
+  background: var(--color-surface);
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--color-brand-wash);
+  outline: none;
+}
+
+.quadro-lista {
+  background: var(--color-surface);
+  border: 1px solid rgb(19 37 35 / 0.06);
+  border-radius: 16px;
+  box-shadow: var(--shadow-plano);
+  overflow: hidden;
+}
+
+.tabela.tabela--lista {
+  min-width: 1100px;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+.tabela--lista th {
+  padding: 12px 16px;
+  background: var(--color-surface-2);
+  border-bottom: 1px solid var(--color-line);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+}
+.tabela--lista td {
+  padding: 14px 16px;
+  background: transparent;
+  border-block: 0;
+  border-bottom: 1px solid var(--color-line);
+  border-radius: 0;
+  transition: background-color 0.15s;
+}
+.tabela--lista th:first-child,
+.tabela--lista td:first-child { padding-left: 24px; min-width: 280px; }
+.tabela--lista th:last-child,
+.tabela--lista td:last-child { padding-right: 24px; }
+.tabela--lista tbody tr:last-child td { border-bottom: 0; }
+.tabela--lista td:first-child,
+.tabela--lista td:last-child {
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  box-shadow: none;
+}
+.tabela--lista tbody tr,
+.tabela--lista tbody tr:hover { filter: none; }
+.tabela--lista tbody tr:hover td { background: #F7F9FA; }
+.tabela--lista tbody tr:hover td:first-child { box-shadow: none; }
+
+.faltam { font-weight: 500; }
+.faltam--vencido { font-weight: 600; color: #C62828; }
+
+.etiqueta--minha { background: var(--color-brand); color: #fff; font-weight: 500; }
+
+.paginacao-lista {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--color-line);
+  font-size: 0.75rem;
+  color: var(--color-ink-faint);
+}
+.paginacao-lista__paginas {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  grid-column: 2;
+}
+/* No rodapé do quadro a página é um botão sem moldura; só a atual ganha fundo. */
+.paginacao-lista .paginacao__item {
+  min-width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+.paginacao-lista .paginacao__item:hover { background: var(--color-mist); color: var(--color-ink-muted); }
+.paginacao-lista .paginacao__item[aria-current="page"] {
+  background: var(--color-brand-wash);
+  color: var(--color-brand);
+  font-weight: 600;
+}
+.paginacao-lista .paginacao__item:disabled { opacity: 0.4; cursor: not-allowed; }
+.tabela--lista .etiqueta { border-radius: 6px; font-size: 0.6875rem; padding: 1px 8px; }
+@media (max-width: 640px) {
+  .paginacao-lista { grid-template-columns: 1fr; justify-items: center; padding: 14px 16px; }
+  .paginacao-lista__paginas { grid-column: 1; }
 }
 
 /* Filtro em pílula (components/filtro-suspenso.tsx), no lugar do <select>. */
