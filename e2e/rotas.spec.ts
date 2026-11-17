@@ -21,6 +21,7 @@ const ROTAS_PROTEGIDAS = [
   '/supervisor/item/00000000-0000-4000-8000-000000000000',
   '/qsms/base',
   '/admin/desligados',
+  '/admin/tratamento',
 ]
 
 for (const rota of ROTAS_PROTEGIDAS) {

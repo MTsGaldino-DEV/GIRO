@@ -15,6 +15,7 @@
     "teste:acoes": "node --experimental-strip-types scripts/teste-acoes-etapa.mjs",
     "teste:faixa": "node --experimental-strip-types scripts/teste-faixa.mjs",
     "teste:geset-ui": "node --experimental-strip-types scripts/teste-consulta-geset.mjs",
+    "teste:tratamento": "node --experimental-strip-types scripts/teste-tratamento.mjs",
     "teste:dashboard": "node --experimental-strip-types scripts/teste-consulta-dashboard.mjs",
     "teste:colaboradores": "node --experimental-strip-types scripts/teste-consulta-colaboradores.mjs",
     "teste:db-push-args": "node scripts/teste-db-push-args.mjs",
