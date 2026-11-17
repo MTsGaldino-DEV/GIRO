@@ -81,9 +81,11 @@ const SECUNDARIAS: Record<Etapa, IdAcao[]> = {
 
 /**
  * Faixa "Para você agir" no topo do Radar: as filas em que cada papel é o
- * dono do próximo passo. O supervisor é decidido na spec (seção 7, 13/11); a
- * do QSMS é palpite da spec, a confirmar com Matheus. `aguardando_documento`
- * fica fora: a etapa saiu do fluxo normal em 13/11.
+ * dono do próximo passo. Tabela confirmada por Matheus em 17/11/2026 e igual à
+ * coluna `dono` de `vw_itens_abertos` (migration 0025): o QSMS cuida de
+ * Pendente, data proposta, aguardando documento e tratativa; o supervisor, de
+ * data solicitada, agendado e enviado à clínica. As permissões não mudam: o
+ * Postgres aceita qualquer operador nas RPCs de fluxo.
  */
 export type PapelFaixa = "supervisor" | "qsms";
 export type EntradaFaixa = { etapa: Etapa; rotulo: string };
@@ -91,13 +93,14 @@ export type EntradaFaixa = { etapa: Etapa; rotulo: string };
 export const FAIXA_PARA_AGIR: Record<PapelFaixa, readonly EntradaFaixa[]> = {
   supervisor: [
     { etapa: "data_solicitada", rotulo: "Informar data" },
+    { etapa: "agendado", rotulo: "Enviar à clínica" },
     { etapa: "enviado_clinica", rotulo: "Registrar resultado" },
   ],
   qsms: [
     { etapa: "previsto", rotulo: "Pedir data" },
     { etapa: "data_proposta", rotulo: "Agendar" },
+    { etapa: "aguardando_documento", rotulo: "Anexar ASO" },
     { etapa: "inapto_em_tratativa", rotulo: "Tratativa" },
-    { etapa: "agendado", rotulo: "Enviar à clínica" },
   ],
 };
 

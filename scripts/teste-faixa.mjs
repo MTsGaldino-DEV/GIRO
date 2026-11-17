@@ -16,11 +16,28 @@ function caso(nome, fn) {
 
 const etapas = (papel) => entradasDaFaixa(papel).map((e) => e.etapa);
 
-caso("supervisor: exatamente data_solicitada e enviado_clinica, nessa ordem", () =>
-  assert.deepEqual(etapas("supervisor"), ["data_solicitada", "enviado_clinica"]));
+caso("supervisor: data_solicitada, agendado, enviado_clinica, nessa ordem", () =>
+  assert.deepEqual(etapas("supervisor"), ["data_solicitada", "agendado", "enviado_clinica"]));
 
-caso("qsms: previsto, data_proposta, inapto_em_tratativa, agendado", () =>
-  assert.deepEqual(etapas("qsms"), ["previsto", "data_proposta", "inapto_em_tratativa", "agendado"]));
+caso("qsms: previsto, data_proposta, aguardando_documento, inapto_em_tratativa", () =>
+  assert.deepEqual(etapas("qsms"), ["previsto", "data_proposta", "aguardando_documento", "inapto_em_tratativa"]));
+
+// Mesma tabela do dono em vw_itens_abertos (migration 0025). Admin opera como qsms.
+caso("faixa casa com o dono da view", () => {
+  const donoDaView = {
+    previsto: "qsms",
+    data_solicitada: "supervisor",
+    data_proposta: "qsms",
+    agendado: "supervisor",
+    enviado_clinica: "supervisor",
+    aguardando_documento: "qsms",
+    inapto_em_tratativa: "qsms",
+  };
+  for (const [etapa, dono] of Object.entries(donoDaView)) {
+    const papeis = ["supervisor", "qsms"].filter((p) => etapas(p).includes(etapa));
+    assert.deepEqual(papeis, [dono], `${etapa}: faixa de ${papeis.join(",") || "ninguém"}, esperado ${dono}`);
+  }
+});
 
 caso("admin vê a faixa do qsms", () => assert.deepEqual(etapas("admin"), etapas("qsms")));
 
@@ -55,13 +72,14 @@ caso("rótulos combinados com a spec", () => {
   assert.equal(rotulo("qsms", "previsto"), "Pedir data");
   assert.equal(rotulo("qsms", "data_proposta"), "Agendar");
   assert.equal(rotulo("qsms", "inapto_em_tratativa"), "Tratativa");
-  assert.equal(rotulo("qsms", "agendado"), "Enviar à clínica");
+  assert.equal(rotulo("supervisor", "agendado"), "Enviar à clínica");
+  assert.equal(rotulo("qsms", "aguardando_documento"), "Anexar ASO");
 });
 
 caso("mudar o retorno não altera a tabela", () => {
   const a = entradasDaFaixa("supervisor");
   a.length = 0;
-  assert.equal(entradasDaFaixa("supervisor").length, 2);
+  assert.equal(entradasDaFaixa("supervisor").length, 3);
 });
 
 console.log(falhas === 0 ? "\nTodos os casos passaram." : `\n${falhas} caso(s) falharam.`);
