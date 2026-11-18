@@ -330,6 +330,188 @@ a {
 .field::placeholder { color: var(--color-ink-faint); }
 .field:focus { border-color: var(--color-brand); }
 
+/* Caixas e rádios nativos no petróleo da marca, não no azul do navegador. */
+input[type="checkbox"],
+input[type="radio"] { accent-color: var(--color-brand); }
+
+/* --------------------------------------------------------------------------
+   Lista suspensa nativa (<select class="field">)
+
+   Vale para todas as telas de uma vez. A seta do navegador sai e entra um
+   chevron grafite; hover, foco e aberto seguem a pílula de filtro
+   (.filtro-suspenso). Em Chrome/Edge com `appearance: base-select` a própria
+   cortina de opções vira um cartão igual ao .menu-suspenso do Radix; nos
+   demais navegadores fica a cortina do sistema, com o campo já estilizado.
+   -------------------------------------------------------------------------- */
+
+select.field {
+  appearance: none;
+  padding-right: 2.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23565D64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  cursor: pointer;
+  text-overflow: ellipsis;
+  transition: border-color var(--duracao-rapida) var(--ease-giro), box-shadow var(--duracao-rapida) var(--ease-giro);
+}
+select.field:hover { border-color: var(--color-ink-muted); }
+select.field:focus { border-color: var(--color-brand); }
+select.field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 30%, transparent);
+}
+select.field:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@supports (appearance: base-select) {
+  select.field,
+  select.field::picker(select) { appearance: base-select; }
+
+  select.field {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-right: 0.75rem;
+    background-image: none;
+  }
+  select.field::picker-icon {
+    content: "";
+    width: 1rem;
+    height: 1rem;
+    background: currentColor;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+    color: var(--color-ink-muted);
+    transition: rotate var(--duracao-media) var(--ease-giro), color var(--duracao-media) var(--ease-giro);
+  }
+  select.field:open {
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 18%, transparent);
+  }
+  select.field:open::picker-icon { rotate: 180deg; color: var(--color-brand); }
+
+  select.field::picker(select) {
+    margin-block: 6px;
+    padding: 0.3125rem;
+    max-height: min(20rem, 60vh);
+    overflow-y: auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-alta);
+    font-family: inherit;
+    font-size: var(--text-label);
+    opacity: 0;
+    translate: 0 -4px;
+    transition:
+      opacity var(--duracao-media) var(--ease-giro),
+      translate var(--duracao-media) var(--ease-giro),
+      display var(--duracao-media) allow-discrete,
+      overlay var(--duracao-media) allow-discrete;
+  }
+  select.field:open::picker(select) { opacity: 1; translate: 0 0; }
+  @starting-style {
+    select.field:open::picker(select) { opacity: 0; translate: 0 -4px; }
+  }
+
+  select.field option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4375rem 0.5625rem;
+    border-radius: var(--radius-sm);
+    color: var(--color-ink);
+    cursor: pointer;
+    outline: none;
+    transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro);
+  }
+  select.field option:checked { font-weight: 500; color: var(--color-brand); background: transparent; }
+  select.field option:hover,
+  select.field option:focus-visible { background: var(--color-brand-wash); color: var(--color-brand); }
+  select.field option:disabled { opacity: 0.45; cursor: not-allowed; }
+  select.field option::checkmark { order: 1; margin-left: auto; color: var(--color-brand); }
+}
+
+/* --------------------------------------------------------------------------
+   Opção em chave (checkbox com cara de switch, dentro de um cartão)
+
+   O <input type="checkbox"> continua no formulário — mesmo name, mesmo "on" —
+   só fica invisível; a chave desenhada acompanha `:checked` via :has(). O
+   cartão inteiro é clicável e o foco do teclado aparece no contorno.
+   -------------------------------------------------------------------------- */
+
+.opcao-chave {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--duracao-rapida) var(--ease-giro), background-color var(--duracao-rapida) var(--ease-giro), box-shadow var(--duracao-rapida) var(--ease-giro);
+}
+.opcao-chave:hover { border-color: var(--color-ink-muted); }
+.opcao-chave:has(:checked) {
+  border-color: var(--color-brand);
+  background: var(--color-brand-wash);
+}
+.opcao-chave:has(:focus-visible) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand) 30%, transparent);
+}
+
+/* Fora da tela, mas ainda focável e lido pelo leitor de tela. */
+.opcao-chave__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.opcao-chave__icone {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  color: var(--color-ink-muted);
+  transition: background-color var(--duracao-rapida) var(--ease-giro), color var(--duracao-rapida) var(--ease-giro);
+}
+.opcao-chave:has(:checked) .opcao-chave__icone { background: var(--color-brand); color: #FFFFFF; }
+
+.opcao-chave__texto { display: grid; gap: 0.125rem; min-width: 0; flex: 1; }
+.opcao-chave__titulo { font-size: var(--text-body); font-weight: 500; color: var(--color-ink); }
+.opcao-chave__dica { font-size: var(--text-label); color: var(--color-ink-muted); }
+.opcao-chave:has(:checked) .opcao-chave__titulo { color: var(--color-brand); }
+
+.opcao-chave__trilho {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  background: var(--color-line-strong);
+  transition: background-color var(--duracao-media) var(--ease-giro);
+}
+.opcao-chave__trilho::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(1.5rem - 6px);
+  height: calc(1.5rem - 6px);
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgb(19 37 35 / 0.25);
+  transition: translate var(--duracao-media) var(--ease-giro);
+}
+.opcao-chave:has(:checked) .opcao-chave__trilho { background: var(--color-brand); }
+.opcao-chave:has(:checked) .opcao-chave__trilho::after { translate: 1rem 0; }
+
 .label {
   display: block;
   font-size: var(--text-label);
@@ -1629,6 +1811,17 @@ a {
 
 .faltam { font-weight: 500; }
 .faltam--vencido { font-weight: 600; color: #C62828; }
+
+/* Aba Agendado do Radar: exame marcado para amanhã. Vermelho de propósito
+   (pedido de Matheus, 18/11/2026): é o mesmo recado do semáforo — se ninguém
+   agir hoje, o colaborador fica sem ASO. A faixa à esquerda segura a leitura
+   no modo de alto contraste, onde o fundo some. */
+.agenda-prazo { color: var(--color-ink-muted); }
+.agenda-prazo--amanha { color: #C62828; font-weight: 600; }
+.tabela--lista tbody tr.linha--amanha td,
+.tabela--lista tbody tr.linha--amanha:hover td { background: var(--color-status-critico-bg); }
+.tabela--lista tbody tr.linha--amanha td:first-child,
+.tabela--lista tbody tr.linha--amanha:hover td:first-child { box-shadow: inset 4px 0 0 #C62828; }
 
 .etiqueta--minha { background: var(--color-brand); color: #fff; font-weight: 500; }
 

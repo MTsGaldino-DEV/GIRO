@@ -239,6 +239,34 @@ export function textoFaltam(
 }
 
 /**
+ * Coluna "Agendado para" da aba Agendado do Radar: quantos dias faltam até o
+ * exame marcado. As duas datas são strings ISO (sem fuso), então a conta é
+ * feita em UTC sobre o dia civil — nada de `new Date()` local deslocando um dia.
+ *
+ * `amanha` acende a linha em vermelho (pedido de Matheus, 18/11/2026): é o
+ * aviso para o supervisor mandar o colaborador à clínica no dia seguinte.
+ */
+export function prazoAgendamento(
+  dataAgendada: string | null | undefined,
+  hoje: string = hojeIso()
+): { texto: string; dias: number | null; amanha: boolean } {
+  if (!dataAgendada) return { texto: "sem data", dias: null, amanha: false };
+  const dia = (iso: string) => {
+    const [a, m, d] = iso.slice(0, 10).split("-").map(Number);
+    return Date.UTC(a, m - 1, d);
+  };
+  const dias = Math.round((dia(dataAgendada) - dia(hoje)) / 86_400_000);
+  if (Number.isNaN(dias)) return { texto: "sem data", dias: null, amanha: false };
+  if (dias === 0) return { texto: "Hoje", dias, amanha: false };
+  if (dias === 1) return { texto: "Amanhã", dias, amanha: true };
+  if (dias < 0) {
+    const n = Math.abs(dias);
+    return { texto: `Passou há ${n} ${n === 1 ? "dia" : "dias"}`, dias, amanha: false };
+  }
+  return { texto: `Faltam ${dias} dias`, dias, amanha: false };
+}
+
+/**
  * A etapa está na mão de quem olha? Admin age como QSMS. É o que acende a
  * etiqueta do responsável e o botão cheio na linha do Radar.
  */

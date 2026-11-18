@@ -225,3 +225,14 @@ export function IconeSeletor({ className }: Props) {
     </svg>
   );
 }
+
+/** Cabeça de perfil com um balão — avaliação psicossocial (AVP). */
+export function IconePsicossocial({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M12 21v-3.5a1 1 0 0 1 1-1h1.5a2 2 0 0 0 2-2V12l1.6-.8a.6.6 0 0 0 .2-.9L16.5 8A6.5 6.5 0 1 0 7 13.7V21" />
+      <path d="M10.5 7.2a1.6 1.6 0 0 1 2.4 1.4c0 1.1-1.4 1.2-1.4 2.1" />
+      <path d="M11.5 12.6h.01" />
+    </svg>
+  );
+}

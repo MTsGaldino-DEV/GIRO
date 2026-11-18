@@ -1,7 +1,7 @@
 // Testa os helpers da linha do Radar: coluna "Faltam" e "é a vez de quem olha" (lógica pura).
 // Rodar: npm run teste:radar-linha
 import assert from "node:assert/strict";
-import { textoFaltam, ehVezDe } from "../lib/dominio.ts";
+import { textoFaltam, ehVezDe, prazoAgendamento } from "../lib/dominio.ts";
 
 let falhas = 0;
 function caso(nome, fn) {
@@ -43,6 +43,21 @@ caso("qsms não age em etapa do supervisor", () => assert.equal(ehVezDe("qsms", 
 caso("admin não age em etapa do supervisor", () => assert.equal(ehVezDe("admin", "supervisor"), false));
 caso("ninguém nunca é a vez", () => assert.equal(ehVezDe("qsms", "ninguem"), false));
 caso("papel desconhecido nunca é a vez", () => assert.equal(ehVezDe("outro", "qsms"), false));
+
+// Aba Agendado: data marcada x hoje (datas fixas, sem depender do relógio).
+const H = "2026-11-18";
+caso("agendado para amanhã acende a linha", () =>
+  assert.deepEqual(prazoAgendamento("2026-11-19", H), { texto: "Amanhã", dias: 1, amanha: true }));
+caso("agendado para hoje", () =>
+  assert.deepEqual(prazoAgendamento("2026-11-18", H), { texto: "Hoje", dias: 0, amanha: false }));
+caso("agendado daqui a 5 dias", () =>
+  assert.deepEqual(prazoAgendamento("2026-11-23", H), { texto: "Faltam 5 dias", dias: 5, amanha: false }));
+caso("virada de mês conta certo", () =>
+  assert.deepEqual(prazoAgendamento("2026-12-01", "2026-11-30"), { texto: "Amanhã", dias: 1, amanha: true }));
+caso("data que já passou", () =>
+  assert.deepEqual(prazoAgendamento("2026-11-17", H), { texto: "Passou há 1 dia", dias: -1, amanha: false }));
+caso("sem data agendada", () =>
+  assert.deepEqual(prazoAgendamento(null, H), { texto: "sem data", dias: null, amanha: false }));
 
 if (falhas) {
   console.log(`\n${falhas} falha(s)`);

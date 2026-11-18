@@ -24,6 +24,8 @@ import {
   STATUS_ROTULO,
   ORDEM_STATUS,
   formatarData,
+  formatarHora,
+  prazoAgendamento,
   avisoJanelaUtil,
   textoFaltam,
   ehVezDe,
@@ -185,6 +187,8 @@ export function GradeItens({
   }
 
   const equipe = filtros.equipe ?? escopo.equipePadrao;
+  // Na aba Agendado entra a coluna com a data marcada e a contagem de dias.
+  const abaAgendado = filtros.etapa === "agendado";
   const semEquipe = equipe === "minha" && !escopo.supervisorId;
   // Escopo, ordem e página não contam como "filtro": a lista sem eles continua
   // sendo o Radar padrão.
@@ -310,6 +314,7 @@ export function GradeItens({
                     {cabecalho("vencimento", "Vencimento")}
                     {cabecalho("status", "Status")}
                     <th scope="col">Faltam</th>
+                    {abaAgendado && <th scope="col">Agendado para</th>}
                     <th scope="col">Etapa</th>
                     <th scope="col" className="text-right">Ação</th>
                   </tr>
@@ -322,6 +327,7 @@ export function GradeItens({
                       papel={escopo.papel}
                       fotoUrl={fotos[item.foto_url ?? ""]}
                       aoConcluirAcao={aoConcluirAcao}
+                      mostrarAgendamento={abaAgendado}
                     />
                   ))}
                 </tbody>
@@ -423,19 +429,25 @@ function LinhaItem({
   papel,
   fotoUrl,
   aoConcluirAcao,
+  mostrarAgendamento = false,
 }: {
   item: ItemAberto;
   papel: Papel;
   fotoUrl?: string;
   aoConcluirAcao: AoConcluir;
+  /** Aba Agendado: coluna com a data marcada e quantos dias faltam. */
+  mostrarAgendamento?: boolean;
 }) {
   const janela = avisoJanelaUtil(item);
   const status = item.status as StatusConformidade;
   const faltam = textoFaltam(status, item.dias_restantes);
   // A etiqueta do responsável acende (petróleo cheio) quando a vez é de quem olha.
   const minha = ehVezDe(papel, item.dono);
+  // Exame marcado para amanhã: a linha fica vermelha em qualquer aba, para o
+  // supervisor não esquecer de mandar o colaborador à clínica.
+  const agenda = item.etapa === "agendado" ? prazoAgendamento(item.data_agendada) : null;
   return (
-    <tr>
+    <tr className={agenda?.amanha ? "linha--amanha" : undefined}>
       <td>
         <div className="flex items-center gap-2.5 min-w-0">
           <AvatarColaborador nome={item.nome} fotoUrl={fotoUrl} />
@@ -459,6 +471,23 @@ function LinhaItem({
         <SeloStatus status={status} dias={null} titulo />
       </td>
       <td className={`tabular faltam${faltam.vencido ? " faltam--vencido" : ""}`}>{faltam.texto}</td>
+      {mostrarAgendamento && (
+        <td className="tabular text-label">
+          {item.data_agendada ? (
+            <>
+              <span className="block">
+                {formatarData(item.data_agendada)}
+                {item.hora_agendada ? ` · ${formatarHora(item.hora_agendada)}` : ""}
+              </span>
+              <span className={`block mt-0.5 agenda-prazo${agenda?.amanha ? " agenda-prazo--amanha" : ""}`}>
+                {agenda?.texto}
+              </span>
+            </>
+          ) : (
+            <span className="text-ink-faint">Sem data</span>
+          )}
+        </td>
+      )}
       <td className="text-label">
         <span className="block font-medium">{ETAPA_ROTULO[item.etapa]}</span>
         {item.dono !== "ninguem" && (

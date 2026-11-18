@@ -959,6 +959,10 @@ exigem `fn_e_qsms()`.
   confirmar em produção: redeploy (variável nova só vale em deploy novo) e um
   "Atualizar agora" — conferir em `neo_sincronizacoes` uma linha `manual` sem
   erro depois disso; depois, a do cron (08:30).
+  **18/11: cron de produção rodou sem erro** (09:29 UTC; o `schedule` da Vercel é
+  UTC, então "08:30" = 05:30 de Brasília, com até ~1h de atraso no plano Hobby).
+  Atenção: com essa folga, a ordem "sincronizar antes do gerar-itens (09:00 UTC)"
+  não é garantida.
 - **Exclusões (17/11/2026):** `components/botao-excluir.tsx` (confirmação do
   navegador). Gestão de usuários: "Excluir" (admin; apaga a conta do Auth, perfil
   em cascata; recusa a própria conta; quem tem histórico — eventos, histórico,
@@ -1152,6 +1156,49 @@ Matheus; ele aprovou o desenho abaixo. **Aplicado ao sistema em 17/11/2026**
 - **18/11/2026 — Excluir também na lista de Colaboradores** (pedido de Matheus): coluna Ação só para admin (`podeExcluir`), botão "Excluir" por linha com `window.confirm`, usa `excluirColaboradorDoPainel`, aviso no topo e `router.refresh()`; nos desligados fica ao lado de "Reativar". Legenda da tabela corrigida para "em ordem alfabética".
 
 - **18/11/2026 — ordem padrão do Radar pela coluna Faltam** (pedido de Matheus): primeiro os **sem registro**, depois os **vencidos há mais tempo** (`dias_restantes` mais negativo) e seguindo até quem vence mais tarde; empate desempata por `dias_parados` desc. Em `montarConsultaItens` (`lib/consulta-itens.ts`): `peso_status` → `dias_restantes` asc nulls first → `dias_parados` desc. Antes era status e depois quem estava parado há mais tempo. Ordenação por clique nos cabeçalhos segue igual. Verificado no banco (71 itens: 2 sem registro, depois -916, -440, -405…; sequência monotônica) e tsc ok.
+
+## Lista suspensa nativa e chave da AVP — 18/11/2026 (Claude)
+
+Pedido de Matheus: deixar mais bonitos o botão "Inclui avaliação psicossocial"
+e as listas suspensas de todas as páginas.
+
+- `select.field` em `app/globals.css` vale para todos os `<select>` do app
+  (cerca de 20). Chevron grafite no lugar da seta do sistema, hover/foco/aberto
+  iguais à pílula `.filtro-suspenso`. Em Chrome/Edge (≥135) entra
+  `appearance: base-select`: a cortina de opções vira cartão igual ao
+  `.menu-suspenso` (sombra alta, realce petróleo-claro, ✓ na opção marcada,
+  entrada com fade). Firefox/Safari ficam com a cortina do sistema e o campo
+  já estilizado. Não trocar por Radix: o `<select>` nativo mantém
+  `name`/`defaultValue` e funciona nos server actions sem JS extra.
+- `.opcao-chave` (cartão com ícone, título, dica e switch): checkbox real
+  escondido (`role="switch"`, mesmo `name`, envia `on`), estado via `:has()`.
+  Usado em `components/formulario-agendar.tsx` para a AVP; ícone novo
+  `IconePsicossocial` em `components/icones.tsx`. Reaproveitável para outros
+  sim/não de formulário.
+- Checkbox/radio nativos ganharam `accent-color` petróleo.
+- Verificado: `tsc --noEmit` limpo; CSS compilado pelo Tailwind preserva
+  `::picker(select)`, `:open`, `@starting-style`; prévia renderizada no
+  Chromium do Playwright (fechado, aberto e chave ligada/desligada).
+- Pendência: conferir na tela real de agendamento (precisa de login).
+
+## Aba Agendado do Radar: data marcada e alerta de amanhã — 18/11/2026 (Claude)
+
+- Pedido de Matheus: na aba Agendado, ver o dia agendado e quantos dias faltam;
+  a linha fica vermelha quando o exame é amanhã, para o supervisor mandar o
+  colaborador à clínica.
+- `prazoAgendamento()` em `lib/dominio.ts`: conta em dias civis (UTC sobre a
+  string ISO, hoje via `hojeIso()`), textos "Amanhã", "Hoje", "Faltam N dias",
+  "Passou há N dias". Só "Amanhã" acende o vermelho (decisão literal do pedido;
+  "Hoje" fica neutro).
+- `components/grade-itens.tsx`: coluna "Agendado para" (data · hora + prazo)
+  só quando `?etapa=agendado`; a classe `linha--amanha` vale em qualquer aba
+  para item na etapa agendado com exame amanhã.
+- CSS em `app/globals.css` (`.linha--amanha`, `.agenda-prazo`): fundo
+  `--color-status-critico-bg` + faixa vermelha à esquerda. **Exceção consciente
+  à regra do semáforo**, pedida por Matheus: o recado é o mesmo do semáforo
+  (risco de ficar sem ASO).
+- Verificado: `npx tsc --noEmit` limpo; `npm run teste:radar-linha` com 6 casos
+  novos passando. Não conferido no navegador.
 
 ## Decisão: sem o passo "Enviar à clínica" na tela (18/11/2026)
 

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { agendarItem, type Acao } from "@/app/(app)/qsms/acoes";
 import { MensagemErro } from "@/components/aviso";
+import { IconePsicossocial } from "@/components/icones";
 import { useAvisarConclusao, type AoConcluir } from "@/components/formularios-item";
 import { hojeIso } from "@/lib/dominio";
 import type { Clinica, ItemAberto } from "@/lib/tipos";
@@ -106,14 +107,22 @@ export function FormularioAgendar({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-label">
+      <label className="opcao-chave">
         <input
           type="checkbox"
+          role="switch"
           name="psicossocial"
-          className="size-4"
+          className="opcao-chave__input"
           defaultChecked={item.avaliacao_psicossocial}
         />
-        Inclui avaliação psicossocial
+        <span className="opcao-chave__icone" aria-hidden="true">
+          <IconePsicossocial />
+        </span>
+        <span className="opcao-chave__texto">
+          <span className="opcao-chave__titulo">Inclui avaliação psicossocial</span>
+          <span className="opcao-chave__dica">AVP feita no mesmo atendimento da clínica</span>
+        </span>
+        <span className="opcao-chave__trilho" aria-hidden="true" />
       </label>
 
       <div>
