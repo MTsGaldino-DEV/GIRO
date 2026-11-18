@@ -1152,3 +1152,21 @@ Matheus; ele aprovou o desenho abaixo. **Aplicado ao sistema em 17/11/2026**
 - **18/11/2026 — Excluir também na lista de Colaboradores** (pedido de Matheus): coluna Ação só para admin (`podeExcluir`), botão "Excluir" por linha com `window.confirm`, usa `excluirColaboradorDoPainel`, aviso no topo e `router.refresh()`; nos desligados fica ao lado de "Reativar". Legenda da tabela corrigida para "em ordem alfabética".
 
 - **18/11/2026 — ordem padrão do Radar pela coluna Faltam** (pedido de Matheus): primeiro os **sem registro**, depois os **vencidos há mais tempo** (`dias_restantes` mais negativo) e seguindo até quem vence mais tarde; empate desempata por `dias_parados` desc. Em `montarConsultaItens` (`lib/consulta-itens.ts`): `peso_status` → `dias_restantes` asc nulls first → `dias_parados` desc. Antes era status e depois quem estava parado há mais tempo. Ordenação por clique nos cabeçalhos segue igual. Verificado no banco (71 itens: 2 sem registro, depois -916, -440, -405…; sequência monotônica) e tsc ok.
+
+## Decisão: sem o passo "Enviar à clínica" na tela (18/11/2026)
+
+- Pedido de Matheus: "Enviar à clínica" era um clique inútil. No **Agendado**, o botão principal (Radar e ficha) passou a ser
+  **Registrar resultado** (o mesmo `FormularioResultado`, com ASO no "fez e apto").
+- **Banco não mudou.** `registrarResultado` (`app/(app)/qsms/acoes.ts`) aceita `agendado` e `enviado_clinica`; vindo do agendado,
+  chama `fn_enviar_clinica` antes de `fn_registrar_resultado` (que só aceita `enviado_clinica`). O histórico continua mostrando
+  "Colaborador enviado à clínica" + desfecho. Se o envio falhar, o ASO enviado é apagado (`removerSeNaoUsado`). Não é atômico: se o
+  resultado falhar depois do envio, o item fica em `enviado_clinica`, que continua mostrando o mesmo formulário.
+- Removidos: ação `enviar_clinica` (`lib/acoes-etapa.ts`), `FormularioEnviarClinica` e `enviarAClinica`. A RPC `fn_enviar_clinica` fica.
+- Ficha no Agendado: "Informar os dados ao supervisor" só enquanto não informado; o cartão "Registrar resultado" aparece sempre.
+- Faixa do supervisor: Agendado → "Registrar resultado"; `enviado_clinica` (itens antigos) → "Enviados sem resultado" (rótulos únicos).
+  `ETAPA_ACAO.agendado` e o texto "Agendados" do e-mail semanal citam registrar o resultado depois do exame.
+- Verificação: `tsc --noEmit` ok; `teste:acoes`, `teste:faixa`, `teste:radar-linha`, `teste:abas` passam. `npm run build` do HEAD + só estas
+  mudanças passou, e também com TODAS as alterações pendentes (worktrees temporários). Sem teste no navegador.
+- **Build x next dev:** `npm run build` na pasta do GIRO com o `next dev` rodando falha (prerender de "/", erro de `next/font") e
+  QUEBRA o dev (500, `Cannot find module ./5611.js`): os dois usam a mesma `.next`. Para conferir build com o dev no ar, usar um
+  `git worktree` temporário com junção para `node_modules`. Em 18/11 o dev foi reiniciado com `.next` limpa (porta 3000, log em `.dev-server.log`).

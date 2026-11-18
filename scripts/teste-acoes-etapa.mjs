@@ -19,7 +19,7 @@ const PRINCIPAL = {
   previsto: ["solicitar_data", "Pedir data ao supervisor"],
   data_solicitada: ["informar_data", "Informar data"],
   data_proposta: ["agendar", "Agendar"],
-  agendado: ["enviar_clinica", "Enviar à clínica"],
+  agendado: ["registrar_resultado", "Registrar resultado"],
   enviado_clinica: ["registrar_resultado", "Registrar resultado"],
   aguardando_documento: ["concluir_documento", "Anexar ASO e concluir"],
   inapto_em_tratativa: ["encerrar_inapto", "Registrar tratativa"],

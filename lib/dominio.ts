@@ -50,7 +50,7 @@ export const ETAPA_ACAO: Record<Etapa, string> = {
   previsto: "Solicitar ao supervisor a data em que o colaborador pode ser liberado",
   data_solicitada: "Informar a data em que o colaborador pode ser liberado",
   data_proposta: "Checar a clínica e agendar, ou devolver ao supervisor",
-  agendado: "Garantir o comparecimento e marcar o envio à clínica",
+  agendado: "Garantir o comparecimento e, depois do exame, registrar o resultado com o ASO",
   enviado_clinica: "Registrar o resultado e anexar o ASO",
   aguardando_documento: "Anexar o ASO e concluir (itens antigos)",
   concluido: "Nada — ciclo encerrado",

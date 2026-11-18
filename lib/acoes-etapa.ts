@@ -15,7 +15,6 @@ export type IdAcao =
   | "solicitar_data"
   | "informar_data"
   | "agendar"
-  | "enviar_clinica"
   | "registrar_resultado"
   | "concluir_documento"
   | "encerrar_inapto"
@@ -34,7 +33,6 @@ const ROTULO: Record<IdAcao, string> = {
   solicitar_data: "Pedir data ao supervisor",
   informar_data: "Informar data",
   agendar: "Agendar",
-  enviar_clinica: "Enviar à clínica",
   registrar_resultado: "Registrar resultado",
   concluir_documento: "Anexar ASO e concluir",
   encerrar_inapto: "Registrar tratativa",
@@ -50,7 +48,9 @@ const PRINCIPAL: Record<Etapa, IdAcao | null> = {
   previsto: "solicitar_data",
   data_solicitada: "informar_data",
   data_proposta: "agendar",
-  agendado: "enviar_clinica",
+  // "Enviar à clínica" saiu da tela em 18/11/2026 (Matheus): o resultado é
+  // registrado direto do agendado e o servidor grava o envio junto.
+  agendado: "registrar_resultado",
   enviado_clinica: "registrar_resultado",
   // Itens antigos: a etapa saiu do fluxo normal em 13/11 (spec 8 e 12b, item 4).
   aguardando_documento: "concluir_documento",
@@ -84,7 +84,7 @@ const SECUNDARIAS: Record<Etapa, IdAcao[]> = {
  * dono do próximo passo. Tabela confirmada por Matheus em 17/11/2026 e igual à
  * coluna `dono` de `vw_itens_abertos` (migration 0025): o QSMS cuida de
  * Pendente, data proposta, aguardando documento e tratativa; o supervisor, de
- * data solicitada, agendado e enviado à clínica. As permissões não mudam: o
+ * data solicitada, agendado e enviado à clínica (itens antigos). As permissões não mudam: o
  * Postgres aceita qualquer operador nas RPCs de fluxo.
  */
 export type PapelFaixa = "supervisor" | "qsms";
@@ -93,8 +93,8 @@ export type EntradaFaixa = { etapa: Etapa; rotulo: string };
 export const FAIXA_PARA_AGIR: Record<PapelFaixa, readonly EntradaFaixa[]> = {
   supervisor: [
     { etapa: "data_solicitada", rotulo: "Informar data" },
-    { etapa: "agendado", rotulo: "Enviar à clínica" },
-    { etapa: "enviado_clinica", rotulo: "Registrar resultado" },
+    { etapa: "agendado", rotulo: "Registrar resultado" },
+    { etapa: "enviado_clinica", rotulo: "Enviados sem resultado" },
   ],
   qsms: [
     { etapa: "previsto", rotulo: "Pedir data" },

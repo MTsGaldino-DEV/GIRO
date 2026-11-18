@@ -406,24 +406,6 @@ export async function informarDados(_anterior: Acao | null, formData: FormData):
 
 // ---------------------------------------------------------------------------
 
-export async function enviarAClinica(_anterior: Acao | null, formData: FormData): Promise<Acao> {
-  await exigirOperador();
-
-  const itemId = z.string().uuid().safeParse(formData.get("item_id"));
-  if (!itemId.success) return { ok: false, erro: "Item inválido." };
-
-  const supabase = await criarClienteServidor();
-  const { error } = await supabase.rpc("fn_enviar_clinica", {
-    p_item_id: itemId.data,
-    p_observacao: (formData.get("observacao") as string) || null,
-  });
-
-  if (error) return { ok: false, erro: mensagemDeErro(error.message) };
-
-  revalidarPaineis(itemId.data);
-  return { ok: true, mensagem: "Envio registrado. Falta o desfecho do exame." };
-}
-
 // ---------------------------------------------------------------------------
 // Registrar resultado (spec 2026-11-13-telas-e-fluxo, seção 8; migration 0018).
 //
@@ -486,9 +468,15 @@ const MENSAGEM_DESFECHO: Record<string, string> = {
  *   - `code` preenchido: o Postgres ou o PostgREST recusou a chamada, então a
  *     transação foi desfeita. Falha de rede ou tempo esgotado chegam sem
  *     `code`, e aí o banco pode ter concluído o item com este arquivo;
- *   - o item, relido, continua em `enviado_clinica`.
+ *   - o item, relido, continua em `agendado` ou `enviado_clinica` (não concluiu).
  * Na dúvida (releitura falhou, qualquer exceção), não apaga.
  */
+/**
+ * O resultado sai do agendado (sem o antigo passo "Enviar à clínica", que saiu da
+ * tela em 18/11/2026) ou de `enviado_clinica` (itens antigos).
+ */
+const ETAPAS_DO_RESULTADO = ["agendado", "enviado_clinica"];
+
 async function removerSeNaoUsado(
   supabase: Awaited<ReturnType<typeof criarClienteServidor>>,
   itemId: string,
@@ -502,7 +490,7 @@ async function removerSeNaoUsado(
       .select("etapa")
       .eq("id", itemId)
       .maybeSingle();
-    if (error || data?.etapa !== "enviado_clinica") return;
+    if (error || !ETAPAS_DO_RESULTADO.includes(data?.etapa ?? "")) return;
     await supabase.storage.from(BUCKET_ASOS).remove([caminho]);
   } catch {
     // Fica o órfão; a mensagem de erro original continua sendo a devolvida.
@@ -560,7 +548,7 @@ export async function registrarResultado(_anterior: Acao | null, formData: FormD
     .maybeSingle();
 
   if (!item) return { ok: false, erro: "Item não encontrado." };
-  if (item.etapa !== "enviado_clinica") {
+  if (!ETAPAS_DO_RESULTADO.includes(item.etapa)) {
     return {
       ok: false,
       erro: "Este item já não está aguardando o resultado da clínica. Atualize a lista.",
@@ -574,6 +562,19 @@ export async function registrarResultado(_anterior: Acao | null, formData: FormD
     const envio = await enviarDocumentoAso(supabase, item.colaborador_id, arquivo);
     if (!envio.ok) return { ok: false, erro: envio.erro };
     caminhoDocumento = envio.caminho;
+  }
+
+  // Vindo do agendado, grava antes o envio à clínica: fn_registrar_resultado só
+  // aceita `enviado_clinica`, e o histórico continua mostrando os dois passos.
+  if (item.etapa === "agendado") {
+    const { error: erroEnvio } = await supabase.rpc("fn_enviar_clinica", {
+      p_item_id: item_id,
+      p_observacao: null,
+    });
+    if (erroEnvio) {
+      if (caminhoDocumento) await removerSeNaoUsado(supabase, item_id, caminhoDocumento, erroEnvio.code);
+      return { ok: false, erro: mensagemDeErro(erroEnvio.message) };
+    }
   }
 
   const { error } = await supabase.rpc("fn_registrar_resultado", {

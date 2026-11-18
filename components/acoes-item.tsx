@@ -7,7 +7,6 @@ import {
   FormularioSolicitarData,
   FormularioDataSupervisor,
   FormularioInformarDados,
-  FormularioEnviarClinica,
   FormularioEncerrarInapto,
   FormularioCancelar,
 } from "@/components/formularios-item";
@@ -127,20 +126,7 @@ export function AcoesItem({
 
       {item.etapa === "agendado" && (
         <>
-          {item.dados_informados_em ? (
-            <Cartao
-              titulo="Enviar o colaborador à clínica"
-              descricao={
-                <>
-                  Clínica, horário e orientações foram informados em{" "}
-                  {formatarDataHora(item.dados_informados_em)}. Registre aqui
-                  quando o colaborador for ao exame.
-                </>
-              }
-            >
-              <FormularioEnviarClinica item={item} />
-            </Cartao>
-          ) : (
+          {!item.dados_informados_em && (
             <Cartao
               titulo="Informar os dados ao supervisor"
               descricao={
@@ -155,8 +141,23 @@ export function AcoesItem({
               <FormularioInformarDados item={item} />
             </Cartao>
           )}
-          {/* O "Registrar falta" do menu da linha do Radar. Só a falta: quem foi
-              ao exame segue por "Enviar à clínica" e "Registrar resultado". */}
+          {/* Sem o passo "Enviar à clínica" (18/11/2026): depois do exame, o
+              resultado é registrado direto daqui; o servidor grava o envio junto. */}
+          <Cartao
+            titulo="Registrar resultado"
+            descricao={
+              <>
+                Exame marcado para {formatarData(item.data_agendada)}
+                {item.dados_informados_em
+                  ? `; dados passados à supervisão em ${formatarDataHora(item.dados_informados_em)}`
+                  : ""}
+                . Depois do exame, registre o que aconteceu. Só “fez e apto” encerra o ciclo, e já com o ASO anexado.
+              </>
+            }
+          >
+            <FormularioResultado item={item} />
+          </Cartao>
+          {/* O "Registrar falta" do menu da linha do Radar. */}
           <Cartao titulo="O colaborador faltou?">
             <FormularioComparecimento itemId={item.item_id} />
           </Cartao>

@@ -21,7 +21,7 @@ function Botao() {
  *
  * Só a falta. O antigo "Compareceu" levava o item para `aguardando_documento`
  * sem documento; desde 0021 o banco o recusa (fn_registrar_comparecimento só
- * aceita a falta). Quem foi ao exame segue por "Enviar à clínica" e
+ * aceita a falta). Quem foi ao exame segue por
  * "Registrar resultado", com o ASO anexado.
  */
 export function FormularioComparecimento({

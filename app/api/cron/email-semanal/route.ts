@@ -141,7 +141,7 @@ async function executar(request: NextRequest) {
       {
         chave: "agendados",
         titulo: "Agendados",
-        explicacao: "Data, hora e local já fechados. Garanta o comparecimento.",
+        explicacao: "Data, hora e local já fechados. Garanta o comparecimento e, depois do exame, registre o resultado e anexe o ASO.",
         itens: agendados,
       },
       {

@@ -68,11 +68,11 @@ caso("rótulos preenchidos e únicos dentro da faixa", () => {
 caso("rótulos combinados com a spec", () => {
   const rotulo = (papel, etapa) => entradasDaFaixa(papel).find((e) => e.etapa === etapa)?.rotulo;
   assert.equal(rotulo("supervisor", "data_solicitada"), "Informar data");
-  assert.equal(rotulo("supervisor", "enviado_clinica"), "Registrar resultado");
+  assert.equal(rotulo("supervisor", "enviado_clinica"), "Enviados sem resultado");
   assert.equal(rotulo("qsms", "previsto"), "Pedir data");
   assert.equal(rotulo("qsms", "data_proposta"), "Agendar");
   assert.equal(rotulo("qsms", "inapto_em_tratativa"), "Tratativa");
-  assert.equal(rotulo("supervisor", "agendado"), "Enviar à clínica");
+  assert.equal(rotulo("supervisor", "agendado"), "Registrar resultado");
   assert.equal(rotulo("qsms", "aguardando_documento"), "Anexar ASO");
 });
 

@@ -30,7 +30,6 @@ import {
   FormularioCancelar,
   FormularioDataSupervisor,
   FormularioEncerrarInapto,
-  FormularioEnviarClinica,
   FormularioInformarDados,
   FormularioSolicitarData,
   type AoConcluir,
@@ -224,14 +223,6 @@ function ConteudoAcao({
             Confirme com a clínica.
           </Contexto>
           <AgendarComClinicas item={item} aoConcluir={aoConcluir} />
-        </>
-      );
-
-    case "enviar_clinica":
-      return (
-        <>
-          <Contexto>Registre quando o colaborador for ao exame.</Contexto>
-          <FormularioEnviarClinica item={item} aoConcluir={aoConcluir} />
         </>
       );
 

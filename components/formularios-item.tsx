@@ -6,7 +6,6 @@ import {
   solicitarData,
   registrarDataSupervisor,
   informarDados,
-  enviarAClinica,
   encerrarInapto,
   cancelarItem,
   type Acao,
@@ -204,34 +203,8 @@ export function FormularioInformarDados({ item, aoConcluir }: { item: ItemAberto
   );
 }
 
-// ---------------------------------------------------------------------------
-// Passo 6 · colaborador enviado à clínica
-// ---------------------------------------------------------------------------
-
-export function FormularioEnviarClinica({ item, aoConcluir }: { item: ItemAberto; aoConcluir?: AoConcluir }) {
-  const [estado, acao] = useActionState<Acao | null, FormData>(enviarAClinica, null);
-  useAvisarConclusao(estado, aoConcluir);
-  if (estado?.ok) return <Concluido mensagem={estado.mensagem} />;
-
-  return (
-    <form action={acao} className="grid gap-4">
-      <input type="hidden" name="item_id" value={item.item_id} />
-      <div>
-        <label className="label" htmlFor="observacao-envio">Observação</label>
-        <input
-          id="observacao-envio"
-          name="observacao"
-          className="field"
-          placeholder="Opcional — fica no histórico"
-        />
-      </div>
-      <div className="flex items-center gap-3 flex-wrap">
-        <Botao rotulo="Colaborador foi enviado" ocupado="Registrando…" />
-        {estado && !estado.ok && <MensagemErro>{estado.erro}</MensagemErro>}
-      </div>
-    </form>
-  );
-}
+// Passo 6 · "Enviar à clínica" saiu da tela em 18/11/2026: o envio é gravado junto
+// com o resultado (registrarResultado).
 
 // Passo 7 · o desfecho e o ASO num passo só: components/radar/formulario-resultado.tsx.
 
