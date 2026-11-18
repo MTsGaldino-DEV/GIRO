@@ -100,9 +100,13 @@ export function montarConsultaItens(
   if (ordem) {
     consulta = consulta.order(COLUNAS_ORDENAVEIS[ordem].coluna, { ascending: direcao === "asc" });
   } else {
-    // Padrão: pior primeiro, e dentro do mesmo status quem está parado há mais
-    // tempo. É a ordem que responde "o que eu faço agora".
-    consulta = consulta.order("peso_status").order("dias_parados", { ascending: false });
+    // Padrão: a coluna "Faltam". Sem registro primeiro (peso 0, sem dias) e,
+    // depois, quem está vencido há mais tempo (dias_restantes mais negativo),
+    // seguindo até quem vence mais tarde. Empate: parado há mais tempo.
+    consulta = consulta
+      .order("peso_status")
+      .order("dias_restantes", { ascending: true, nullsFirst: true })
+      .order("dias_parados", { ascending: false });
   }
 
   // Só dígitos procura também pela matrícula exata; o resto vira "contém" no
