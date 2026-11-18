@@ -54,6 +54,30 @@ export async function enviarDocumentoAso(
   return { ok: true, caminho };
 }
 
+/**
+ * A mesma URL assinada, mas o navegador baixa em vez de abrir.
+ *
+ * O Storage do Supabase lê o parâmetro `download` e responde com
+ * `Content-Disposition: attachment` — é o que `createSignedUrl(..., { download })`
+ * faz por dentro. Montar aqui evita uma segunda assinatura por documento.
+ */
+export function urlParaBaixar(urlAssinada: string, nomeArquivo: string): string {
+  const url = new URL(urlAssinada);
+  url.searchParams.set("download", nomeArquivo);
+  return url.toString();
+}
+
+/** "ASO Periódico", "2026-07-30", "x/y.pdf" → "ASO Periodico 30-07-2026.pdf". */
+export function nomeArquivoExame(requisito: string, dataDocumento: string, caminho: string): string {
+  const extensao = caminho.split(".").pop()?.toLowerCase() || "pdf";
+  const rotulo = requisito
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^A-Za-z0-9 ]+/g, "")
+    .trim();
+  return `${rotulo} ${dataDocumento.split("-").reverse().join("-")}.${extensao}`;
+}
+
 /** URL temporária para abrir o documento. Uma hora é suficiente para conferir e fechar. */
 export async function urlAssinada(
   supabase: SupabaseClient,

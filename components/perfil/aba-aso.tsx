@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
 import { Aviso, Vazio } from "@/components/aviso";
+import { LinksDocumento } from "@/components/links-documento";
 import { AcoesItem } from "@/components/acoes-item";
 import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO, ehExameLancavel } from "@/lib/dominio";
 import { carregarExames, type EventoColaborador } from "@/lib/consulta-colaborador";
@@ -160,18 +161,12 @@ export function AbaAso({
                     </td>
                     <td className="text-label">{evento.clinica ?? "—"}</td>
                     <td>
-                      {links[evento.id] ? (
-                        <a
-                          href={links[evento.id]}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-label"
-                        >
-                          Abrir
-                        </a>
-                      ) : (
-                        <span className="text-caption text-ink-faint">sem arquivo</span>
-                      )}
+                      <LinksDocumento
+                        url={links[evento.id]}
+                        requisito={evento.requisito}
+                        dataDocumento={evento.data_documento}
+                        caminho={evento.documento_url}
+                      />
                     </td>
                   </tr>
                 ))}

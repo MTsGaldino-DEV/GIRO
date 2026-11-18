@@ -40,7 +40,7 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
     const etapa = encerrado.etapa as Etapa;
 
     return (
-      <div className="max-w-[760px]">
+      <div className="max-w-[760px] mx-auto">
         <div className="cabecalho-pagina">
           <Trilha
             degraus={[
@@ -72,7 +72,7 @@ export default async function ItemQsms({ params }: { params: Promise<{ id: strin
   ]);
 
   return (
-    <div className="max-w-[900px]">
+    <div className="max-w-[900px] mx-auto">
       <Trilha
         className="cabecalho-pagina"
         degraus={[

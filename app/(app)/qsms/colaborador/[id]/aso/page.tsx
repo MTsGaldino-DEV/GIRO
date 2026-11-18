@@ -5,6 +5,7 @@ import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarItemAberto } from "@/lib/colaborador";
 import { urlAssinada } from "@/lib/storage";
 import { Aviso, Vazio } from "@/components/aviso";
+import { LinksDocumento } from "@/components/links-documento";
 import { formatarData, RESULTADO_ROTULO, ETAPA_ROTULO, ehExameLancavel } from "@/lib/dominio";
 import { AcoesItem } from "@/components/acoes-item";
 import { DataExameEditavel } from "@/components/perfil/data-exame-editavel";
@@ -132,18 +133,12 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
                     </td>
                     <td className="text-label">{evento.clinica ?? "—"}</td>
                     <td>
-                      {links.has(evento.id) ? (
-                        <a
-                          href={links.get(evento.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-label"
-                        >
-                          Abrir
-                        </a>
-                      ) : (
-                        <span className="text-caption text-ink-faint">sem arquivo</span>
-                      )}
+                      <LinksDocumento
+                        url={links.get(evento.id)}
+                        requisito={evento.requisito}
+                        dataDocumento={evento.data_documento}
+                        caminho={evento.documento_url}
+                      />
                     </td>
                   </tr>
                 ))}

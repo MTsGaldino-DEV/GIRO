@@ -8,7 +8,7 @@ export default async function PaginaTrocarSenha() {
   await exigirPerfil();
 
   return (
-    <div className="card max-w-[420px]">
+    <div className="card max-w-[420px] mx-auto">
       <h1 className="mb-1">Trocar senha</h1>
       <p className="text-ink-muted text-label mb-5">Mínimo de 8 caracteres.</p>
       <FormularioTrocarSenha />
