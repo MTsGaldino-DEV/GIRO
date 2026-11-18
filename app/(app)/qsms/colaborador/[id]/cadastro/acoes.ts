@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { criarClienteServidor } from "@/lib/supabase/server";
-import { exigirOperador } from "@/lib/perfil";
+import { criarClienteAdmin } from "@/lib/supabase/admin";
+import { exigirAdmin, exigirOperador } from "@/lib/perfil";
 import { BUCKET_FOTOS } from "@/lib/colaborador";
+import { BUCKET_ASOS, BUCKET_DOCUMENTOS } from "@/lib/storage";
 import { SITUACAO_ROTULO } from "@/lib/dominio";
 import { CAMPOS_COLABORADOR, type CampoColaborador } from "@/lib/campos-colaborador";
 import type { Situacao } from "@/lib/tipos";
@@ -395,4 +398,81 @@ export async function alternarAtivo(_anterior: Acao | null, formData: FormData):
   revalidatePath("/radar");
   revalidatePath("/colaboradores");
   return { ok: true, mensagem: ativo ? "Colaborador reativado." : "Colaborador desligado." };
+}
+
+// ---------------------------------------------------------------------------
+
+/**
+ * Exclui o colaborador de vez, só no GIRO, e só para admin.
+ *
+ * A NEO não é alterada e a sincronização não recria a pessoa (ela só atualiza
+ * quem já existe). Para quem saiu da empresa o caminho é Desligar, que preserva
+ * o histórico.
+ *
+ * Usa o cliente de serviço porque não há política de DELETE em `colaboradores`
+ * para `authenticated`. Itens, ASOs, ausências, documentos e auditoria saem em
+ * cascata pelas FKs; os arquivos dos buckets são removidos depois.
+ */
+export async function excluirColaborador(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  const eu = await exigirAdmin();
+
+  const analise = z.object({ id: z.string().uuid() }).safeParse({ id: formData.get("id") });
+  if (!analise.success) return { ok: false, erro: "Dados inválidos." };
+  const { id } = analise.data;
+
+  const admin = criarClienteAdmin();
+
+  // Os caminhos precisam ser lidos antes: depois do DELETE as linhas que
+  // apontam para os arquivos não existem mais.
+  const { data: colaborador, error: erroColaborador } = await admin
+    .from("colaboradores")
+    .select("id, foto_url")
+    .eq("id", id)
+    .maybeSingle();
+  if (erroColaborador) return { ok: false, erro: "Não foi possível excluir agora." };
+  if (!colaborador) return { ok: false, erro: "Colaborador não encontrado." };
+
+  const [{ data: asos, error: erroAsos }, { data: documentos, error: erroDocumentos }] =
+    await Promise.all([
+      admin
+        .from("eventos_requisito")
+        .select("documento_url")
+        .eq("colaborador_id", id)
+        .not("documento_url", "is", null),
+      admin.from("documentos_colaborador").select("storage_path").eq("colaborador_id", id),
+    ]);
+  if (erroAsos || erroDocumentos) return { ok: false, erro: "Não foi possível excluir agora." };
+
+  const caminhosFotos = colaborador.foto_url ? [colaborador.foto_url] : [];
+  const caminhosAsos = (asos ?? []).map((a) => a.documento_url).filter((c): c is string => !!c);
+  const caminhosDocumentos = (documentos ?? [])
+    .map((d) => d.storage_path)
+    .filter((c): c is string => !!c);
+
+  const { error } = await admin.from("colaboradores").delete().eq("id", id);
+  if (error) return { ok: false, erro: "Não foi possível excluir o colaborador." };
+
+  // Linha já apagada: arquivo órfão no bucket é inofensivo (ninguém aponta para
+  // ele), então falha aqui não pode desfazer nem reportar erro de uma exclusão
+  // que deu certo.
+  const porBucket: [string, string[]][] = [
+    [BUCKET_FOTOS, caminhosFotos],
+    [BUCKET_ASOS, caminhosAsos],
+    [BUCKET_DOCUMENTOS, caminhosDocumentos],
+  ];
+  for (const [bucket, caminhos] of porBucket) {
+    if (caminhos.length === 0) continue;
+    try {
+      await admin.storage.from(bucket).remove(caminhos);
+    } catch {
+      // Ver o comentário acima.
+    }
+  }
+
+  console.info(`[colaborador] exclusão definitiva: admin=${eu.id} colaborador=${id}`);
+
+  revalidatePath("/colaboradores");
+  revalidatePath("/radar");
+  revalidatePath("/");
+  redirect("/colaboradores");
 }

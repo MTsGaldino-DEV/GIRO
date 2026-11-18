@@ -5,13 +5,15 @@ import { carregarColaborador, assinarFoto } from "@/lib/colaborador";
 import { FichaCadastro } from "./ficha-cadastro";
 import { BotaoDesligar } from "./botao-desligar";
 import { EnvioFoto } from "./envio-foto";
+import { excluirColaborador } from "./acoes";
+import { BotaoExcluir } from "@/components/botao-excluir";
 import type { Supervisor } from "@/lib/tipos";
 
 export const metadata: Metadata = { title: "Cadastro" };
 export const dynamic = "force-dynamic";
 
 export default async function AbaCadastro({ params }: { params: Promise<{ id: string }> }) {
-  await exigirOperador();
+  const perfil = await exigirOperador();
   const { id } = await params;
 
   const colaborador = await carregarColaborador(id);
@@ -46,6 +48,24 @@ export default async function AbaCadastro({ params }: { params: Promise<{ id: st
         </p>
         <BotaoDesligar colaborador={colaborador} />
       </div>
+
+      {perfil.papel === "admin" && (
+        <div className="card">
+          <h3 className="mb-1">Excluir colaborador</h3>
+          <p className="text-ink-muted text-label mb-4">
+            Apaga de vez o colaborador e tudo ligado a ele no GIRO: ASOs, itens, documentos,
+            ausências, histórico e foto. Não dá para desfazer. A NEO não é alterada. Para quem saiu
+            da empresa, use Desligar.
+          </p>
+          <BotaoExcluir
+            acao={excluirColaborador}
+            id={colaborador.id}
+            nome={colaborador.nome}
+            rotulo="Excluir colaborador"
+            confirmacao={`Excluir ${colaborador.nome} de vez? ASOs, documentos e histórico serão apagados e não dá para desfazer.`}
+          />
+        </div>
+      )}
     </div>
   );
 }
