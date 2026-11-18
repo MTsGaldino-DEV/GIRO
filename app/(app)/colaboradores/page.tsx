@@ -76,6 +76,7 @@ export default async function Colaboradores({
           supervisorId: perfil.supervisor_id,
           podeEscolherMinha: podeEscolherMinha(perfil),
         }}
+        podeExcluir={perfil.papel === "admin"}
       />
     </div>
   );

@@ -18,7 +18,7 @@ import {
 } from "@/lib/regras-colaboradores";
 import { BUCKET_FOTOS } from "@/lib/storage";
 import { ORDEM_STATUS, STATUS_ROTULO } from "@/lib/dominio";
-import { alternarAtivo } from "@/app/(app)/qsms/colaborador/[id]/cadastro/acoes";
+import { alternarAtivo, excluirColaboradorDoPainel } from "@/app/(app)/qsms/colaborador/[id]/cadastro/acoes";
 import { SeloStatus } from "@/components/selo-status";
 import { Vazio } from "@/components/aviso";
 import { AvatarColaborador } from "@/components/avatar-colaborador";
@@ -65,6 +65,7 @@ export function ListaColaboradores({
   supervisores,
   requisitos,
   escopo,
+  podeExcluir = false,
 }: {
   dados: DadosColaboradores;
   filtrosIniciais: FiltrosColaboradores;
@@ -72,6 +73,8 @@ export function ListaColaboradores({
   supervisores: { id: string; nome: string }[];
   requisitos: string[];
   escopo: EscopoColaboradores;
+  /** Só admin: mostra "Excluir" em cada linha (a Server Action confere de novo). */
+  podeExcluir?: boolean;
 }) {
   const router = useRouter();
   const [filtros, setFiltros] = useState<FiltrosColaboradores>(filtrosIniciais);
@@ -180,8 +183,28 @@ export function ListaColaboradores({
     router.refresh();
   }
 
+  // Excluir é definitivo: confirmação do navegador antes de chamar a ação.
+  async function excluir(pessoa: PessoaLista) {
+    const certeza = window.confirm(
+      `Excluir ${pessoa.nome} de vez? ASOs, documentos e histórico serão apagados e não dá para desfazer.`
+    );
+    if (!certeza) return;
+    const formulario = new FormData();
+    formulario.set("id", pessoa.colaborador_id);
+
+    const r = await excluirColaboradorDoPainel(null, formulario);
+    if (!r.ok) {
+      setAviso({ tipo: "erro", mensagem: r.erro });
+      return;
+    }
+    focarAvisoSePerdido.current = true;
+    setAviso({ tipo: "ok", mensagem: `${pessoa.nome}: ${r.mensagem}` });
+    router.refresh();
+  }
+
   const temFiltro = !!(filtros.busca || filtros.status || filtros.requisito || filtros.supervisor);
   const desligados = filtros.situacao === "desligados";
+  const comAcao = desligados || podeExcluir;
 
   return (
     <>
@@ -230,7 +253,7 @@ export function ListaColaboradores({
           <div className="overflow-x-auto">
             <table className="tabela tabela--responsiva">
               <caption className="sr-only">
-                {desligados ? "Colaboradores desligados" : "Colaboradores ativos, do pior status ao melhor"}
+                {desligados ? "Colaboradores desligados, em ordem alfabética" : "Colaboradores ativos, em ordem alfabética"}
               </caption>
               <thead>
                 <tr>
@@ -239,7 +262,7 @@ export function ListaColaboradores({
                   <th scope="col" className="hidden lg:table-cell">Cargo</th>
                   <th scope="col" className="hidden lg:table-cell">Supervisor</th>
                   <th scope="col">{desligados ? "Situação" : "Status"}</th>
-                  {desligados && (
+                  {comAcao && (
                     <th scope="col" className="text-right">
                       Ação
                     </th>
@@ -253,6 +276,8 @@ export function ListaColaboradores({
                     pessoa={pessoa}
                     fotoUrl={fotos[pessoa.foto_url ?? ""]}
                     aoReativar={() => reativar(pessoa)}
+                    comAcao={comAcao}
+                    aoExcluir={podeExcluir ? () => excluir(pessoa) : undefined}
                   />
                 ))}
               </tbody>
@@ -342,10 +367,16 @@ function LinhaColaborador({
   pessoa,
   fotoUrl,
   aoReativar,
+  comAcao,
+  aoExcluir,
 }: {
   pessoa: PessoaLista;
   fotoUrl?: string;
   aoReativar: () => Promise<void>;
+  /** A tabela tem a coluna Ação (desligados ou admin): a linha precisa da célula. */
+  comAcao: boolean;
+  /** Só admin. */
+  aoExcluir?: () => Promise<void>;
 }) {
   return (
     <tr>
@@ -385,16 +416,35 @@ function LinhaColaborador({
           <span className="text-ink-faint">—</span>
         )}
       </td>
-      {!pessoa.ativo && (
+      {comAcao && (
         <td>
           {/* `action` com função: o React roda numa transição e `useFormStatus`
               enxerga o envio até a Server Action responder. */}
-          <form action={aoReativar} className="flex justify-end">
-            <BotaoReativar nome={pessoa.nome} />
-          </form>
+          <div className="flex justify-end gap-2">
+            {!pessoa.ativo && (
+              <form action={aoReativar}>
+                <BotaoReativar nome={pessoa.nome} />
+              </form>
+            )}
+            {aoExcluir && (
+              <form action={aoExcluir}>
+                <BotaoExcluirLinha nome={pessoa.nome} />
+              </form>
+            )}
+          </div>
         </td>
       )}
     </tr>
+  );
+}
+
+function BotaoExcluirLinha({ nome }: { nome: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className="btn btn--fantasma btn--sm" disabled={pending} aria-busy={pending}>
+      {pending ? "Excluindo…" : "Excluir"}
+      <span className="sr-only"> {nome}</span>
+    </button>
   );
 }
 

@@ -413,7 +413,7 @@ export async function alternarAtivo(_anterior: Acao | null, formData: FormData):
  * para `authenticated`. Itens, ASOs, ausências, documentos e auditoria saem em
  * cascata pelas FKs; os arquivos dos buckets são removidos depois.
  */
-export async function excluirColaborador(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+async function apagarColaborador(formData: FormData): Promise<Acao> {
   const eu = await exigirAdmin();
 
   const analise = z.object({ id: z.string().uuid() }).safeParse({ id: formData.get("id") });
@@ -474,5 +474,20 @@ export async function excluirColaborador(_anterior: Acao | null, formData: FormD
   revalidatePath("/colaboradores");
   revalidatePath("/radar");
   revalidatePath("/");
+  return { ok: true, mensagem: "Colaborador excluído." };
+}
+
+/** Página cheia de Cadastro: depois de excluir, volta para a lista. */
+export async function excluirColaborador(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  const resultado = await apagarColaborador(formData);
+  if (!resultado.ok) return resultado;
   redirect("/colaboradores");
+}
+
+/**
+ * Janela do perfil (aberta sobre a lista): não redireciona; quem chama fecha a
+ * janela e pede a lista de novo ao servidor.
+ */
+export async function excluirColaboradorDoPainel(_anterior: Acao | null, formData: FormData): Promise<Acao> {
+  return apagarColaborador(formData);
 }

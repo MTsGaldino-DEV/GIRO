@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 
 type Acao = { ok: true; mensagem: string } | { ok: false; erro: string };
@@ -25,14 +25,21 @@ export function BotaoExcluir({
   nome,
   confirmacao,
   rotulo = "Excluir",
+  aoConcluir,
 }: {
   acao: (anterior: Acao | null, formData: FormData) => Promise<Acao>;
   id: string;
   nome: string;
   confirmacao: string;
   rotulo?: string;
+  /** Chamado uma vez quando a ação devolve ok (ex.: fechar a janela do perfil). */
+  aoConcluir?: () => void;
 }) {
   const [estado, executar] = useActionState<Acao | null, FormData>(acao, null);
+
+  useEffect(() => {
+    if (estado?.ok) aoConcluir?.();
+  }, [estado, aoConcluir]);
 
   return (
     <form

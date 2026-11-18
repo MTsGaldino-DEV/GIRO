@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { criarClienteNavegador } from "@/lib/supabase/browser";
+import { excluirColaboradorDoPainel } from "@/app/(app)/qsms/colaborador/[id]/cadastro/acoes";
+import { BotaoExcluir } from "@/components/botao-excluir";
+import { usePerfilColaborador } from "./contexto";
 import { FichaCadastro } from "@/app/(app)/qsms/colaborador/[id]/cadastro/ficha-cadastro";
 import { BotaoDesligar } from "@/app/(app)/qsms/colaborador/[id]/cadastro/botao-desligar";
 import { EnvioFoto } from "@/app/(app)/qsms/colaborador/[id]/cadastro/envio-foto";
@@ -27,6 +31,14 @@ export function AbaCadastro({
 }) {
   const [supervisores, setSupervisores] = useState<Supervisor[] | null>(null);
   const { colaborador, fotoUrl } = resumo;
+  const { papel, fechar } = usePerfilColaborador();
+  const router = useRouter();
+  // Excluído: a janela fecha (o perfil não existe mais) e a lista de baixo é
+  // pedida de novo ao servidor.
+  const aoExcluir = useCallback(() => {
+    fechar();
+    router.refresh();
+  }, [fechar, router]);
 
   useEffect(() => {
     let ativo = true;
@@ -79,6 +91,25 @@ export function AbaCadastro({
           aoSalvar={aoAtualizar}
         />
       </div>
+
+      {papel === "admin" && (
+        <div className="card">
+          <h3 className="mb-1">Excluir colaborador</h3>
+          <p className="text-ink-muted text-label mb-4">
+            Apaga de vez o colaborador e tudo ligado a ele no GIRO: ASOs, itens, documentos,
+            ausências, histórico e foto. Não dá para desfazer. A NEO não é alterada. Para quem saiu
+            da empresa, use Desligar.
+          </p>
+          <BotaoExcluir
+            acao={excluirColaboradorDoPainel}
+            id={colaborador.id}
+            nome={colaborador.nome}
+            rotulo="Excluir colaborador"
+            confirmacao={`Excluir ${colaborador.nome} de vez? ASOs, documentos e histórico serão apagados e não dá para desfazer.`}
+            aoConcluir={aoExcluir}
+          />
+        </div>
+      )}
     </div>
   );
 }
