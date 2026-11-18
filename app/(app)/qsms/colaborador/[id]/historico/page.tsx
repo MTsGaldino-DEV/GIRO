@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirOperador } from "@/lib/perfil";
+import { comOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Vazio } from "@/components/aviso";
 import { ETAPA_ROTULO, formatarDataHora } from "@/lib/dominio";
@@ -20,11 +20,12 @@ interface EntradaColaborador {
 }
 
 export default async function AbaHistorico({ params }: { params: Promise<{ id: string }> }) {
-  await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
-  const { data } = await supabase.rpc("fn_historico_do_colaborador", { p_colaborador_id: id });
+  const [, { data }] = await comOperador(async () =>
+    supabase.rpc("fn_historico_do_colaborador", { p_colaborador_id: id })
+  );
   const entradas = (data ?? []) as EntradaColaborador[];
 
   // Agrupa por ciclo: a pessoa tem vários itens ao longo dos anos, e uma lista

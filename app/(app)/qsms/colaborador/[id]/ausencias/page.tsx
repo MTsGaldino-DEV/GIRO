@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirOperador } from "@/lib/perfil";
+import { comOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso, Vazio } from "@/components/aviso";
 import { formatarData, TIPO_AUSENCIA_ROTULO } from "@/lib/dominio";
@@ -17,18 +17,19 @@ interface AusenciaLinha {
 }
 
 export default async function AbaAusencias({ params }: { params: Promise<{ id: string }> }) {
-  await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
-  const [{ data: ausenciasBrutas }, { data: colaborador }] = await Promise.all([
-    supabase
-      .from("ausencias")
-      .select("id, tipo, data_inicio, data_fim")
-      .eq("colaborador_id", id)
-      .order("data_inicio", { ascending: false }),
-    supabase.from("colaboradores").select("nome").eq("id", id).maybeSingle(),
-  ]);
+  const [, [{ data: ausenciasBrutas }, { data: colaborador }]] = await comOperador(() =>
+    Promise.all([
+      supabase
+        .from("ausencias")
+        .select("id, tipo, data_inicio, data_fim")
+        .eq("colaborador_id", id)
+        .order("data_inicio", { ascending: false }),
+      supabase.from("colaboradores").select("nome").eq("id", id).maybeSingle(),
+    ])
+  );
 
   const ausencias = (ausenciasBrutas ?? []) as AusenciaLinha[];
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirOperador } from "@/lib/perfil";
+import { comOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarColaborador, assinarFoto } from "@/lib/colaborador";
 import { FichaCadastro } from "./ficha-cadastro";
@@ -13,16 +13,18 @@ export const metadata: Metadata = { title: "Cadastro" };
 export const dynamic = "force-dynamic";
 
 export default async function AbaCadastro({ params }: { params: Promise<{ id: string }> }) {
-  const perfil = await exigirOperador();
   const { id } = await params;
-
-  const colaborador = await carregarColaborador(id);
   const supabase = await criarClienteServidor();
 
-  const [{ data: supervisoresBrutos }, fotoUrl] = await Promise.all([
-    supabase.from("supervisores").select("id, nome, email, ativo").eq("ativo", true).order("nome"),
-    assinarFoto(colaborador.foto_url),
-  ]);
+  // A foto depende do caminho que vem no colaborador; o resto sai junto com o
+  // perfil. Eram três rodadas em série, agora são duas.
+  const [perfil, [colaborador, { data: supervisoresBrutos }]] = await comOperador(() =>
+    Promise.all([
+      carregarColaborador(id),
+      supabase.from("supervisores").select("id, nome, email, ativo").eq("ativo", true).order("nome"),
+    ])
+  );
+  const fotoUrl = await assinarFoto(colaborador.foto_url);
 
   return (
     <div className="grid gap-5 max-w-[900px]">

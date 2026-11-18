@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import { criarClienteServidor } from "./supabase/server";
 import { BUCKET_FOTOS } from "./storage";
@@ -34,8 +35,13 @@ export interface ColaboradorCompleto {
  * fora do alcance do usuário simplesmente não volta na consulta. Responder
  * "não existe" em vez de "existe mas você não pode ver" evita confirmar a
  * existência de um registro para quem não deveria saber dele.
+ *
+ * As três consultas abaixo ficam em `cache()` (dedupe por request): na
+ * primeira carga do perfil, o layout e a aba pedem as mesmas linhas.
  */
-export async function carregarColaborador(id: string): Promise<ColaboradorCompleto> {
+export const carregarColaborador = cache(async function carregarColaborador(
+  id: string
+): Promise<ColaboradorCompleto> {
   const supabase = await criarClienteServidor();
   const { data } = await supabase
     .from("colaboradores")
@@ -47,10 +53,12 @@ export async function carregarColaborador(id: string): Promise<ColaboradorComple
 
   if (!data) notFound();
   return data as ColaboradorCompleto;
-}
+});
 
 /** Linha de conformidade do colaborador. Um requisito por linha; hoje, só o ASO. */
-export async function carregarStatus(colaboradorId: string): Promise<LinhaStatus | null> {
+export const carregarStatus = cache(async function carregarStatus(
+  colaboradorId: string
+): Promise<LinhaStatus | null> {
   const supabase = await criarClienteServidor();
   const { data } = await supabase
     .from("vw_status_colaborador")
@@ -61,10 +69,12 @@ export async function carregarStatus(colaboradorId: string): Promise<LinhaStatus
     .maybeSingle();
 
   return (data as LinhaStatus) ?? null;
-}
+});
 
 /** Ciclo em aberto, se houver. Colaborador em dia e fora da janela de 90 dias não tem. */
-export async function carregarItemAberto(colaboradorId: string): Promise<ItemAberto | null> {
+export const carregarItemAberto = cache(async function carregarItemAberto(
+  colaboradorId: string
+): Promise<ItemAberto | null> {
   const supabase = await criarClienteServidor();
   const { data } = await supabase
     .from("vw_itens_abertos")
@@ -75,7 +85,7 @@ export async function carregarItemAberto(colaboradorId: string): Promise<ItemAbe
     .maybeSingle();
 
   return (data as ItemAberto) ?? null;
-}
+});
 
 /**
  * URLs assinadas para uma página de fotos, numa chamada só.

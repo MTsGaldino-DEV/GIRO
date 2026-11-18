@@ -1223,3 +1223,27 @@ e as listas suspensas de todas as páginas.
 - **Build x next dev:** `npm run build` na pasta do GIRO com o `next dev` rodando falha (prerender de "/", erro de `next/font") e
   QUEBRA o dev (500, `Cannot find module ./5611.js`): os dois usam a mesma `.next`. Para conferir build com o dev no ar, usar um
   `git worktree` temporário com junção para `node_modules`. Em 18/11 o dev foi reiniciado com `.next` limpa (porta 3000, log em `.dev-server.log`).
+
+## Troca de aba mais rápida — 18/11/2026 (Claude)
+
+Comparação com a CENTRAL-NEO: lá é SPA (Vite), a troca de tela não vai ao
+servidor e `useDadosComCache` mostra o último dado do `localStorage` na hora.
+No GIRO cada aba é uma ida ao Vercel com consultas ao Supabase. Matheus
+escolheu testar duas medidas baratas primeiro:
+
+- `next.config.mjs`: `experimental.staleTimes.dynamic = 60`. Voltar a uma
+  tela vista há menos de 60 s não vai ao servidor. Gravações limpam o cache
+  (`revalidatePath`); só mudança de outra pessoa/cron pode atrasar até 60 s.
+- `lib/perfil.ts`: `comOperador(carregar)` confere o perfil e busca os dados
+  em paralelo (redirecionamento ao login vence; falha da busca é descartada).
+  Usado nas 6 abas de `qsms/colaborador/[id]`. Visão geral passou de 4
+  rodadas em série para 1; Cadastro de 3 para 2; ASO, Ausências, Histórico e
+  Treinamentos de 2 para 1.
+- `lib/colaborador.ts`: `carregarColaborador`, `carregarStatus` e
+  `carregarItemAberto` em `cache()` (layout e aba dividem na 1ª carga).
+- Telas do menu (Dashboard, Radar, Colaboradores) não mudaram: a consulta
+  depende do perfil (`supervisor_id`, papel).
+- Verificado: typecheck e build OK; em `next start`, as 6 abas sem sessão
+  respondem 307 para /login, sem rejeição não tratada no log.
+- Pendente: medir com sessão em produção; se não bastar, avaliar
+  `prefetch={true}` nas abas ou abas no cliente (Radix Tabs).

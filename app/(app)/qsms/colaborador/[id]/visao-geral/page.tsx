@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirOperador } from "@/lib/perfil";
+import { comOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarColaborador, carregarStatus, carregarItemAberto } from "@/lib/colaborador";
 import { Aviso } from "@/components/aviso";
@@ -29,20 +29,25 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 }
 
 export default async function VisaoGeral({ params }: { params: Promise<{ id: string }> }) {
-  await exigirOperador();
   const { id } = await params;
-
-  const colaborador = await carregarColaborador(id);
-  const [status, item] = await Promise.all([carregarStatus(id), carregarItemAberto(id)]);
-
   const supabase = await criarClienteServidor();
-  const { data: ausenciaVigente } = await supabase
-    .from("ausencias")
-    .select("tipo, data_inicio, data_fim")
-    .eq("colaborador_id", id)
-    .order("data_inicio", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+
+  // Uma rodada só: eram quatro em série (perfil, colaborador, status e item,
+  // ausência), cada uma esperando a anterior sem precisar do resultado dela.
+  const [, [colaborador, status, item, { data: ausenciaVigente }]] = await comOperador(() =>
+    Promise.all([
+      carregarColaborador(id),
+      carregarStatus(id),
+      carregarItemAberto(id),
+      supabase
+        .from("ausencias")
+        .select("tipo, data_inicio, data_fim")
+        .eq("colaborador_id", id)
+        .order("data_inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+  );
 
   const janela = item ? avisoJanelaUtil(item) : null;
 

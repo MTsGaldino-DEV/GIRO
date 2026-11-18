@@ -54,6 +54,23 @@ export async function exigirOperador(): Promise<Perfil> {
   return exigirPerfil();
 }
 
+/**
+ * Confere o perfil e busca os dados da página ao mesmo tempo.
+ *
+ * Em série, cada aba do colaborador pagava a consulta a `perfis` antes de
+ * começar a própria: uma ida ao banco a mais por clique. A busca antecipada
+ * não expõe nada — ela roda com a sessão do usuário, sob RLS, e o resultado
+ * só é usado depois que o perfil passou. Se o perfil não passar, o
+ * redirecionamento para o login vence (não um 404 da consulta) e a falha da
+ * busca é descartada.
+ */
+export async function comOperador<T>(carregar: () => Promise<T>): Promise<[Perfil, T]> {
+  const perfil = exigirOperador();
+  const dados = carregar();
+  dados.catch(() => {});
+  return [await perfil, await dados];
+}
+
 /** Exige perfil admin. Só admin gerencia usuários (/admin/usuarios). */
 export async function exigirAdmin(): Promise<Perfil> {
   const perfil = await exigirPerfil();

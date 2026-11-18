@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { exigirOperador } from "@/lib/perfil";
+import { comOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarItemAberto } from "@/lib/colaborador";
 import { urlAssinada } from "@/lib/storage";
@@ -30,12 +30,11 @@ interface EventoLinha {
 }
 
 export default async function AbaAso({ params }: { params: Promise<{ id: string }> }) {
-  const perfil = await exigirOperador();
   const { id } = await params;
 
   const supabase = await criarClienteServidor();
-  const [item, { data: eventosBrutos }, { data: tipos }, { data: clinicas }] =
-    await Promise.all([
+  const [perfil, [item, { data: eventosBrutos }, { data: tipos }, { data: clinicas }]] =
+    await comOperador(() => Promise.all([
       carregarItemAberto(id),
       supabase
         .from("vw_eventos_colaborador")
@@ -44,7 +43,7 @@ export default async function AbaAso({ params }: { params: Promise<{ id: string 
         .order("data_documento", { ascending: false }),
       supabase.from("tipos_requisito").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("clinicas").select("*").eq("ativo", true).order("nome"),
-    ]);
+    ]));
 
   const eventos = (eventosBrutos ?? []) as EventoLinha[];
   const requisitos = (tipos ?? []).filter((t) => ehExameLancavel(t.nome));

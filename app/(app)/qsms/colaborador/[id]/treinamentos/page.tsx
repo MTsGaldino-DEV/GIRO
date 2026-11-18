@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { exigirOperador } from "@/lib/perfil";
+import { comOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { Aviso } from "@/components/aviso";
 
@@ -18,15 +18,15 @@ export const dynamic = "force-dynamic";
  * o sistema passaria a cobrar como se fosse verdade.
  */
 export default async function AbaTreinamentos() {
-  await exigirOperador();
-
   const supabase = await criarClienteServidor();
-  const { data: tipos } = await supabase
-    .from("tipos_requisito")
-    .select("id, nome, periodicidade_meses, ativo")
-    .eq("ativo", true)
-    .neq("nome", "ASO Periódico")
-    .order("nome");
+  const [, { data: tipos }] = await comOperador(async () =>
+    supabase
+      .from("tipos_requisito")
+      .select("id, nome, periodicidade_meses, ativo")
+      .eq("ativo", true)
+      .neq("nome", "ASO Periódico")
+      .order("nome")
+  );
 
   const outros = tipos ?? [];
 
