@@ -27,7 +27,7 @@ export type ParametroUrl = string | string[] | undefined;
 
 type PerfilEscopo = Pick<Perfil, "papel" | "supervisor_id">;
 
-/** Do pior para o melhor: a ordem do semáforo e o peso usado para ordenar. */
+/** Status aceitos no filtro, do pior para o melhor (a ordem do semáforo). */
 const ORDEM_STATUS: readonly StatusConformidade[] = [
   "sem_registro",
   "vencido",
@@ -36,7 +36,6 @@ const ORDEM_STATUS: readonly StatusConformidade[] = [
   "programar",
   "ok",
 ];
-const PESO_NENHUM = ORDEM_STATUS.length;
 
 // ---------------------------------------------------------------------------
 // Filtros vindos da URL
@@ -277,8 +276,9 @@ function casaBusca(pessoa: PessoaLista, busca: string): boolean {
  * pessoa nele, e o filtro de status vale para esse estado; sem requisito, vale
  * o pior. Quem não tem o requisito (a AVP é opcional) fica fora.
  *
- * Ordem: pior status primeiro, depois quem vence antes, depois nome — a mesma
- * pergunta do Radar, "quem pede ação". Desligados, sem status, saem por nome.
+ * Ordem: alfabética pelo nome (pedido de Matheus em 18/11/2026: a lista é
+ * para achar a pessoa; "quem pede ação" é pergunta do Radar). Matrícula
+ * desempata homônimos.
  */
 export function filtrarPessoas(
   pessoas: readonly PessoaLista[],
@@ -306,14 +306,7 @@ export function filtrarPessoas(
     resultado.push(linha);
   }
 
-  const peso = (p: PessoaLista) => (p.status ? ORDEM_STATUS.indexOf(p.status) : PESO_NENHUM);
-  return resultado.sort(
-    (a, b) =>
-      peso(a) - peso(b) ||
-      (a.dias ?? -Infinity) - (b.dias ?? -Infinity) ||
-      a.nome.localeCompare(b.nome, "pt-BR") ||
-      a.matricula - b.matricula
-  );
+  return resultado.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.matricula - b.matricula);
 }
 
 export function totalDePaginas(total: number): number {

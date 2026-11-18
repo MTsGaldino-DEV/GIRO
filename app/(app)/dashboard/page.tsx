@@ -11,6 +11,7 @@ import {
   detalheIndisponivel,
   detalheParaTexto,
   lerDetalhe,
+  lerResumo,
   maisProximosDeVencer,
   mediaDiasParados,
   mediaDiasPorEtapa,
@@ -22,7 +23,6 @@ import {
   resolverEscopoDashboard,
   resumirPorPessoa,
   totalPorDono,
-  type ContagemStatus,
   type ParametroUrl,
 } from "@/lib/regras-dashboard";
 import { hojeIso } from "@/lib/dominio";
@@ -52,22 +52,6 @@ function saudacao(agora: Date): string {
   if (hora < 12) return "Bom dia";
   if (hora < 18) return "Boa tarde";
   return "Boa noite";
-}
-
-/** Linha de `fn_resumo_status` (bigint chega como texto). */
-function lerResumo(bruto: unknown): ContagemStatus | null {
-  const r = (Array.isArray(bruto) ? bruto[0] : null) as Record<string, number | string> | null;
-  if (!r) return null;
-  const n = (k: string) => Number(r[k]);
-  return {
-    total: n("total"),
-    sem_registro: n("sem_registro"),
-    vencido: n("vencido"),
-    critico: n("critico"),
-    atencao: n("atencao"),
-    programar: n("programar"),
-    ok: n("ok"),
-  };
 }
 
 /**

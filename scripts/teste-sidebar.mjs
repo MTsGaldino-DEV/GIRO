@@ -1,7 +1,7 @@
 // Testa as regras puras da sidebar: estado inicial pelo cookie e iniciais do avatar (sem banco).
 // Rodar: npm run teste:sidebar
 import assert from "node:assert/strict";
-import { estaRecolhida, iniciais } from "../lib/sidebar.ts";
+import { descreverEmDia, estaRecolhida, iniciais } from "../lib/sidebar.ts";
 
 let falhas = 0;
 function caso(nome, fn) {
@@ -24,6 +24,18 @@ caso("iniciais: um nome só", () => assert.equal(iniciais("ana"), "A"));
 caso("iniciais: só espaços", () => assert.equal(iniciais("  "), "?"));
 caso("iniciais: minúsculas viram maiúsculas, usa primeiro e último", () =>
   assert.equal(iniciais("joão pedro souza"), "JS"));
+
+caso("em dia: UEN", () =>
+  assert.deepEqual(descreverEmDia({ emDia: 219, total: 252, percentual: 87, equipe: false }), {
+    rotulo: "87% em dia: 219 de 252 colaboradores",
+    detalhe: "219 de 252 colaboradores",
+    percentual: "87%",
+  }));
+caso("em dia: equipe do supervisor acrescenta 'da sua equipe'", () =>
+  assert.equal(
+    descreverEmDia({ emDia: 3, total: 12, percentual: 25, equipe: true }).rotulo,
+    "25% em dia: 3 de 12 colaboradores da sua equipe"
+  ));
 
 if (falhas > 0) {
   console.log(`\n${falhas} caso(s) falharam.`);

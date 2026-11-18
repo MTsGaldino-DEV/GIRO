@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { exigirPerfil } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { carregarTratamento } from "@/lib/consulta-tratamento";
-import { COOKIE_SIDEBAR, estaRecolhida } from "@/lib/sidebar";
+import { carregarEmDia } from "@/lib/consulta-em-dia";
+import { COOKIE_SIDEBAR, estaRecolhida, type ResumoEmDia } from "@/lib/sidebar";
+import type { Perfil } from "@/lib/tipos";
 import { Sidebar } from "@/components/sidebar";
 import { ProvedorPerfilColaborador } from "@/components/perfil/contexto";
 import { PainelPerfilColaborador } from "@/components/perfil/painel-perfil";
@@ -20,12 +22,24 @@ async function contarTratamento(): Promise<number | undefined> {
   }
 }
 
+/** O anel "Em dia" também é enfeite: se a consulta falhar, o cartão fica só com a conta. */
+async function resumirEmDia(perfil: Perfil): Promise<ResumoEmDia | null> {
+  try {
+    const supabase = await criarClienteServidor();
+    return await carregarEmDia(supabase, perfil);
+  } catch (erro) {
+    console.error("Layout: falha ao resumir colaboradores em dia", erro);
+    return null;
+  }
+}
+
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const perfil = await exigirPerfil();
 
-  const [armazenamento, pendenciasTratamento] = await Promise.all([
+  const [armazenamento, pendenciasTratamento, emDia] = await Promise.all([
     cookies(),
     perfil.papel === "admin" ? contarTratamento() : undefined,
+    resumirEmDia(perfil),
   ]);
   const recolhida = estaRecolhida(armazenamento.get(COOKIE_SIDEBAR)?.value);
 
@@ -37,7 +51,12 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         <BarraNavegacao />
       </Suspense>
       <div className="app-grade">
-        <Sidebar perfil={perfil} recolhidaInicial={recolhida} pendenciasTratamento={pendenciasTratamento} />
+        <Sidebar
+          perfil={perfil}
+          recolhidaInicial={recolhida}
+          pendenciasTratamento={pendenciasTratamento}
+          emDia={emDia}
+        />
         <div className="app-conteudo">
           <main className="conteudo-pagina flex-1 w-full max-w-[1680px] mx-auto px-4 sm:px-6 py-6">{children}</main>
         </div>

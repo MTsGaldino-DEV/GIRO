@@ -17,7 +17,8 @@ import {
   IconeChevron,
   IconeMenu,
   IconeFechar,
-  IconeExpandir,
+  IconeRecolher,
+  IconeSeletor,
 } from "@/components/icones";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
@@ -28,7 +29,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { COOKIE_SIDEBAR, iniciais } from "@/lib/sidebar";
+import { COOKIE_SIDEBAR, descreverEmDia, iniciais, type ResumoEmDia } from "@/lib/sidebar";
 
 interface ItemNav {
   href: string;
@@ -154,7 +155,7 @@ function Marca({ perfil, aoNavegar }: { perfil: Perfil; aoNavegar?: () => void }
       aria-label="GIRO, página inicial"
       onClick={aoNavegar}
     >
-      <img src="/simbolo-giro.svg" alt="" width={28} height={28} className="shrink-0" />
+      <img src="/favicon.svg" alt="" width={30} height={30} className="sidebar__logo-simbolo" />
       <span className="sidebar__logo-texto" aria-hidden>
         GIRO<span className="sidebar__logo-ponto">.</span>
       </span>
@@ -304,63 +305,95 @@ function Grupo({
 }
 
 /**
- * Conta do usuário: o cartão inteiro abre o menu com Trocar senha e Sair.
- * Recolhida, sobra só o avatar e o menu abre ao lado.
+ * Anel "Em dia": percentual de colaboradores com tudo Regular (mesma regra do
+ * Dashboard), em petróleo claro, nunca nas cores do semáforo. É um link para o
+ * Dashboard; o nome acessível traz o texto completo e o visual fica oculto.
+ */
+function AnelEmDia({ resumo, aoNavegar }: { resumo: ResumoEmDia; aoNavegar?: () => void }) {
+  const texto = descreverEmDia(resumo);
+  return (
+    <Link
+      href="/dashboard"
+      className="sidebar__em-dia no-underline"
+      aria-label={texto.rotulo}
+      data-dica={texto.rotulo}
+      onClick={aoNavegar}
+    >
+      <span className="sidebar__anel" style={{ "--p": resumo.percentual } as React.CSSProperties} aria-hidden>
+        <span>{texto.percentual}</span>
+      </span>
+      <span className="sidebar__em-dia-texto" aria-hidden>
+        <strong>Em dia</strong>
+        <span>{texto.detalhe}</span>
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * Cartão do pé: anel "Em dia" (quando há dado) e a conta do usuário, cujo
+ * botão abre o menu com Trocar senha e Sair. Recolhida, sobram o anel só com o
+ * percentual e o avatar; o menu abre ao lado.
  */
 function CartaoUsuario({
   perfil,
   aoNavegar,
   recolhida,
+  emDia,
 }: {
   perfil: Perfil;
   aoNavegar?: () => void;
   recolhida: boolean;
+  emDia: ResumoEmDia | null;
 }) {
   const nome = perfil.nome ?? perfil.email;
   const papel = rotuloDoPapel(perfil.papel);
 
   return (
     <div className="sidebar__rodape">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button type="button" className="sidebar__usuario" data-dica={nome} aria-label={`Conta de ${nome}`}>
-            <span className="sidebar__avatar" aria-hidden>
-              {iniciais(nome)}
-            </span>
-            <span className="sidebar__identidade" aria-hidden>
-              <span className="sidebar__nome">{nome}</span>
-              <span className="sidebar__papel">{papel}</span>
-            </span>
-            <IconeChevron className="sidebar__usuario-seta" />
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          side={recolhida ? "right" : "top"}
-          align={recolhida ? "end" : "start"}
-          sideOffset={recolhida ? 14 : 8}
-          className="min-w-[14rem]"
-        >
-          <DropdownMenuLabel>
-            <span className="block truncate text-ink">{nome}</span>
-            <span className="block font-normal text-ink-faint">{papel}</span>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild>
-            <Link href="/conta/senha" className="no-underline" onClick={aoNavegar}>
-              <IconeChave className="size-4 shrink-0" />
-              Trocar senha
-            </Link>
-          </DropdownMenuItem>
-          <form action="/auth/sair" method="post">
+      <div className="sidebar__cartao">
+        {emDia && <AnelEmDia resumo={emDia} aoNavegar={aoNavegar} />}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="sidebar__usuario" data-dica={nome} aria-label={`Conta de ${nome}`}>
+              <span className="sidebar__avatar" aria-hidden>
+                {iniciais(nome)}
+              </span>
+              <span className="sidebar__identidade" aria-hidden>
+                <span className="sidebar__nome">{nome}</span>
+                <span className="sidebar__papel">{papel}</span>
+              </span>
+              <IconeSeletor className="sidebar__usuario-seta" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={recolhida ? "right" : "top"}
+            align={recolhida ? "end" : "start"}
+            sideOffset={recolhida ? 14 : 8}
+            className="min-w-[14rem]"
+          >
+            <DropdownMenuLabel>
+              <span className="block truncate text-ink">{nome}</span>
+              <span className="block font-normal text-ink-faint">{papel}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <button type="submit" className="w-full text-left">
-                <IconeSair className="size-4 shrink-0" />
-                Sair
-              </button>
+              <Link href="/conta/senha" className="no-underline" onClick={aoNavegar}>
+                <IconeChave className="size-4 shrink-0" />
+                Trocar senha
+              </Link>
             </DropdownMenuItem>
-          </form>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <form action="/auth/sair" method="post">
+              <DropdownMenuItem asChild>
+                <button type="submit" className="w-full text-left">
+                  <IconeSair className="size-4 shrink-0" />
+                  Sair
+                </button>
+              </DropdownMenuItem>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
@@ -372,6 +405,7 @@ function CorpoSidebar({
   cabecalhoExtra,
   recolhida = false,
   contadores,
+  emDia,
 }: {
   perfil: Perfil;
   aoNavegar?: () => void;
@@ -379,6 +413,7 @@ function CorpoSidebar({
   cabecalhoExtra?: React.ReactNode;
   recolhida?: boolean;
   contadores: Contadores;
+  emDia: ResumoEmDia | null;
 }) {
   const pathname = usePathname();
   const secoes = secoesDoPapel(perfil.papel);
@@ -418,7 +453,7 @@ function CorpoSidebar({
         })}
       </nav>
 
-      <CartaoUsuario perfil={perfil} aoNavegar={aoNavegar} recolhida={recolhida} />
+      <CartaoUsuario perfil={perfil} aoNavegar={aoNavegar} recolhida={recolhida} emDia={emDia} />
     </>
   );
 }
@@ -432,7 +467,8 @@ function ehAtalhoAlternar(evento: KeyboardEvent): boolean {
 }
 
 /**
- * Navegação lateral com a identidade do GIRO (#132523, petróleo).
+ * Navegação lateral com a identidade do GIRO: cartão flutuante escuro, em
+ * degradê de petróleo (#1F3D39 → #09130F).
  *
  * No desktop nasce recolhida — um trilho só de ícones — e cresce pelo botão no
  * topo ou por Ctrl+B. A escolha fica num cookie que o layout lê no servidor,
@@ -448,11 +484,14 @@ export function Sidebar({
   perfil,
   recolhidaInicial = true,
   pendenciasTratamento,
+  emDia = null,
 }: {
   perfil: Perfil;
   recolhidaInicial?: boolean;
   /** Tarefas aguardando tratativa (só o admin recebe): vira contador no item Tratamento. */
   pendenciasTratamento?: number;
+  /** Resumo do anel "Em dia"; null (falha ou sem colaboradores) esconde o anel. */
+  emDia?: ResumoEmDia | null;
 }) {
   const pathname = usePathname();
   const contadores: Contadores = { [ITEM_TRATAMENTO.href]: pendenciasTratamento };
@@ -523,6 +562,7 @@ export function Sidebar({
           perfil={perfil}
           recolhida={recolhida}
           contadores={contadores}
+          emDia={emDia}
           cabecalhoExtra={
             <button
               type="button"
@@ -533,7 +573,7 @@ export function Sidebar({
               data-dica={`${rotuloAlternar} · Ctrl+B`}
               onClick={alternar}
             >
-              <IconeExpandir />
+              <IconeRecolher />
             </button>
           }
         />
@@ -559,6 +599,7 @@ export function Sidebar({
             <CorpoSidebar
               perfil={perfil}
               contadores={contadores}
+              emDia={emDia}
               aoNavegar={() => setGavetaAberta(false)}
               cabecalhoExtra={
                 <button

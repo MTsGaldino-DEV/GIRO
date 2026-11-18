@@ -342,12 +342,12 @@ caso("situação: Desligados aceita busca, supervisor e equipe", () => {
 });
 
 // --- ordem -------------------------------------------------------------------
-caso("ordem: pior status primeiro, depois menos dias, depois nome", () => {
+caso("ordem: alfabética pelo nome, ignorando acento (status não interfere)", () => {
   assert.deepEqual(nomes(filtrarPessoas(pessoas, filtros(), null)), [
-    "Carla Mendes", // sem registro
+    "Álvaro Dias", // atenção
     "Ana Souza", // vencido
     "Bruno Lima", // crítico
-    "Álvaro Dias", // atenção
+    "Carla Mendes", // sem registro
     "Daniel Rocha", // ok
   ]);
 });

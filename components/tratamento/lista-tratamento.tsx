@@ -16,6 +16,12 @@ import {
 } from "@/lib/consulta-tratamento";
 
 type Filtro = TipoTarefa | "todos";
+
+/** "Vencido hoje" / "Vencido há 1 dia" / "Vencido há 31 dias". */
+function textoVencidoHa(dias: number): string {
+  if (dias === 0) return "Vencido hoje";
+  return `Vencido há ${dias} ${dias === 1 ? "dia" : "dias"}`;
+}
 type Supervisor = { id: string; nome: string };
 
 export function ListaTratamento({
@@ -87,10 +93,16 @@ export function ListaTratamento({
                     <span className="tabular text-ink-muted text-label ml-2">{t.matricula}</span>
                     <span className="block sm:hidden mt-1">
                       <span className="etiqueta etiqueta--neutra">{ROTULO_TAREFA[t.tipo]}</span>
+                      {t.diasVencido !== undefined && (
+                        <span className="faltam--vencido tabular ml-2">{textoVencidoHa(t.diasVencido)}</span>
+                      )}
                     </span>
                   </td>
                   <td className="hidden sm:table-cell">
                     <span className="etiqueta etiqueta--neutra mr-2">{ROTULO_TAREFA[t.tipo]}</span>
+                    {t.diasVencido !== undefined && (
+                      <span className="faltam--vencido tabular mr-2">{textoVencidoHa(t.diasVencido)}</span>
+                    )}
                     <span className="text-label text-ink-muted">{DESCRICAO_TAREFA[t.tipo]}</span>
                   </td>
                   <td className="text-right">
@@ -114,9 +126,9 @@ function AcaoTarefa({ tarefa, supervisores }: { tarefa: TarefaTratamento; superv
   }
 
   const [rotulo, aba] =
-    tarefa.tipo === "sem_aso"
+    tarefa.tipo === "sem_aso" || tarefa.tipo === "aso_vencido"
       ? (["Anexar ASO", "aso"] as const)
-      : tarefa.tipo === "sem_avp"
+      : tarefa.tipo === "sem_avp" || tarefa.tipo === "avp_vencido"
         ? (["Anexar AVP", "aso"] as const)
         : (["Conferir cadastro", "cadastro"] as const);
 

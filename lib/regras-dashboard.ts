@@ -173,6 +173,22 @@ export function percentual(parte: number, total: number): number | null {
   return total > 0 ? Math.round((parte / total) * 100) : null;
 }
 
+/** Linha de `fn_resumo_status` (bigint chega como texto); sem linha, null. */
+export function lerResumo(bruto: unknown): ContagemStatus | null {
+  const r = (Array.isArray(bruto) ? bruto[0] : null) as Record<string, number | string> | null;
+  if (!r) return null;
+  const n = (k: string) => Number(r[k]);
+  return {
+    total: n("total"),
+    sem_registro: n("sem_registro"),
+    vencido: n("vencido"),
+    critico: n("critico"),
+    atencao: n("atencao"),
+    programar: n("programar"),
+    ok: n("ok"),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Itens abertos
 // ---------------------------------------------------------------------------

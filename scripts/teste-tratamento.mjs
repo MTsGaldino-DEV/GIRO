@@ -38,7 +38,36 @@ caso("sem supervisor", () => {
 
 caso("sem ASO só quando sem_registro", () => {
   assert.deepEqual(tipos(montarTarefas([pessoa("a")], [{ colaborador_id: "a", requisito: ASO, status: "sem_registro" }])), ["sem_aso"]);
-  assert.deepEqual(tipos(montarTarefas([pessoa("a")], [{ colaborador_id: "a", requisito: ASO, status: "vencido" }])), []);
+  assert.deepEqual(tipos(montarTarefas([pessoa("a")], [{ colaborador_id: "a", requisito: ASO, status: "critico" }])), []);
+});
+
+caso("ASO vencido entra com os dias desde o vencimento", () => {
+  const r = montarTarefas([pessoa("a")], [{ colaborador_id: "a", requisito: ASO, status: "vencido", dias_restantes: -31 }]);
+  assert.deepEqual(tipos(r), ["aso_vencido"]);
+  assert.equal(r[0].diasVencido, 31);
+  assert.equal(r[0].chave, "aso_vencido:a");
+});
+
+caso("AVP vencida entra; vencido hoje dá 0 dias", () => {
+  const r = montarTarefas([pessoa("a")], [{ colaborador_id: "a", requisito: AVP, status: "vencido", dias_restantes: 0 }]);
+  assert.deepEqual(tipos(r), ["avp_vencido"]);
+  assert.equal(r[0].diasVencido, 0);
+});
+
+caso("lacuna de cadastro não traz diasVencido", () => {
+  const r = montarTarefas([pessoa("a", { neo_id: null })], [{ colaborador_id: "a", requisito: ASO, status: "sem_registro" }]);
+  assert.ok(r.every((t) => t.diasVencido === undefined));
+});
+
+caso("vencidos: o mais atrasado primeiro", () => {
+  const r = montarTarefas(
+    [pessoa("a", { nome: "ANA" }), pessoa("b", { nome: "BRUNO" })],
+    [
+      { colaborador_id: "a", requisito: ASO, status: "vencido", dias_restantes: -5 },
+      { colaborador_id: "b", requisito: ASO, status: "vencido", dias_restantes: -90 },
+    ]
+  );
+  assert.deepEqual(r.map((t) => t.nome), ["BRUNO", "ANA"]);
 });
 
 caso("sem AVP", () => {
@@ -65,6 +94,7 @@ caso("desligado não entra", () => {
     [
       { colaborador_id: "a", requisito: ASO, status: "sem_registro" },
       { colaborador_id: "a", requisito: AVP, status: "sem_registro" },
+      { colaborador_id: "a", requisito: ASO, status: "vencido", dias_restantes: -10 },
     ]
   );
   assert.deepEqual(r, []);
@@ -80,12 +110,12 @@ caso("ordem: por tipo, depois nome em português", () => {
     []
   );
   assert.deepEqual(r.map((t) => `${t.tipo}:${t.nome}`), ["sem_supervisor:CARLA", "fora_neo:ÁLVARO", "fora_neo:BRUNO"]);
-  assert.deepEqual(TIPOS_TAREFA, ["sem_supervisor", "sem_aso", "sem_avp", "fora_neo"]);
+  assert.deepEqual(TIPOS_TAREFA, ["sem_supervisor", "sem_aso", "sem_avp", "aso_vencido", "avp_vencido", "fora_neo"]);
 });
 
-caso("contarPorTipo traz os quatro tipos, inclusive zero", () => {
+caso("contarPorTipo traz os seis tipos, inclusive zero", () => {
   const r = montarTarefas([pessoa("a", { neo_id: null })], []);
-  assert.deepEqual(contarPorTipo(r), { sem_supervisor: 0, sem_aso: 0, sem_avp: 0, fora_neo: 1 });
+  assert.deepEqual(contarPorTipo(r), { sem_supervisor: 0, sem_aso: 0, sem_avp: 0, aso_vencido: 0, avp_vencido: 0, fora_neo: 1 });
 });
 
 if (falhas) {

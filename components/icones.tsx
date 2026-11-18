@@ -202,13 +202,26 @@ export function IconeMenu({ className }: Props) {
   );
 }
 
-/** Painel lateral com seta: alterna a sidebar entre trilho e coluna aberta. */
-export function IconeExpandir({ className }: Props) {
+/**
+ * Painel lateral com uma setinha dentro: recolhe/expande a sidebar. Só a seta
+ * (`.icone-painel__seta`) gira quando ela está recolhida; o painel fica parado.
+ */
+export function IconeRecolher({ className }: Props) {
   return (
     <svg {...base} className={className}>
       <rect x="3" y="4" width="18" height="16" rx="2.5" />
       <path d="M9 4v16" />
-      <path d="m13.5 10 2 2-2 2" />
+      <path className="icone-painel__seta" d="m16 10-2 2 2 2" />
+    </svg>
+  );
+}
+
+/** Setas para cima e para baixo: o cartão da conta abre um menu. */
+export function IconeSeletor({ className }: Props) {
+  return (
+    <svg {...base} className={className}>
+      <path d="m7 15 5 5 5-5" />
+      <path d="m7 9 5-5 5 5" />
     </svg>
   );
 }
