@@ -633,6 +633,12 @@ Produção já existe em https://giro-neon.vercel.app/ (Vercel). Escopo: toda a 
   Supervisão × QSMS + tabela por responsável); 20 mais próximos de vencer em lista
   rolável; outras métricas (% em dia, tempo médio por etapa, concluídos por mês).
   **Tudo clicável**: ao clicar, abre no fim da página a lista de quem está no número.
+- **"Em dia" = não venceu (Matheus, 18/11/2026)**: conta todo colaborador ativo
+  menos **vencidos e sem registro** (sem data tem o peso de vencido). Crítico,
+  atenção e programar ainda estão no prazo e contam como em dia. Vale para o anel
+  da sidebar e "Pessoas em dia hoje" (`pessoasEmDia` em `lib/regras-dashboard.ts`;
+  lista em `?detalhe=em_dia`). O cartão verde do semáforo (vence em +90 dias)
+  passou a se chamar **"Regular"** para não conflitar.
 - **Radar (aprovado)**: entram vencidos, sem registro e quem vence em até 90 dias;
   vencidos e sem registro no topo como prioridade; sai quando há ASO apto novo.
   QSMS vê a UEN inteira, supervisor **só a equipe dele**. Sem coluna "Parado há".

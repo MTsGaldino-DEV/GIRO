@@ -1,5 +1,5 @@
 import { STATUS_LEITURA } from "@/lib/dominio";
-import { hrefDashboard, percentual, type ContagemStatus, type EscopoDashboard } from "@/lib/regras-dashboard";
+import { hrefDashboard, type ContagemStatus, type EscopoDashboard } from "@/lib/regras-dashboard";
 import type { StatusConformidade } from "@/lib/tipos";
 import { CartaoKpi } from "./cartao-kpi";
 
@@ -10,7 +10,8 @@ export const ROTULO_SEMAFORO: Record<StatusConformidade, string> = {
   critico: "Críticos",
   atencao: "Atenção",
   programar: "Programar",
-  ok: "Em dia",
+  // "Em dia" é tudo que não venceu (crítico a regular); ver `pessoasEmDia`.
+  ok: "Regular",
 };
 
 const ORDEM: StatusConformidade[] = ["vencido", "sem_registro", "critico", "atencao", "programar", "ok"];
@@ -38,7 +39,6 @@ export function CartoesSemaforo({
   escopo: EscopoDashboard;
   ativo: string | null;
 }) {
-  const emDia = contagem ? percentual(contagem.ok, contagem.total) : null;
 
   return (
     <section aria-labelledby="titulo-semaforo">
@@ -53,7 +53,7 @@ export function CartoesSemaforo({
             key={status}
             href={hrefDashboard(escopo, status)}
             valor={contagem ? contagem[status] : null}
-            rotulo={status === "ok" && emDia !== null ? `${ROTULO_SEMAFORO.ok} (${emDia}%)` : ROTULO_SEMAFORO[status]}
+            rotulo={ROTULO_SEMAFORO[status]}
             variante={`kpi--${status}`}
             ativo={ativo === status}
             titulo={STATUS_LEITURA[status]}

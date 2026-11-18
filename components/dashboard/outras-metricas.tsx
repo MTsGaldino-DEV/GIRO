@@ -39,13 +39,13 @@ export function OutrasMetricas({
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <CartaoKpi
-          href={hrefDashboard(escopo, "ok")}
+          href={hrefDashboard(escopo, "em_dia")}
           valor={emDia}
           sufixo="%"
           rotulo="Pessoas em dia hoje"
           nota={semPessoas ? "Ninguém neste escopo" : undefined}
           textoNulo={semPessoas ? "ninguém neste escopo" : undefined}
-          ativo={ativo === "ok"}
+          ativo={ativo === "em_dia"}
         />
         <CartaoKpi
           href={hrefDashboard(escopo, "abertos")}

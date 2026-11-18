@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { buscarLinhasStatus } from "./consulta-dashboard";
-import { lerResumo, percentual, resumirPorPessoa, type ContagemStatus } from "./regras-dashboard";
+import { lerResumo, percentual, pessoasEmDia, resumirPorPessoa, type ContagemStatus } from "./regras-dashboard";
 import type { ResumoEmDia } from "./sidebar";
 import type { Perfil } from "./tipos";
 
 /**
  * Resumo "Em dia" do cartão da sidebar: mesma regra do Dashboard (colaborador
- * ativo cujo pior requisito está Regular).
+ * ativo que não está vencido nem sem registro; ver `pessoasEmDia`).
  *
  * QSMS e admin veem a UEN (`fn_resumo_status`); supervisor com equipe vinculada
  * vê a própria equipe; supervisor sem vínculo vê a UEN. Falha na consulta ou
@@ -28,7 +28,8 @@ export async function carregarEmDia(
   }
 
   if (!contagem || !(contagem.total > 0)) return null;
-  const pct = percentual(contagem.ok, contagem.total);
+  const emDia = pessoasEmDia(contagem);
+  const pct = percentual(emDia, contagem.total);
   if (pct === null) return null;
-  return { emDia: contagem.ok, total: contagem.total, percentual: pct, equipe: !!equipe };
+  return { emDia, total: contagem.total, percentual: pct, equipe: !!equipe };
 }

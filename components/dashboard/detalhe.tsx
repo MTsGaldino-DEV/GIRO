@@ -20,6 +20,7 @@ const SIMPLES: Record<string, string> = {
   parados: "Parados além do prazo",
   concluidos: "Concluídos no mês",
   abertos: "Todos os itens abertos",
+  em_dia: "Pessoas em dia (não vencidas nem sem registro)",
 };
 
 export function tituloDetalhe(chave: ChaveDetalhe, responsaveis: LinhaResponsavel[]): string {

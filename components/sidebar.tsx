@@ -305,8 +305,8 @@ function Grupo({
 }
 
 /**
- * Anel "Em dia": percentual de colaboradores com tudo Regular (mesma regra do
- * Dashboard), em petróleo claro, nunca nas cores do semáforo. É um link para o
+ * Anel "Em dia": percentual de colaboradores que não estão vencidos nem sem
+ * registro (mesma regra do Dashboard, `pessoasEmDia`), em petróleo claro, nunca nas cores do semáforo. É um link para o
  * Dashboard; o nome acessível traz o texto completo e o visual fica oculto.
  */
 function AnelEmDia({ resumo, aoNavegar }: { resumo: ResumoEmDia; aoNavegar?: () => void }) {

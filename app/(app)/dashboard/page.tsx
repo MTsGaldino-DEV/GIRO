@@ -17,6 +17,7 @@ import {
   mediaDiasPorEtapa,
   montarDetalhe,
   percentual,
+  pessoasEmDia,
   podeEscolherEquipe,
   porResponsavel,
   primeiroDiaDoMes,
@@ -197,7 +198,7 @@ export default async function Dashboard({
           </div>
           <div className="order-4 lg:order-none min-w-0">
             <OutrasMetricas
-              emDia={contagem ? percentual(contagem.ok, contagem.total) : null}
+              emDia={contagem ? percentual(pessoasEmDia(contagem), contagem.total) : null}
               semPessoas={contagem?.total === 0}
               mediaDias={semItens ? null : mediaDiasParados(itens.linhas)}
               semItensAbertos={!semItens && itens.linhas.length === 0}

@@ -67,6 +67,8 @@ const SIMPLES = ["radar", "agendados", "parados", "concluidos", "abertos"] as co
 export type ChaveDetalhe =
   | { tipo: "status"; status: StatusConformidade }
   | { tipo: (typeof SIMPLES)[number] }
+  /** Pessoas em dia: todas menos vencido e sem registro (ver `pessoasEmDia`). */
+  | { tipo: "em_dia" }
   | { tipo: "etapa"; etapa: Etapa }
   | { tipo: "dono"; dono: "supervisor" | "qsms" }
   /** Responsável: id do supervisor, "sem-supervisor" ou "qsms". */
@@ -87,6 +89,7 @@ export function lerDetalhe(parametro: ParametroUrl): ChaveDetalhe | null {
   if ((SIMPLES as readonly string[]).includes(valor)) {
     return { tipo: valor as (typeof SIMPLES)[number] };
   }
+  if (valor === "em_dia") return { tipo: "em_dia" };
   if (valor.startsWith("etapa-")) {
     const etapa = valor.slice(6);
     return (ETAPAS_ABERTAS as readonly string[]).includes(etapa) ? { tipo: "etapa", etapa: etapa as Etapa } : null;
@@ -167,6 +170,21 @@ export function resumirPorPessoa(linhas: readonly LinhaPessoa[]): ContagemStatus
     r[p.status]++;
   }
   return r;
+}
+
+/**
+ * Fora do prazo: vencido e sem registro (sem data tem o mesmo peso de vencido).
+ * Crítico, atenção e programar ainda estão no prazo, então contam como em dia.
+ */
+export const STATUS_FORA_DO_PRAZO: readonly StatusConformidade[] = ["vencido", "sem_registro"];
+
+export function estaEmDia(status: StatusConformidade): boolean {
+  return !STATUS_FORA_DO_PRAZO.includes(status);
+}
+
+/** Pessoas em dia (anel da sidebar e "Pessoas em dia hoje"): total menos vencidos e sem registro. */
+export function pessoasEmDia(c: ContagemStatus): number {
+  return c.total - c.vencido - c.sem_registro;
 }
 
 export function percentual(parte: number, total: number): number | null {
@@ -416,10 +434,11 @@ function filtroItens(chave: ChaveDetalhe, idsRadar: ReadonlySet<string> | null):
 }
 
 export function montarDetalhe(chave: ChaveDetalhe, dados: DadosDetalhe): Detalhe {
-  if (chave.tipo === "status") {
+  if (chave.tipo === "status" || chave.tipo === "em_dia") {
+    const entra = chave.tipo === "status" ? (s: StatusConformidade) => s === chave.status : estaEmDia;
     const itemPorRequisito = new Map(dados.itens.map((i) => [`${i.colaborador_id}|${i.tipo_requisito_id}`, i]));
     const linhas = piorPorPessoa(dados.linhasStatus)
-      .filter((p) => p.status === chave.status)
+      .filter((p) => entra(p.status))
       .sort((a, b) => (a.dias_restantes ?? -Infinity) - (b.dias_restantes ?? -Infinity) || a.nome.localeCompare(b.nome, "pt-BR"))
       .map((p): LinhaDetalhe => {
         const item = itemPorRequisito.get(`${p.colaborador_id}|${p.tipo_requisito_id}`);
@@ -482,6 +501,7 @@ export interface FalhasDashboard {
 export function detalheIndisponivel(chave: ChaveDetalhe, falhas: FalhasDashboard): boolean {
   switch (chave.tipo) {
     case "status":
+    case "em_dia":
       return falhas.status;
     case "concluidos":
       return falhas.concluidos;

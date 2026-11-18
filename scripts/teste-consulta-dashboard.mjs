@@ -10,6 +10,7 @@ import {
   piorPorPessoa,
   resumirPorPessoa,
   percentual,
+  pessoasEmDia,
   contarPorEtapa,
   agruparEtapas,
   totalPorDono,
@@ -87,7 +88,7 @@ caso("detalhe: inválidos viram null", () => {
   }
 });
 caso("detalhe: ida e volta pelo texto", () => {
-  for (const v of ["vencido", "radar", "etapa-agendado", "dono-supervisor", "resp-qsms"]) {
+  for (const v of ["vencido", "radar", "em_dia", "etapa-agendado", "dono-supervisor", "resp-qsms"]) {
     assert.equal(detalheParaTexto(lerDetalhe(v)), v);
   }
 });
@@ -131,6 +132,14 @@ caso("resumo por pessoa: seis faixas somam o total", () => {
 });
 caso("resumo por pessoa: lista vazia é tudo zero", () =>
   assert.deepEqual(resumirPorPessoa([]), { total: 0, sem_registro: 0, vencido: 0, critico: 0, atencao: 0, programar: 0, ok: 0 }));
+
+caso("em dia: tudo menos vencido e sem registro (crítico, atenção e programar contam)", () => {
+  assert.equal(pessoasEmDia(resumirPorPessoa(linhas)), 3);
+  assert.equal(
+    pessoasEmDia({ total: 252, sem_registro: 4, vencido: 7, critico: 7, atencao: 15, programar: 6, ok: 213 }),
+    241
+  );
+});
 
 caso("percentual: arredonda e protege divisão por zero", () => {
   assert.equal(percentual(193, 252), 77);
@@ -234,6 +243,12 @@ caso("detalhe status: a lista bate com o resumo por pessoa", () => {
   for (const s of ["vencido", "sem_registro", "critico", "atencao", "programar", "ok"]) {
     assert.equal(montarDetalhe({ tipo: "status", status: s }, dados).linhas.length, resumo[s], s);
   }
+});
+caso("detalhe em dia: a lista bate com pessoasEmDia e não traz vencido nem sem registro", () => {
+  const r = montarDetalhe({ tipo: "em_dia" }, dados);
+  assert.equal(r.tipo, "pessoas");
+  assert.equal(r.linhas.length, pessoasEmDia(resumirPorPessoa(linhas)));
+  assert.ok(r.linhas.every((l) => l.status !== "vencido" && l.status !== "sem_registro"));
 });
 caso("detalhe radar: só os ids do radar", () =>
   assert.deepEqual(montarDetalhe({ tipo: "radar" }, dados).linhas.map((l) => l.chave), ["i1", "i2"]));
