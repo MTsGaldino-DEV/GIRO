@@ -1567,6 +1567,8 @@ select.field:disabled { opacity: 0.55; cursor: not-allowed; }
 .kpi:hover { transform: translateY(-2px); box-shadow: var(--shadow-media); color: inherit; }
 /* Número escolhido: contorno petróleo (navegação), nunca cor de status. */
 .kpi[aria-current="true"] { box-shadow: 0 0 0 2px var(--color-brand), var(--shadow-media); }
+/* Cartão só de leitura (média sem lista): não reage como link. */
+.kpi--leitura:hover { transform: none; box-shadow: none; }
 .kpi__numero {
   font-size: 1.75rem;
   font-weight: 500;
@@ -1977,6 +1979,20 @@ button.filtro-suspenso[aria-pressed="true"] { border-color: var(--color-brand); 
 }
 .tabela-dash td > a { font-weight: 500; text-decoration: none; }
 .rolagem-dash { max-height: 26rem; overflow: auto; }
+
+/* "Mais próximos de vencer": no desktop o cartão ocupa o resto da coluna e a
+   lista rola dentro dele; posicionada em absoluto, a lista não empurra a altura
+   da coluna. No celular, altura fixa. Nomes e requisitos quebram linha para
+   caber sem rolagem lateral; selo e prazo ficam inteiros. */
+.cartao-proximos { display: flex; flex-direction: column; }
+.rolagem-proximos { position: relative; max-height: 22rem; overflow: auto; }
+.tabela-proximos td:nth-child(-n + 3) { white-space: normal; }
+.tabela-proximos .nome-colaborador { text-align: left; }
+@media (min-width: 64rem) {
+  .cartao-proximos { flex: 1; min-height: 24rem; }
+  .cartao-proximos > .rolagem-proximos { flex: 1; max-height: none; }
+  .cartao-proximos > .rolagem-proximos > table { position: absolute; inset: 0 auto auto 0; }
+}
 
 /* Lista do número clicado, no fim da página. */
 .detalhe-dash { border: 2px solid var(--color-brand); scroll-margin-top: 1rem; }

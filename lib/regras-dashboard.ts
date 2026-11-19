@@ -338,6 +338,57 @@ export function primeiroDiaDoMes(hojeIso: string, deslocamento = 0): string {
   return `${Math.floor(indice / 12)}-${String((indice % 12) + 1).padStart(2, "0")}-01`;
 }
 
+/** Data + meses, como `date + interval 'N months'` do Postgres: dia 31 vira o último dia do mês. */
+export function somarMeses(iso: string, meses: number): string {
+  const [ano, mes, dia] = iso.split("-").map(Number);
+  const indice = ano * 12 + (mes - 1) + meses;
+  const a = Math.floor(indice / 12);
+  const m = (indice % 12) + 1;
+  const ultimo = new Date(Date.UTC(a, m, 0)).getUTCDate();
+  return `${a}-${String(m).padStart(2, "0")}-${String(Math.min(dia, ultimo)).padStart(2, "0")}`;
+}
+
+function diasEntre(de: string, ate: string): number {
+  return Math.round((Date.parse(`${ate}T00:00:00Z`) - Date.parse(`${de}T00:00:00Z`)) / 86_400_000);
+}
+
+/** ASO/AVP apto (ou com restrição), com a periodicidade do requisito. */
+export interface EventoAntecedencia {
+  colaborador_id: string;
+  tipo_requisito_id: string;
+  data_documento: string;
+  /** Data inferida na carga inicial: não é regularização de verdade. */
+  estimado: boolean;
+  periodicidade_meses: number;
+}
+
+/**
+ * Com quantos dias de antecedência, em média, o requisito foi regularizado:
+ * vencimento do documento anterior menos a data do novo, para cada documento
+ * com data em [desde, ate). Negativo = regularizou depois de vencer. Sem
+ * documento anterior (primeiro exame) ou com data estimada, fica de fora.
+ * null quando nenhum documento da janela entra na conta.
+ */
+export function antecedenciaMedia(eventos: readonly EventoAntecedencia[], desde: string, ate: string): number | null {
+  const ordenados = [...eventos].sort(
+    (a, b) =>
+      a.colaborador_id.localeCompare(b.colaborador_id) ||
+      a.tipo_requisito_id.localeCompare(b.tipo_requisito_id) ||
+      a.data_documento.localeCompare(b.data_documento)
+  );
+  const dias: number[] = [];
+  for (let i = 1; i < ordenados.length; i++) {
+    const atual = ordenados[i];
+    const anterior = ordenados[i - 1];
+    if (anterior.colaborador_id !== atual.colaborador_id || anterior.tipo_requisito_id !== atual.tipo_requisito_id) continue;
+    if (atual.estimado || atual.data_documento < desde || atual.data_documento >= ate) continue;
+    const vencimento = somarMeses(anterior.data_documento, anterior.periodicidade_meses);
+    dias.push(diasEntre(atual.data_documento, vencimento));
+  }
+  if (dias.length === 0) return null;
+  return Math.round(dias.reduce((s, d) => s + d, 0) / dias.length);
+}
+
 /** Mesma saída de `fn_conclusoes_por_mes(meses)`: um ponto por mês, inclusive os vazios. */
 export function conclusoesPorMes(datas: readonly string[], hojeIso: string, meses: number): { mes: string; quantidade: number }[] {
   const pontos = Array.from({ length: meses }, (_, i) => ({ mes: primeiroDiaDoMes(hojeIso, i - meses + 1), quantidade: 0 }));

@@ -1247,3 +1247,25 @@ escolheu testar duas medidas baratas primeiro:
   respondem 307 para /login, sem rejeição não tratada no log.
 - Pendente: medir com sessão em produção; se não bastar, avaliar
   `prefetch={true}` nas abas ou abas no cliente (Radix Tabs).
+
+## Dashboard: "mais próximos de vencer" e antecedência média — 19/11/2026 (Claude)
+
+- **Mais próximos de vencer** (`components/dashboard/mais-proximos.tsx`): selo
+  mostra só o status (`dias={null}`); os dias foram para a coluna "Vence"
+  ("há 917 dias", "hoje", "em 12 dias"). No desktop o cartão estica até o fim
+  da coluna esquerda (linha do Dashboard agora `lg:items-stretch`; CSS
+  `.cartao-proximos`/`.rolagem-proximos` em `globals.css`, tabela em absoluto
+  para não empurrar a altura). Nome, requisito e supervisor quebram linha para
+  não ter rolagem lateral. No celular continua com altura fixa de 22rem.
+- **Antecedência média na regularização** (terceiro cartão de "Outras
+  métricas"): para cada ASO/AVP apto dos últimos 6 meses (mesma janela da
+  curva), vencimento do documento anterior (`data_documento` + periodicidade,
+  igual ao Postgres) menos a data do novo. Negativo = regularizou depois de
+  vencer (rótulo muda). Primeiro exame e eventos `estimado` ficam de fora.
+  Calculado no app (`antecedenciaMedia` em `lib/regras-dashboard.ts`,
+  `buscarEventosAntecedencia` em `lib/consulta-dashboard.ts`, histórico
+  inteiro de aptos), sem SQL novo. Respeita o recorte "minha equipe".
+  `CartaoKpi` aceita `href` opcional (sem link = `.kpi--leitura`).
+- Verificado: tsc 0, `teste:dashboard` ok (casos novos de `somarMeses` e
+  `antecedenciaMedia`), consulta real: 496 aptos, média 6 meses = 13 dias.
+  Conferência visual logada pendente com Matheus. Sem commit.

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ConcluidoDashboard, ItemDashboard, LinhaStatusDashboard } from "./regras-dashboard";
+import type { ConcluidoDashboard, EventoAntecedencia, ItemDashboard, LinhaStatusDashboard } from "./regras-dashboard";
 
 /**
  * Consultas do Dashboard. As regras (escopo, pior status por pessoa, contagens
@@ -91,5 +91,46 @@ export async function buscarConcluidos(
       supervisor_nome: e.colaboradores?.supervisores?.nome ?? null,
       data_documento: e.data_documento,
     })),
+  };
+}
+
+interface EventoAntecedenciaBruto {
+  colaborador_id: string;
+  tipo_requisito_id: string;
+  data_documento: string;
+  estimado: boolean;
+  tipos_requisito: { periodicidade_meses: number } | null;
+}
+
+/**
+ * Todos os ASO/AVP aptos com documento antes de `ate`, da UEN ou de uma equipe.
+ * Vem o histórico inteiro porque a antecedência de cada documento depende do
+ * anterior, que pode ser de anos atrás.
+ */
+export async function buscarEventosAntecedencia(
+  supabase: SupabaseClient,
+  ate: string,
+  supervisorId: string | null
+): Promise<{ linhas: EventoAntecedencia[]; erro: string | null }> {
+  const r = await buscarTodas<EventoAntecedenciaBruto>((de, fim) => {
+    let q = supabase
+      .from("eventos_requisito")
+      .select("id, colaborador_id, tipo_requisito_id, data_documento, estimado, tipos_requisito(periodicidade_meses), colaboradores!inner(supervisor_id)")
+      .in("resultado", ["apto", "apto_com_restricao"])
+      .lt("data_documento", ate);
+    if (supervisorId) q = q.eq("colaboradores.supervisor_id", supervisorId);
+    return q.order("id").range(de, fim);
+  });
+  return {
+    erro: r.erro,
+    linhas: r.linhas
+      .filter((e) => e.tipos_requisito)
+      .map((e) => ({
+        colaborador_id: e.colaborador_id,
+        tipo_requisito_id: e.tipo_requisito_id,
+        data_documento: e.data_documento,
+        estimado: e.estimado,
+        periodicidade_meses: e.tipos_requisito!.periodicidade_meses,
+      })),
   };
 }

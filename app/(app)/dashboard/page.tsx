@@ -3,9 +3,16 @@ import { exigirOperador } from "@/lib/perfil";
 import { criarClienteServidor } from "@/lib/supabase/server";
 import { aplicarRegrasRadar } from "@/lib/consulta-itens";
 import { contarPendenciasGeset } from "@/lib/consulta-geset";
-import { buscarConcluidos, buscarItensAbertos, buscarLinhasStatus, buscarTodas } from "@/lib/consulta-dashboard";
+import {
+  buscarConcluidos,
+  buscarEventosAntecedencia,
+  buscarItensAbertos,
+  buscarLinhasStatus,
+  buscarTodas,
+} from "@/lib/consulta-dashboard";
 import {
   agruparEtapas,
+  antecedenciaMedia,
   conclusoesPorMes,
   contarPorEtapa,
   detalheIndisponivel,
@@ -81,7 +88,10 @@ export default async function Dashboard({
   const hoje = hojeIso();
   const inicioMes = primeiroDiaDoMes(hoje);
 
-  const [resumoRpc, etapasRpc, curvaRpc, geset, status, itens, radar, concluidos] = await Promise.all([
+  const fimJanela = primeiroDiaDoMes(hoje, 1);
+  const inicioJanela = primeiroDiaDoMes(hoje, 1 - MESES);
+
+  const [resumoRpc, etapasRpc, curvaRpc, geset, status, itens, radar, concluidos, eventosAptos] = await Promise.all([
     uen ? supabase.rpc("fn_resumo_status") : null,
     uen ? supabase.rpc("fn_resumo_por_etapa") : null,
     uen ? supabase.rpc("fn_conclusoes_por_mes", { p_meses: MESES }) : null,
@@ -94,12 +104,17 @@ export default async function Dashboard({
         .range(de, ate)
     ),
     // Na UEN a curva vem só da RPC; aqui basta o mês corrente. No recorte, os seis meses.
-    buscarConcluidos(supabase, uen ? inicioMes : primeiroDiaDoMes(hoje, 1 - MESES), primeiroDiaDoMes(hoje, 1), equipe),
+    buscarConcluidos(supabase, uen ? inicioMes : inicioJanela, fimJanela, equipe),
+    buscarEventosAntecedencia(supabase, fimJanela, equipe),
   ]);
 
   const falhas = { status: !!status.erro, itens: !!itens.erro, radar: !!radar.erro, concluidos: !!concluidos.erro };
   const algumaFalha =
-    !!(resumoRpc?.error || etapasRpc?.error || curvaRpc?.error) || geset === null || Object.values(falhas).some(Boolean);
+    !!(resumoRpc?.error || etapasRpc?.error || curvaRpc?.error || eventosAptos.erro) ||
+    geset === null ||
+    Object.values(falhas).some(Boolean);
+  // Mesma janela da curva de conclusões: os últimos seis meses.
+  const antecedencia = eventosAptos.erro ? null : antecedenciaMedia(eventosAptos.linhas, inicioJanela, fimJanela);
 
   // Regra dos blocos: consulta que falhou vira "—" ou "Não foi possível
   // carregar" (null), nunca 0 ou lista vazia que pareça dado real.
@@ -183,12 +198,12 @@ export default async function Dashboard({
           de cima, sem o buraco que a linha deixava quando um lado era curto (ex.:
           uma etapa só ao lado de oito responsáveis). No celular, `contents` desfaz
           as colunas e `order` mantém a sequência de leitura de antes. */}
-      <div className="flex flex-col gap-5 mb-5 lg:flex-row lg:items-start">
+      <div className="flex flex-col gap-5 mb-5 lg:flex-row lg:items-stretch">
         <div className="contents lg:flex lg:flex-col lg:gap-5 lg:flex-1 lg:min-w-0">
           <div className="order-1 lg:order-none min-w-0">
             <PorEtapa etapas={etapas} medias={semItens ? null : mediaDiasPorEtapa(itens.linhas)} escopo={escopo} ativo={ativo} />
           </div>
-          <div className="order-3 lg:order-none min-w-0">
+          <div className="order-3 lg:order-none min-w-0 lg:flex-1 lg:flex lg:flex-col">
             <MaisProximos linhas={proximos} />
           </div>
         </div>
@@ -201,6 +216,8 @@ export default async function Dashboard({
               emDia={contagem ? percentual(pessoasEmDia(contagem), contagem.total) : null}
               semPessoas={contagem?.total === 0}
               mediaDias={semItens ? null : mediaDiasParados(itens.linhas)}
+              antecedencia={antecedencia}
+              antecedenciaFalhou={!!eventosAptos.erro}
               semItensAbertos={!semItens && itens.linhas.length === 0}
               curva={curva}
               escopo={escopo}

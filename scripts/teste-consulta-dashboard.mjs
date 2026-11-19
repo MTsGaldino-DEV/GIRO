@@ -20,6 +20,8 @@ import {
   mediaDiasPorEtapa,
   primeiroDiaDoMes,
   conclusoesPorMes,
+  somarMeses,
+  antecedenciaMedia,
   montarDetalhe,
   textoDoParametro,
   detalheIndisponivel,
@@ -219,6 +221,32 @@ caso("conclusões por mês: mês vazio aparece, fora da janela não conta", () =
     { mes: "2026-10-01", quantidade: 0 },
     { mes: "2026-11-01", quantidade: 2 },
   ]);
+});
+
+// --- antecedência ----------------------------------------------------------
+caso("somar meses: igual ao Postgres, dia 31 vira fim do mês", () => {
+  assert.equal(somarMeses("2025-11-10", 12), "2026-11-10");
+  assert.equal(somarMeses("2026-01-31", 1), "2026-02-28");
+  assert.equal(somarMeses("2023-02-28", 12), "2024-02-28");
+  assert.equal(somarMeses("2026-11-30", 2), "2027-01-30");
+});
+caso("antecedência média: antes conta positivo, depois negativo; primeiro, estimado e fora da janela ficam de fora", () => {
+  const ev = (colaborador_id, tipo_requisito_id, data_documento, estimado = false) => ({
+    colaborador_id, tipo_requisito_id, data_documento, estimado, periodicidade_meses: 12,
+  });
+  const eventos = [
+    ev("c1", "aso", "2025-10-31", true), // carga inicial: vence 2026-10-31
+    ev("c1", "aso", "2026-10-01"),       // 30 dias antes
+    ev("c2", "aso", "2025-06-10"),       // vence 2026-06-10
+    ev("c2", "aso", "2026-06-20"),       // 10 dias depois
+    ev("c3", "aso", "2026-08-01"),       // primeiro exame: sem anterior
+    ev("c4", "aso", "2026-11-01", true), // estimado na janela: fora
+    ev("c5", "aso", "2025-01-10"),
+    ev("c5", "aso", "2026-01-05"),       // fora da janela
+  ];
+  assert.equal(antecedenciaMedia(eventos, "2026-06-01", "2026-12-01"), 10); // (30 − 10) / 2
+  assert.equal(antecedenciaMedia(eventos, "2026-10-01", "2026-12-01"), 30);
+  assert.equal(antecedenciaMedia(eventos, "2027-01-01", "2027-02-01"), null);
 });
 
 // --- detalhe ---------------------------------------------------------------

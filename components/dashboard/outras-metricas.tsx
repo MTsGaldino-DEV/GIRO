@@ -14,6 +14,8 @@ export function OutrasMetricas({
   semPessoas,
   mediaDias,
   semItensAbertos,
+  antecedencia,
+  antecedenciaFalhou,
   curva,
   escopo,
   ativo,
@@ -26,6 +28,10 @@ export function OutrasMetricas({
   mediaDias: number | null;
   /** Carregou e não há item aberto: o "—" é ausência real, não falha. */
   semItensAbertos: boolean;
+  /** Dias antes do vencimento anterior, em média (negativo = depois); null sem base. */
+  antecedencia: number | null;
+  /** A consulta falhou: o "—" é falha, não ausência de regularização. */
+  antecedenciaFalhou: boolean;
   /** null quando a consulta falhou: nada de barras zeradas no lugar. */
   curva: PontoMes[] | null;
   escopo: EscopoDashboard;
@@ -37,7 +43,7 @@ export function OutrasMetricas({
         Outras métricas
       </h2>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
         <CartaoKpi
           href={hrefDashboard(escopo, "em_dia")}
           valor={emDia}
@@ -55,6 +61,18 @@ export function OutrasMetricas({
           nota={semItensAbertos ? "Sem itens abertos" : undefined}
           textoNulo={semItensAbertos ? "sem itens abertos" : undefined}
           ativo={ativo === "abertos"}
+        />
+        <CartaoKpi
+          valor={antecedencia === null ? null : Math.abs(antecedencia)}
+          sufixo={antecedencia !== null && Math.abs(antecedencia) === 1 ? " dia" : " dias"}
+          rotulo={
+            antecedencia !== null && antecedencia < 0
+              ? "Regularizados depois do vencimento, em média"
+              : "Antecedência média na regularização"
+          }
+          nota={!antecedenciaFalhou && antecedencia === null ? "Sem renovação nos últimos 6 meses" : undefined}
+          textoNulo={antecedenciaFalhou ? undefined : "sem renovação nos últimos seis meses"}
+          titulo="Nos últimos seis meses: vencimento do ASO/AVP anterior menos a data do novo documento. Primeiro exame e datas estimadas da carga inicial ficam de fora."
         />
       </div>
 
